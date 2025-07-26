@@ -1,6 +1,17 @@
 # Git Ops with Argocd
 We will be diving deeper with cloud native deployment using a single source of truth
 
+### Div in to this Week Handson:
+- cluster ready
+- install Argocd and access the ui ( [follow argocd doc for guide](https://argo-cd.readthedocs.io/en/stable/))
+- prepare your project repo  see image below
+- set up ci using gitactions to build and push your image to dockerhub
+- configure helm chart for app deployment
+
+#### Your repo should look like this
+
+![alt text](image.png)
+
 ### Your Workflow 
 - Step 1: Code Changes 
 
@@ -32,6 +43,3 @@ We will be diving deeper with cloud native deployment using a single source of t
 
   - You can test a rollback (optional) using git  revert or argocd ui or even change your image version on your values.yml file 
 
-#### Your repo should look like this
-
-![alt text](image.png)
