@@ -160,6 +160,22 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# GitOps specific files
+.argocd-password
+k8s/base/
+k8s/argocd/
+*.kubeconfig
+
+# Helm generated files
+*.tgz
+charts/
+
+# Kind cluster files
+*.kind
+
+# Temporary scripts
+temp-*.sh
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

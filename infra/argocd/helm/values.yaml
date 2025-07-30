@@ -1,0 +1,28 @@
+replicaCount: 2
+
+image:
+  repository: biwunor/student-tracker
+  tag: latest
+  pullPolicy: IfNotPresent
+
+vault:
+  addr: "http://44.204.193.107:8200"
+  roleId: "f7af58b1-5c22-7c2d-c659-0425d9ce94b2"
+  secretId: "d5f736da-785b-8f5c-9258-48d5d7c43c06"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8011   # Match your FastAPI port (not 8000, assuming 8011 from past info)
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: 3.80.98.218  # Replace with your actual domain
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []  # Optionally configure later for HTTPS
