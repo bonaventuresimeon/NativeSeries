@@ -10,11 +10,17 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
+# Configuration
+TARGET_IP="30.80.98.218"
+TARGET_PORT="8011"
+ARGOCD_PORT="30080"
+
 # Banner
 echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                   GitOps Stack Deployment                   ║"
 echo "║              Student Tracker with ArgoCD                    ║"
+echo "║                  Target: ${TARGET_IP}:${TARGET_PORT}                    ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -64,7 +70,7 @@ fi
 echo -e "${GREEN}✅ All prerequisites satisfied${NC}"
 
 # Step 1: Setup Kind cluster
-echo -e "${GREEN}🚀 Step 1: Setting up Kind cluster...${NC}"
+echo -e "${GREEN}🚀 Step 1: Setting up Kind cluster with port ${TARGET_PORT} mapping...${NC}"
 wait_for_user
 ./scripts/setup-kind.sh
 
@@ -83,171 +89,71 @@ echo -e "${GREEN}🎯 Step 3: Setting up ArgoCD...${NC}"
 wait_for_user
 ./scripts/setup-argocd.sh
 
-# Step 4: Create Kubernetes manifests for direct deployment (optional)
-echo -e "${GREEN}📋 Step 4: Creating Kubernetes base manifests...${NC}"
+# Step 4: Deploy application using Helm
+echo -e "${GREEN}📋 Step 4: Deploying Student Tracker application...${NC}"
 wait_for_user
 
-mkdir -p k8s/base
+echo -e "${BLUE}Deploying with Helm...${NC}"
+helm upgrade --install student-tracker infra/helm \
+  --values infra/helm/values-dev.yaml \
+  --namespace app-dev \
+  --create-namespace \
+  --wait
 
-# Create base deployment
-cat <<EOF > k8s/base/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: student-tracker
-  labels:
-    app: student-tracker
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: student-tracker
-  template:
-    metadata:
-      labels:
-        app: student-tracker
-    spec:
-      containers:
-      - name: student-tracker
-        image: student-tracker:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: DATABASE_URL
-          value: "postgresql://user:pass@db:5432/studentdb"
-        - name: APP_ENV
-          value: "development"
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "250m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 5
-EOF
-
-# Create base service
-cat <<EOF > k8s/base/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: student-tracker-service
-  labels:
-    app: student-tracker
-spec:
-  selector:
-    app: student-tracker
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 8000
-  type: ClusterIP
-EOF
-
-# Create base ingress
-cat <<EOF > k8s/base/ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: student-tracker-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: student-tracker.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: student-tracker-service
-            port:
-              number: 80
-EOF
-
-# Create kustomization.yaml
-cat <<EOF > k8s/base/kustomization.yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-resources:
-- deployment.yaml
-- service.yaml
-- ingress.yaml
-
-namePrefix: base-
-EOF
-
-echo -e "${GREEN}✅ Base Kubernetes manifests created${NC}"
-
-# Step 5: Deploy application directly (for testing)
-echo -e "${GREEN}⚙️  Step 5: Deploying application directly to test...${NC}"
+# Step 5: Verify deployment
+echo -e "${GREEN}⏳ Step 5: Verifying deployment...${NC}"
 wait_for_user
 
-kubectl apply -k k8s/base
+echo -e "${BLUE}Waiting for deployment to be ready...${NC}"
+kubectl wait --for=condition=available --timeout=300s deployment/student-tracker -n app-dev
 
-echo -e "${GREEN}⏳ Waiting for deployment to be ready...${NC}"
-kubectl wait --for=condition=available --timeout=300s deployment/base-student-tracker
+echo -e "${BLUE}Checking pod status...${NC}"
+kubectl get pods -n app-dev
 
-# Step 6: Setup port forwarding for local access
-echo -e "${GREEN}🌐 Step 6: Setting up port forwarding...${NC}"
+echo -e "${BLUE}Checking service status...${NC}"
+kubectl get svc -n app-dev
 
-# ArgoCD port forward in background
-kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80 &
-ARGOCD_PID=$!
-
-# Application port forward in background  
-kubectl port-forward svc/base-student-tracker-service 8000:80 &
-APP_PID=$!
-
-# Function to cleanup on exit
-cleanup() {
-    echo -e "\n${YELLOW}🧹 Cleaning up...${NC}"
-    kill $ARGOCD_PID 2>/dev/null || true
-    kill $APP_PID 2>/dev/null || true
-    echo -e "${GREEN}✅ Cleanup complete${NC}"
-}
-
-trap cleanup EXIT
-
-# Display access information
+# Step 6: Display access information
 echo -e "${GREEN}✅ GitOps stack deployment complete!${NC}"
 echo -e "${BLUE}📋 Access Information:${NC}"
-echo -e "  🎯 ArgoCD UI: http://localhost:8080"
+echo -e ""
+echo -e "${PURPLE}🎯 ArgoCD UI:${NC}"
+echo -e "  🌐 External URL: http://${TARGET_IP}:${ARGOCD_PORT}"
+echo -e "  🌐 Local URL: http://localhost:${ARGOCD_PORT}"
 echo -e "     👤 Username: admin"
 echo -e "     🔑 Password: $(cat .argocd-password 2>/dev/null || echo 'Check .argocd-password file')"
 echo -e ""
-echo -e "  🚀 Student Tracker API: http://localhost:8000"
-echo -e "  📖 API Docs: http://localhost:8000/docs"
+echo -e "${PURPLE}🚀 Student Tracker Application:${NC}"
+echo -e "  🌐 External URL: http://${TARGET_IP}:${TARGET_PORT}"
+echo -e "  🌐 Local URL: http://localhost:${TARGET_PORT}"
+echo -e "  📖 API Documentation: http://${TARGET_IP}:${TARGET_PORT}/docs"
+echo -e "  🩺 Health Check: http://${TARGET_IP}:${TARGET_PORT}/health"
 echo -e ""
-echo -e "  🌐 Ingress (add to /etc/hosts): student-tracker.local -> 127.0.0.1"
-echo -e ""
-echo -e "${BLUE}🔄 ArgoCD Applications:${NC}"
-echo -e "  • Access ArgoCD UI to see and manage applications"
-echo -e "  • The app-of-apps pattern will deploy child applications"
-echo -e "  • Update the repository URL in k8s/argocd/app-of-apps.yaml"
+echo -e "${BLUE}🔄 Kubernetes Resources:${NC}"
+echo -e "  📊 Pods: kubectl get pods -n app-dev"
+echo -e "  🌐 Services: kubectl get svc -n app-dev"
+echo -e "  🚪 Ingress: kubectl get ingress -n app-dev"
 echo -e ""
 echo -e "${YELLOW}📝 Next Steps:${NC}"
-echo -e "  1. Update repository URLs in ArgoCD applications"
-echo -e "  2. Push your code changes to trigger GitOps sync"
-echo -e "  3. Monitor deployments in ArgoCD UI"
-echo -e "  4. Configure webhooks for automatic sync"
+echo -e "  1. Configure your load balancer to route ${TARGET_IP}:${TARGET_PORT} to the cluster"
+echo -e "  2. Update repository URLs in ArgoCD applications (k8s/argocd/app-of-apps.yaml)"
+echo -e "  3. Push code changes to trigger GitOps deployments"
+echo -e "  4. Monitor applications in ArgoCD UI"
+echo -e "  5. Set up monitoring and logging (optional)"
 echo -e ""
-echo -e "${GREEN}🏃 Services are running. Press Ctrl+C to stop port forwarding and exit.${NC}"
-
-# Keep the script running to maintain port forwards
-wait
+echo -e "${BLUE}🛠️  Development Commands:${NC}"
+echo -e "  # View application logs"
+echo -e "  kubectl logs -f deployment/student-tracker -n app-dev"
+echo -e ""
+echo -e "  # Scale application"
+echo -e "  kubectl scale deployment student-tracker --replicas=3 -n app-dev"
+echo -e ""
+echo -e "  # Port forward for direct access"
+echo -e "  kubectl port-forward svc/student-tracker -n app-dev 8000:80"
+echo -e ""
+echo -e "  # Update application using Helm"
+echo -e "  helm upgrade student-tracker infra/helm --values infra/helm/values-dev.yaml -n app-dev"
+echo -e ""
+echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
+echo -e "${YELLOW}💡 Access your application at: http://${TARGET_IP}:${TARGET_PORT}${NC}"
+echo -e "${YELLOW}💡 Access ArgoCD at: http://${TARGET_IP}:${ARGOCD_PORT}${NC}"

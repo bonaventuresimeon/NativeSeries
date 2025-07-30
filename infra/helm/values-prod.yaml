@@ -24,23 +24,31 @@ env:
   - name: DEBUG
     value: "false"
 
+# Service configuration for production
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 30011  # Maps to 8011 on the host IP
+
 # Ingress for production
 ingress:
   enabled: true
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Commented out for IP-based access
   hosts:
-    - host: student-tracker.yourdomain.com
+    - host: 30.80.98.218
       paths:
         - path: /
           pathType: Prefix
-  tls:
-    - secretName: student-tracker-tls
-      hosts:
-        - student-tracker.yourdomain.com
+  # TLS disabled for IP-based access
+  # tls:
+  #   - secretName: student-tracker-tls
+  #     hosts:
+  #       - 30.80.98.218
 
 # Enable autoscaling in production
 autoscaling:
