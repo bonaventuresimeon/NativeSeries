@@ -806,3 +806,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **🚀 Ready to deploy? Run: `./scripts/install-all.sh`**
 
 For detailed deployment guide, see [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
+# Student-Tracker
