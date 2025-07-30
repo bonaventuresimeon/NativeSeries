@@ -11,8 +11,10 @@ NC='\033[0m' # No Color
 
 ARGOCD_NAMESPACE="argocd"
 ARGOCD_VERSION="v2.9.3"
+TARGET_IP="30.80.98.218"
+TARGET_PORT="8011"
 
-echo -e "${GREEN}🚀 Setting up ArgoCD for GitOps...${NC}"
+echo -e "${GREEN}🚀 Setting up ArgoCD for GitOps on ${TARGET_IP}:${TARGET_PORT}...${NC}"
 
 # Check if kubectl is available and cluster is accessible
 if ! kubectl cluster-info &>/dev/null; then
@@ -35,12 +37,12 @@ kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n $ARGOCD_NAMESPACE
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n $ARGOCD_NAMESPACE
 
-# Patch ArgoCD server to disable TLS (for local development)
-echo -e "${GREEN}🔧 Configuring ArgoCD server...${NC}"
+# Patch ArgoCD server to disable TLS (for IP-based access)
+echo -e "${GREEN}🔧 Configuring ArgoCD server for IP access...${NC}"
 kubectl patch deployment argocd-server -n $ARGOCD_NAMESPACE -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
 
-# Create NodePort service for ArgoCD (for Kind cluster access)
-echo -e "${GREEN}🌐 Creating NodePort service for ArgoCD...${NC}"
+# Create NodePort service for ArgoCD (for external access)
+echo -e "${GREEN}🌐 Creating NodePort service for ArgoCD on ${TARGET_IP}:${TARGET_PORT}...${NC}"
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Service
@@ -58,7 +60,7 @@ spec:
     port: 80
     protocol: TCP
     targetPort: 8080
-    nodePort: 30080
+    nodePort: 30080  # ArgoCD will be available on 30.80.98.218:30080
   selector:
     app.kubernetes.io/name: argocd-server
 EOF
@@ -123,18 +125,29 @@ fi
 
 echo -e "${GREEN}✅ ArgoCD setup complete!${NC}"
 echo -e "${BLUE}📋 ArgoCD Information:${NC}"
-echo -e "  🌐 UI URL: http://localhost:30080 (for Kind cluster)"
-echo -e "  👤 Username: admin"
-echo -e "  🔑 Password: ${ARGOCD_PASSWORD}"
+echo -e "  🌐 External UI URL: http://${TARGET_IP}:30080"
+echo -e "  🌐 Local UI URL: http://localhost:30080 (with port-forward)"
+echo -e "     👤 Username: admin"
+echo -e "     🔑 Password: ${ARGOCD_PASSWORD}"
 echo -e ""
-echo -e "${BLUE}🚀 Next Steps:${NC}"
-echo -e "  1. Access ArgoCD UI at http://localhost:30080"
-echo -e "  2. Login with admin/${ARGOCD_PASSWORD}"
-echo -e "  3. Update the repository URL in k8s/argocd/app-of-apps.yaml"
-echo -e "  4. Sync the applications in ArgoCD"
+echo -e "${BLUE}🚀 Application Access:${NC}"
+echo -e "  📱 Student Tracker: http://${TARGET_IP}:${TARGET_PORT}"
+echo -e "  📖 API Docs: http://${TARGET_IP}:${TARGET_PORT}/docs"
+echo -e "  🩺 Health Check: http://${TARGET_IP}:${TARGET_PORT}/health"
 echo -e ""
-echo -e "${YELLOW}💡 To access ArgoCD from outside the cluster:${NC}"
-echo -e "  kubectl port-forward svc/argocd-server -n argocd 8080:443"
+echo -e "${BLUE}🔄 ArgoCD Applications:${NC}"
+echo -e "  • Access ArgoCD UI to see and manage applications"
+echo -e "  • The app-of-apps pattern will deploy child applications"
+echo -e "  • Update the repository URL in k8s/argocd/app-of-apps.yaml"
+echo -e ""
+echo -e "${YELLOW}📝 Next Steps:${NC}"
+echo -e "  1. Update repository URLs in ArgoCD applications"
+echo -e "  2. Deploy student tracker app using Helm"
+echo -e "  3. Configure DNS/load balancer to point ${TARGET_IP} to your cluster"
+echo -e "  4. Monitor deployments in ArgoCD UI"
+echo -e ""
+echo -e "${YELLOW}💡 Port Forwarding (if needed):${NC}"
+echo -e "  kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80"
 
 # Save password to file for later use
 echo "$ARGOCD_PASSWORD" > .argocd-password

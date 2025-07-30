@@ -35,9 +35,10 @@ healthCheck:
 
 # Service configuration
 service:
-  type: ClusterIP
+  type: NodePort
   port: 80
   targetPort: 8000
+  nodePort: 30011  # Maps to 8011 on the host
 
 # Ingress configuration
 ingress:
@@ -47,7 +48,7 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
   hosts:
-    - host: student-tracker.local
+    - host: 30.80.98.218
       paths:
         - path: /
           pathType: Prefix
