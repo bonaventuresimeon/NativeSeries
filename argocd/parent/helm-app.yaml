@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helm-app
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/Student-Tracker.git
+    targetRevision: HEAD
+    path: argocd/helm             # points to your helm/ directory
+    helm:
+      valueFiles:
+        - values.yaml            # if present in helm/ directory
+      parameters:
+        - name: replicaCount
+          value: "2"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default           # target namespace for deployment
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
