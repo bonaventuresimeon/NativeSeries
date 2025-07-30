@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: student-tracker-apps
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/you/gitops-config.git'
+    targetRevision: main
+    path: agrocd
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: student-tracker
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

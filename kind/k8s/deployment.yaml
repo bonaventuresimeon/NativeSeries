@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "student-tracker.fullname" . }}
+  name: student-tracker
+  namespace: student-tracker
   labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
+    app: student-tracker
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 2
   selector:
     matchLabels:
-      app: {{ include "student-tracker.name" . }}
+      app: student-tracker
   template:
     metadata:
       labels:
-        app: {{ include "student-tracker.name" . }}
+        app: student-tracker
     spec:
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: student-tracker
+          image: biwunor/student-tracker:latest
           ports:
-            - containerPort: {{ .Values.service.targetPort }}
+            - containerPort: 8011  # ✅ FIXED to match your actual app port
           env:
             - name: VAULT_ADDR
               valueFrom:
