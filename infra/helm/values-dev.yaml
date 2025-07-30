@@ -1,0 +1,49 @@
+# Development environment values
+replicaCount: 1
+
+image:
+  repository: student-tracker
+  tag: dev-latest
+  pullPolicy: Always
+
+# Resource limits for development
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Development environment variables
+env:
+  - name: DATABASE_URL
+    value: "postgresql://dev_user:dev_pass@postgres-dev:5432/studentdb_dev"
+  - name: APP_ENV
+    value: "development"
+  - name: DEBUG
+    value: "true"
+
+# Ingress for development
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: student-tracker-dev.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Disable autoscaling in development
+autoscaling:
+  enabled: false
+
+# ConfigMap for development
+configMap:
+  enabled: true
+  data:
+    app_name: "Student Tracker API (Development)"
+    log_level: "DEBUG"
