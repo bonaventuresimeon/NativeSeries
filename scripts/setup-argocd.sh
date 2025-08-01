@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 
 ARGOCD_NAMESPACE="argocd"
 ARGOCD_VERSION="v2.9.3"
-TARGET_IP="30.80.98.218"
+TARGET_IP="18.208.149.195"
 TARGET_PORT="8011"
 
 echo -e "${GREEN}🚀 Setting up ArgoCD for GitOps on ${TARGET_IP}:${TARGET_PORT}...${NC}"
@@ -60,7 +60,7 @@ spec:
     port: 80
     protocol: TCP
     targetPort: 8080
-    nodePort: 30080  # ArgoCD will be available on 30.80.98.218:30080
+    nodePort: 30080  # ArgoCD will be available on 18.208.149.195:30080
   selector:
     app.kubernetes.io/name: argocd-server
 EOF

@@ -39,7 +39,7 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
   hosts:
-    - host: 30.80.98.218
+    - host: 18.208.149.195
       paths:
         - path: /
           pathType: Prefix
