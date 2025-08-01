@@ -16,7 +16,7 @@ PYTHON_VERSION="3.11"
 DOCKER_VERSION="20.10"
 KUBECTL_VERSION="1.28"
 HELM_VERSION="3.13"
-KIND_VERSION="0.20.0"
+KIND_VERSION="0.22.0"
 ARGOCD_VERSION="v2.9.3"
 TARGET_IP="18.208.149.195"
 TARGET_PORT="8011"
@@ -38,6 +38,7 @@ echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║          🚀 Student Tracker - Complete Installation          ║"
 echo "║              From Python to Production GitOps               ║"
+echo "║                  Target: ${TARGET_IP}:${TARGET_PORT}                    ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -67,16 +68,24 @@ wait_for_user() {
 
 # Function to create directories
 create_directories() {
-    echo -e "${GREEN}📁 Creating project directories...${NC}"
+    print_section "📁 Creating Project Directories"
+    
+    echo -e "${BLUE}Creating project directories...${NC}"
     mkdir -p logs
     mkdir -p data
     mkdir -p backup
     mkdir -p ~/.kube
+    mkdir -p infra/kind
+    mkdir -p infra/helm/templates
+    mkdir -p infra/argocd/parent
+    mkdir -p k8s/argocd
+    
+    echo -e "${GREEN}✅ Directories created successfully${NC}"
 }
 
 # Function to install Python
 install_python() {
-    print_section "📍 Installing Python ${PYTHON_VERSION}"
+    print_section "🐍 Installing Python ${PYTHON_VERSION}"
     
     if command_exists python${PYTHON_VERSION}; then
         echo -e "${GREEN}✅ Python ${PYTHON_VERSION} already installed${NC}"
@@ -198,8 +207,14 @@ install_docker() {
             rm get-docker.sh
             
             # Start Docker service
-            sudo systemctl start docker
-            sudo systemctl enable docker
+            if command_exists systemctl; then
+                sudo systemctl start docker
+                sudo systemctl enable docker
+            else
+                echo -e "${YELLOW}⚠️  Starting Docker daemon...${NC}"
+                dockerd > /tmp/docker.log 2>&1 &
+                sleep 5
+            fi
             ;;
         "darwin")
             echo -e "${BLUE}Installing Docker on macOS...${NC}"
@@ -357,6 +372,60 @@ install_argocd_cli() {
     argocd version --client
 }
 
+# Function to install ArgoCD
+install_argocd() {
+    print_section "🎯 Installing ArgoCD"
+    
+    echo -e "${BLUE}Installing ArgoCD in cluster...${NC}"
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
+    
+    # Wait for ArgoCD to be ready
+    echo -e "${BLUE}⏳ Waiting for ArgoCD to be ready...${NC}"
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n argocd
+    
+    # Configure ArgoCD for insecure access
+    echo -e "${BLUE}🔧 Configuring ArgoCD...${NC}"
+    kubectl patch deployment argocd-server -n argocd -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
+    
+    # Create NodePort service
+    echo -e "${BLUE}🌐 Creating ArgoCD NodePort service...${NC}"
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-nodeport
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: NodePort
+  ports:
+  - name: server
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+    nodePort: 30080
+  selector:
+    app.kubernetes.io/name: argocd-server
+EOF
+    
+    # Wait for server to restart
+    sleep 10
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+    
+    # Get admin password
+    echo -e "${BLUE}🔑 Getting ArgoCD admin password...${NC}"
+    ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d)
+    echo "$ARGOCD_PASSWORD" > .argocd-password
+    
+    echo -e "${GREEN}✅ ArgoCD installed successfully${NC}"
+    echo -e "${GREEN}🔑 Admin password saved to .argocd-password${NC}"
+}
+
 # Function to install additional tools
 install_additional_tools() {
     print_section "🛠️ Installing Additional Tools"
@@ -417,12 +486,8 @@ create_kind_cluster() {
     
     echo -e "${BLUE}Creating Kind cluster with configuration...${NC}"
     
-    # Ensure Kind config directory exists
-    mkdir -p infra/kind
-    
-    # Create Kind cluster config if it doesn't exist
-    if [ ! -f "infra/kind/cluster-config.yaml" ]; then
-        cat <<EOF > infra/kind/cluster-config.yaml
+    # Create Kind cluster config
+    cat <<EOF > infra/kind/cluster-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: gitops-cluster
@@ -451,7 +516,6 @@ nodes:
 - role: worker
 - role: worker
 EOF
-    fi
     
     # Create cluster
     kind create cluster --config infra/kind/cluster-config.yaml
@@ -492,34 +556,32 @@ build_application() {
         echo -e "${YELLOW}⚠️  Creating basic Dockerfile...${NC}"
         mkdir -p docker
         cat <<EOF > docker/Dockerfile
-FROM python:3.11-slim
+# syntax=docker/dockerfile:1
 
+# Stage 1: Build dependencies
+FROM python:3.11-slim AS build
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \\
-    curl \\
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
+RUN set -eux; apt-get update; apt-get install -y \\
+    gcc libpq-dev libssl-dev libffi-dev curl; apt-get clean; rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && pip install --no-cache-dir -r requirements.txt
+COPY app/ ./app
+COPY templates/ ./templates
 
-# Copy application code
-COPY app/ .
-
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-RUN chown -R appuser:appuser /app
+# Stage 2: Runtime
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5; apt-get clean; rm -rf /var/lib/apt/lists/*
+RUN groupadd --system appgroup \\
+ && useradd --system --gid appgroup --no-create-home appuser
+COPY --from=build /usr/local/lib/python3.*/site-packages/ /usr/local/lib/python3.*/site-packages/
+COPY --from=build /app /app
+RUN chown -R appuser:appgroup /app
 USER appuser
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \\
-    CMD curl -f http://localhost:8000/health || exit 1
-
 EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:8000/health || exit 1
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 EOF
     fi
     
@@ -533,160 +595,359 @@ EOF
     echo -e "${GREEN}✅ Application built and loaded${NC}"
 }
 
-# Function to install ArgoCD
-install_argocd() {
-    print_section "🎯 Installing ArgoCD"
+# Function to create Helm chart
+create_helm_chart() {
+    print_section "📦 Creating Helm Chart"
     
-    echo -e "${BLUE}Installing ArgoCD in cluster...${NC}"
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
-    
-    # Wait for ArgoCD to be ready
-    echo -e "${BLUE}⏳ Waiting for ArgoCD to be ready...${NC}"
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n argocd
-    
-    # Configure ArgoCD for insecure access
-    echo -e "${BLUE}🔧 Configuring ArgoCD...${NC}"
-    kubectl patch deployment argocd-server -n argocd -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
-    
-    # Create NodePort service
-    echo -e "${BLUE}🌐 Creating ArgoCD NodePort service...${NC}"
-    cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: argocd-server-nodeport
-  namespace: argocd
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
-spec:
-  type: NodePort
-  ports:
-  - name: server
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-    nodePort: 30080
-  selector:
-    app.kubernetes.io/name: argocd-server
-EOF
-    
-    # Wait for server to restart
-    sleep 10
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-    
-    # Get admin password
-    echo -e "${BLUE}🔑 Getting ArgoCD admin password...${NC}"
-    ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d)
-    echo "$ARGOCD_PASSWORD" > .argocd-password
-    
-    echo -e "${GREEN}✅ ArgoCD installed successfully${NC}"
-    echo -e "${GREEN}🔑 Admin password saved to .argocd-password${NC}"
-}
-
-# Function to deploy application
-deploy_application() {
-    print_section "🚀 Deploying Application"
-    
-    # Ensure Helm chart exists
-    if [ ! -f "infra/helm/Chart.yaml" ]; then
-        echo -e "${YELLOW}⚠️  Creating basic Helm chart...${NC}"
-        mkdir -p infra/helm/templates
-        
-        # Create Chart.yaml
-        cat <<EOF > infra/helm/Chart.yaml
+    # Create Chart.yaml
+    cat <<EOF > infra/helm/Chart.yaml
 apiVersion: v2
 name: student-tracker
-description: A FastAPI student tracker application
+description: A FastAPI student tracker application for Kubernetes deployment
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "1.0.0"
+home: https://github.com/your-org/student-tracker
+sources:
+  - https://github.com/your-org/student-tracker
+maintainers:
+  - name: Development Team
+    email: dev@yourcompany.com
+keywords:
+  - fastapi
+  - student-tracker
+  - python
+  - kubernetes
 EOF
-        
-        # Create basic values.yaml
-        cat <<EOF > infra/helm/values.yaml
-replicaCount: 2
+    
+    # Create values.yaml
+    cat <<EOF > infra/helm/values.yaml
+# Default values for student-tracker
+# This is a YAML-formatted file.
 
+# Application configuration
+app:
+  name: student-tracker
+  port: 8000
+
+# Image configuration
 image:
   repository: student-tracker
   tag: latest
   pullPolicy: IfNotPresent
 
+# Deployment configuration
+replicaCount: 2
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Health checks
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Service configuration
 service:
   type: NodePort
   port: 80
   targetPort: 8000
-  nodePort: 30011
+  nodePort: 30011  # Maps to 8011 on the host
 
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: 18.208.149.195
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Environment variables
 env:
+  - name: DATABASE_URL
+    value: "postgresql://user:pass@db:5432/studentdb"
   - name: APP_ENV
     value: "development"
+
+# ConfigMap data
+configMap:
+  enabled: true
+  data:
+    app_name: "Student Tracker API"
+    log_level: "INFO"
+
+# Secret data (for sensitive information)
+secret:
+  enabled: false
+  data: {}
+
+# Pod Security Context
+podSecurityContext:
+  fsGroup: 2000
+
+# Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ServiceMonitor for Prometheus (if using Prometheus Operator)
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
 EOF
-        
-        # Create deployment template
-        cat <<EOF > infra/helm/templates/deployment.yaml
+    
+    # Create deployment template
+    cat <<EOF > infra/helm/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: student-tracker
+  name: {{ include "student-tracker.fullname" . }}
   labels:
-    app: student-tracker
+    {{- include "student-tracker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: student-tracker
+      {{- include "student-tracker.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: student-tracker
-    spec:
-      containers:
-      - name: student-tracker
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        ports:
-        - containerPort: 8000
-        env:
-        {{- range .Values.env }}
-        - name: {{ .name }}
-          value: {{ .value | quote }}
+        {{- include "student-tracker.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.secret.enabled }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 5
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.app.port }}
+              protocol: TCP
+          {{- if and .Values.healthCheck.enabled .Values.healthCheck.path }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds | default 30 }}
+            periodSeconds: {{ .Values.healthCheck.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.healthCheck.failureThreshold | default 3 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path }}
+              port: http
+            initialDelaySeconds: {{ div (.Values.healthCheck.initialDelaySeconds | default 30) 2 }}
+            periodSeconds: {{ .Values.healthCheck.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 5 }}
+            failureThreshold: {{ .Values.healthCheck.failureThreshold | default 3 }}
+          {{- end }}
+          env:
+            {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- if .Values.configMap.enabled }}
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "student-tracker.fullname" . }}
+                  key: app_name
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "student-tracker.fullname" . }}
+                  key: log_level
+            {{- end }}
+            {{- if .Values.secret.enabled }}
+            {{- range \$key, \$value := .Values.secret.data }}
+            - name: {{ \$key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "student-tracker.fullname" \$ }}
+                  key: {{ \$key }}
+            {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: var-run
+              mountPath: /var/run
+          {{- end }}
+      {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 EOF
-        
-        # Create service template
-        cat <<EOF > infra/helm/templates/service.yaml
+    
+    # Create service template
+    cat <<EOF > infra/helm/templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: student-tracker
+  name: {{ include "student-tracker.fullname" . }}
   labels:
-    app: student-tracker
+    {{- include "student-tracker.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
-  - port: {{ .Values.service.port }}
-    targetPort: {{ .Values.service.targetPort }}
-    nodePort: {{ .Values.service.nodePort }}
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
+      nodePort: {{ .Values.service.nodePort }}
+      protocol: TCP
+      name: http
   selector:
-    app: student-tracker
+    {{- include "student-tracker.selectorLabels" . | nindent 4 }}
 EOF
-    fi
+    
+    # Create configmap template
+    cat <<EOF > infra/helm/templates/configmap.yaml
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "student-tracker.fullname" . }}
+  labels:
+    {{- include "student-tracker.labels" . | nindent 4 }}
+data:
+  {{- toYaml .Values.configMap.data | nindent 2 }}
+{{- end }}
+EOF
+    
+    # Create helpers template
+    cat <<EOF > infra/helm/templates/_helpers.tpl
+{{/*
+Expand the name of the chart.
+*/}}
+{{- define "student-tracker.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
+*/}}
+{{- define "student-tracker.fullname" -}}
+{{- if .Values.fullnameOverride }}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- \$name := default .Chart.Name .Values.nameOverride }}
+{{- if contains \$name .Release.Name }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- printf "%s-%s" .Release.Name \$name | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create chart name and version as used by the chart label.
+*/}}
+{{- define "student-tracker.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Common labels
+*/}}
+{{- define "student-tracker.labels" -}}
+helm.sh/chart: {{ include "student-tracker.chart" . }}
+{{ include "student-tracker.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "student-tracker.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "student-tracker.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+EOF
+    
+    echo -e "${GREEN}✅ Helm chart created successfully${NC}"
+}
+
+# Function to deploy application
+deploy_application() {
+    print_section "🚀 Deploying Application"
     
     # Deploy using Helm
     echo -e "${BLUE}Deploying with Helm...${NC}"
@@ -703,9 +964,6 @@ EOF
 # Function to setup GitOps
 setup_gitops() {
     print_section "🔄 Setting up GitOps with ArgoCD"
-    
-    # Create ArgoCD application directories
-    mkdir -p infra/argocd/parent
     
     # Create app-of-apps application
     cat <<EOF > infra/argocd/parent/app-of-apps.yaml
@@ -837,6 +1095,7 @@ main() {
     echo -e "  • Kind ${KIND_VERSION}"
     echo -e "  • ArgoCD ${ARGOCD_VERSION}"
     echo -e "  • Complete GitOps stack"
+    echo -e "  • Application deployment to ${TARGET_IP}:${TARGET_PORT}"
     echo -e ""
     echo -e "${YELLOW}⚠️  This may take 10-20 minutes depending on your internet connection.${NC}"
     echo -e "${YELLOW}Do you want to continue? (y/N):${NC}"
@@ -862,6 +1121,7 @@ main() {
     install_additional_tools
     create_kind_cluster
     build_application
+    create_helm_chart
     install_argocd
     deploy_application
     setup_gitops
