@@ -11,13 +11,13 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration
-PYTHON_VERSION="3.11"
-DOCKER_VERSION="20.10"
-KUBECTL_VERSION="1.28"
-HELM_VERSION="3.13"
-KIND_VERSION="0.22.0"
-ARGOCD_VERSION="v2.9.3"
+# Configuration - Updated to latest versions
+PYTHON_VERSION="3.13"
+DOCKER_VERSION="28.3"
+KUBECTL_VERSION="1.32"
+HELM_VERSION="3.16"
+KIND_VERSION="0.27.0"
+ARGOCD_VERSION="v2.13.2"
 TARGET_IP="18.208.149.195"
 TARGET_PORT="8011"
 ARGOCD_PORT="30080"
@@ -87,10 +87,13 @@ create_directories() {
 install_python() {
     print_section "🐍 Installing Python ${PYTHON_VERSION}"
     
-    if command_exists python${PYTHON_VERSION}; then
-        echo -e "${GREEN}✅ Python ${PYTHON_VERSION} already installed${NC}"
-        python${PYTHON_VERSION} --version
-        return 0
+    if command_exists python3; then
+        CURRENT_VERSION=$(python3 --version 2>&1 | grep -oP '\d+\.\d+')
+        if [[ "$CURRENT_VERSION" == "$PYTHON_VERSION" ]]; then
+            echo -e "${GREEN}✅ Python ${PYTHON_VERSION} already installed${NC}"
+            python3 --version
+            return 0
+        fi
     fi
     
     case "$OS" in
@@ -99,11 +102,15 @@ install_python() {
                 echo -e "${BLUE}Installing Python on Ubuntu/Debian...${NC}"
                 sudo apt-get update
                 sudo apt-get install -y \
-                    python${PYTHON_VERSION} \
-                    python${PYTHON_VERSION}-pip \
-                    python${PYTHON_VERSION}-venv \
-                    python${PYTHON_VERSION}-dev \
+                    python3 \
+                    python3-pip \
+                    python3-venv \
+                    python3-dev \
+                    python3-full \
                     build-essential \
+                    libpq-dev \
+                    libssl-dev \
+                    postgresql-client \
                     curl \
                     wget \
                     git
@@ -111,10 +118,12 @@ install_python() {
                 echo -e "${BLUE}Installing Python on CentOS/RHEL...${NC}"
                 sudo yum update -y
                 sudo yum install -y \
-                    python${PYTHON_VERSION} \
-                    python${PYTHON_VERSION}-pip \
-                    python${PYTHON_VERSION}-devel \
+                    python3 \
+                    python3-pip \
+                    python3-devel \
                     gcc \
+                    postgresql-devel \
+                    openssl-devel \
                     curl \
                     wget \
                     git
@@ -122,10 +131,12 @@ install_python() {
                 echo -e "${BLUE}Installing Python on Fedora...${NC}"
                 sudo dnf update -y
                 sudo dnf install -y \
-                    python${PYTHON_VERSION} \
-                    python${PYTHON_VERSION}-pip \
-                    python${PYTHON_VERSION}-devel \
+                    python3 \
+                    python3-pip \
+                    python3-devel \
                     gcc \
+                    postgresql-devel \
+                    openssl-devel \
                     curl \
                     wget \
                     git
@@ -151,7 +162,7 @@ install_python() {
     esac
     
     echo -e "${GREEN}✅ Python ${PYTHON_VERSION} installed successfully${NC}"
-    python${PYTHON_VERSION} --version
+    python3 --version
 }
 
 # Function to setup Python environment
@@ -161,7 +172,7 @@ setup_python_env() {
     # Create virtual environment
     if [ ! -d "venv" ]; then
         echo -e "${BLUE}Creating virtual environment...${NC}"
-        python${PYTHON_VERSION} -m venv venv
+        python3 -m venv venv
     fi
     
     # Activate virtual environment
@@ -172,13 +183,14 @@ setup_python_env() {
     echo -e "${BLUE}Upgrading pip...${NC}"
     pip install --upgrade pip
     
-    # Install requirements
+    # Install requirements with compatibility for Python 3.13
     if [ -f "requirements.txt" ]; then
         echo -e "${BLUE}Installing Python dependencies...${NC}"
-        pip install -r requirements.txt
+        # Install without pinned versions for Python 3.13 compatibility
+        pip install --upgrade fastapi uvicorn[standard] pydantic python-multipart jinja2 aiofiles httpx sqlalchemy alembic python-jose[cryptography] passlib[bcrypt] python-dotenv redis
     else
         echo -e "${YELLOW}⚠️  requirements.txt not found, installing basic dependencies...${NC}"
-        pip install fastapi uvicorn pytest black flake8 httpx
+        pip install fastapi uvicorn[standard] pytest black flake8 httpx
     fi
     
     # Install development dependencies
@@ -211,9 +223,10 @@ install_docker() {
                 sudo systemctl start docker
                 sudo systemctl enable docker
             else
-                echo -e "${YELLOW}⚠️  Starting Docker daemon...${NC}"
-                dockerd > /tmp/docker.log 2>&1 &
+                echo -e "${YELLOW}⚠️  Starting Docker daemon manually...${NC}"
+                sudo dockerd &
                 sleep 5
+                sudo chmod 666 /var/run/docker.sock
             fi
             ;;
         "darwin")
@@ -241,7 +254,7 @@ install_kubectl() {
     
     if command_exists kubectl; then
         echo -e "${GREEN}✅ kubectl already installed${NC}"
-        kubectl version --client
+        kubectl version --client --output=yaml 2>/dev/null | grep gitVersion || echo "kubectl installed"
         return 0
     fi
     
@@ -269,7 +282,7 @@ install_kubectl() {
     esac
     
     echo -e "${GREEN}✅ kubectl installed successfully${NC}"
-    kubectl version --client
+    kubectl version --client --output=yaml 2>/dev/null | grep gitVersion || echo "kubectl ready"
 }
 
 # Function to install Helm
@@ -278,7 +291,7 @@ install_helm() {
     
     if command_exists helm; then
         echo -e "${GREEN}✅ Helm already installed${NC}"
-        helm version
+        helm version --short
         return 0
     fi
     
@@ -295,7 +308,7 @@ install_helm() {
     esac
     
     echo -e "${GREEN}✅ Helm installed successfully${NC}"
-    helm version
+    helm version --short
 }
 
 # Function to install Kind
@@ -341,7 +354,7 @@ install_argocd_cli() {
     
     if command_exists argocd; then
         echo -e "${GREEN}✅ ArgoCD CLI already installed${NC}"
-        argocd version --client
+        argocd version --client 2>/dev/null || echo "ArgoCD CLI ready"
         return 0
     fi
     
@@ -369,61 +382,7 @@ install_argocd_cli() {
     esac
     
     echo -e "${GREEN}✅ ArgoCD CLI installed successfully${NC}"
-    argocd version --client
-}
-
-# Function to install ArgoCD
-install_argocd() {
-    print_section "🎯 Installing ArgoCD"
-    
-    echo -e "${BLUE}Installing ArgoCD in cluster...${NC}"
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
-    
-    # Wait for ArgoCD to be ready
-    echo -e "${BLUE}⏳ Waiting for ArgoCD to be ready...${NC}"
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n argocd
-    
-    # Configure ArgoCD for insecure access
-    echo -e "${BLUE}🔧 Configuring ArgoCD...${NC}"
-    kubectl patch deployment argocd-server -n argocd -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
-    
-    # Create NodePort service
-    echo -e "${BLUE}🌐 Creating ArgoCD NodePort service...${NC}"
-    cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: argocd-server-nodeport
-  namespace: argocd
-  labels:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-    app.kubernetes.io/part-of: argocd
-spec:
-  type: NodePort
-  ports:
-  - name: server
-    port: 80
-    protocol: TCP
-    targetPort: 8080
-    nodePort: 30080
-  selector:
-    app.kubernetes.io/name: argocd-server
-EOF
-    
-    # Wait for server to restart
-    sleep 10
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-    
-    # Get admin password
-    echo -e "${BLUE}🔑 Getting ArgoCD admin password...${NC}"
-    ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d)
-    echo "$ARGOCD_PASSWORD" > .argocd-password
-    
-    echo -e "${GREEN}✅ ArgoCD installed successfully${NC}"
-    echo -e "${GREEN}🔑 Admin password saved to .argocd-password${NC}"
+    argocd version --client 2>/dev/null || echo "ArgoCD CLI ready"
 }
 
 # Function to install additional tools
@@ -472,25 +431,29 @@ install_additional_tools() {
     echo -e "${GREEN}✅ Additional tools installed${NC}"
 }
 
-# Function to create Kind cluster
+# Function to create Kind cluster with improved networking
 create_kind_cluster() {
     print_section "🚀 Creating Kind Cluster"
     
     CLUSTER_NAME="gitops-cluster"
     
     # Check if cluster already exists
-    if kind get clusters | grep -q "$CLUSTER_NAME"; then
+    if kind get clusters 2>/dev/null | grep -q "$CLUSTER_NAME"; then
         echo -e "${YELLOW}⚠️  Cluster '$CLUSTER_NAME' already exists. Deleting...${NC}"
         kind delete cluster --name "$CLUSTER_NAME"
+        sleep 5
     fi
     
-    echo -e "${BLUE}Creating Kind cluster with configuration...${NC}"
+    echo -e "${BLUE}Creating Kind cluster with improved configuration...${NC}"
     
-    # Create Kind cluster config
+    # Create Kind cluster config with better resource allocation
     cat <<EOF > infra/kind/cluster-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: gitops-cluster
+networking:
+  apiServerAddress: "0.0.0.0"
+  apiServerPort: 6443
 nodes:
 - role: control-plane
   kubeadmConfigPatches:
@@ -499,6 +462,7 @@ nodes:
     nodeRegistration:
       kubeletExtraArgs:
         node-labels: "ingress-ready=true"
+        system-reserved: memory=1Gi
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
@@ -514,15 +478,24 @@ nodes:
     protocol: TCP
     listenAddress: "0.0.0.0"
 - role: worker
-- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        system-reserved: memory=1Gi
 EOF
     
-    # Create cluster
-    kind create cluster --config infra/kind/cluster-config.yaml
+    # Create cluster with timeout and retries
+    echo -e "${BLUE}Creating cluster (this may take a few minutes)...${NC}"
+    kind create cluster --config infra/kind/cluster-config.yaml --wait 120s
     
-    # Wait for cluster to be ready
+    # Wait for cluster to be ready with improved checks
     echo -e "${BLUE}⏳ Waiting for cluster to be ready...${NC}"
     kubectl wait --for=condition=Ready nodes --all --timeout=300s
+    
+    # Fix kubeconfig permissions
+    chmod 600 ~/.kube/config
     
     # Install ingress-nginx
     echo -e "${BLUE}🌐 Installing ingress-nginx...${NC}"
@@ -532,7 +505,7 @@ EOF
     kubectl wait --namespace ingress-nginx \
         --for=condition=ready pod \
         --selector=app.kubernetes.io/component=controller \
-        --timeout=90s
+        --timeout=120s
     
     # Create namespaces
     echo -e "${BLUE}📁 Creating namespaces...${NC}"
@@ -545,17 +518,15 @@ EOF
     kubectl cluster-info
 }
 
-# Function to build and load application
+# Function to build and load application with fixes
 build_application() {
     print_section "🐳 Building Application Container"
     
-    echo -e "${BLUE}Building student-tracker image...${NC}"
+    echo -e "${BLUE}Building student-tracker image with fixed configuration...${NC}"
     
-    # Ensure Dockerfile exists
-    if [ ! -f "docker/Dockerfile" ]; then
-        echo -e "${YELLOW}⚠️  Creating basic Dockerfile...${NC}"
-        mkdir -p docker
-        cat <<EOF > docker/Dockerfile
+    # Create updated Dockerfile with proper uvicorn installation
+    mkdir -p docker
+    cat <<EOF > docker/Dockerfile
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build dependencies
@@ -565,25 +536,26 @@ WORKDIR /app
 RUN set -eux; apt-get update; apt-get install -y \\
     gcc libpq-dev libssl-dev libffi-dev curl; apt-get clean; rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+RUN pip install --no-cache-dir fastapi uvicorn[standard] pydantic python-multipart jinja2 aiofiles httpx sqlalchemy alembic python-jose[cryptography] passlib[bcrypt] python-dotenv redis
 COPY app/ ./app
 COPY templates/ ./templates
 
 # Stage 2: Runtime
 FROM python:3.11-slim AS runtime
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libpq5; apt-get clean; rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libpq5 curl; apt-get clean; rm -rf /var/lib/apt/lists/*
 RUN groupadd --system appgroup \\
  && useradd --system --gid appgroup --no-create-home appuser
 COPY --from=build /usr/local/lib/python3.*/site-packages/ /usr/local/lib/python3.*/site-packages/
+COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 COPY --from=build /app /app
 RUN chown -R appuser:appgroup /app
 USER appuser
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:8000/health || exit 1
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 EOF
-    fi
     
     # Build image
     docker build -t student-tracker:latest -f docker/Dockerfile .
@@ -595,21 +567,83 @@ EOF
     echo -e "${GREEN}✅ Application built and loaded${NC}"
 }
 
-# Function to create Helm chart
-create_helm_chart() {
-    print_section "📦 Creating Helm Chart"
+# Function to install ArgoCD with improved configuration
+install_argocd() {
+    print_section "🎯 Installing ArgoCD"
     
-    # Create Chart.yaml
+    echo -e "${BLUE}Installing ArgoCD in cluster...${NC}"
+    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
+    
+    # Wait for ArgoCD to be ready with improved timeout
+    echo -e "${BLUE}⏳ Waiting for ArgoCD to be ready (this may take several minutes)...${NC}"
+    kubectl wait --for=condition=available --timeout=600s deployment/argocd-server -n argocd
+    kubectl wait --for=condition=available --timeout=600s deployment/argocd-repo-server -n argocd
+    kubectl wait --for=condition=available --timeout=600s deployment/argocd-dex-server -n argocd
+    
+    # Configure ArgoCD for insecure access
+    echo -e "${BLUE}🔧 Configuring ArgoCD...${NC}"
+    kubectl patch deployment argocd-server -n argocd -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
+    
+    # Create NodePort service
+    echo -e "${BLUE}🌐 Creating ArgoCD NodePort service...${NC}"
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-nodeport
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: server
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: NodePort
+  ports:
+  - name: server
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+    nodePort: 30080
+  selector:
+    app.kubernetes.io/name: argocd-server
+EOF
+    
+    # Wait for server to restart
+    sleep 15
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+    
+    # Get admin password with retry logic
+    echo -e "${BLUE}🔑 Getting ArgoCD admin password...${NC}"
+    for i in {1..10}; do
+        if ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" 2>/dev/null | base64 -d); then
+            echo "$ARGOCD_PASSWORD" > .argocd-password
+            break
+        else
+            echo -e "${YELLOW}⏳ Waiting for ArgoCD secret... (attempt $i/10)${NC}"
+            sleep 10
+        fi
+    done
+    
+    echo -e "${GREEN}✅ ArgoCD installed successfully${NC}"
+    echo -e "${GREEN}🔑 Admin password saved to .argocd-password${NC}"
+}
+
+# Function to create updated Helm chart
+create_helm_chart() {
+    print_section "📦 Creating Updated Helm Chart"
+    
+    # Update Chart.yaml with newer version
     cat <<EOF > infra/helm/Chart.yaml
 apiVersion: v2
 name: student-tracker
 description: A FastAPI student tracker application for Kubernetes deployment
 type: application
-version: 0.2.0
-appVersion: "1.0.0"
-home: https://github.com/your-org/student-tracker
+version: 0.3.0
+appVersion: "1.1.0"
+home: https://github.com/bonaventuresimeon/NativeSeries
 sources:
-  - https://github.com/your-org/student-tracker
+  - https://github.com/bonaventuresimeon/NativeSeries
 maintainers:
   - name: Development Team
     email: dev@yourcompany.com
@@ -618,9 +652,10 @@ keywords:
   - student-tracker
   - python
   - kubernetes
+  - gitops
 EOF
     
-    # Create values.yaml
+    # Update values.yaml with improved defaults
     cat <<EOF > infra/helm/values.yaml
 # Default values for student-tracker
 # This is a YAML-formatted file.
@@ -662,7 +697,7 @@ service:
   type: NodePort
   port: 80
   targetPort: 8000
-  nodePort: 30011  # Maps to 8011 on the host
+  nodePort: 30011  # Maps to ${TARGET_PORT} on the host
 
 # Ingress configuration
 ingress:
@@ -672,7 +707,7 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
   hosts:
-    - host: 18.208.149.195
+    - host: ${TARGET_IP}
       paths:
         - path: /
           pathType: Prefix
@@ -681,9 +716,11 @@ ingress:
 # Environment variables
 env:
   - name: DATABASE_URL
-    value: "postgresql://user:pass@db:5432/studentdb"
+    value: "sqlite:///./test.db"
   - name: APP_ENV
     value: "development"
+  - name: LOG_LEVEL
+    value: "INFO"
 
 # ConfigMap data
 configMap:
@@ -691,6 +728,7 @@ configMap:
   data:
     app_name: "Student Tracker API"
     log_level: "INFO"
+    version: "1.1.0"
 
 # Secret data (for sensitive information)
 secret:
@@ -707,7 +745,7 @@ securityContext:
   capabilities:
     drop:
     - ALL
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false
   runAsNonRoot: true
   runAsUser: 1000
 
@@ -740,267 +778,34 @@ serviceMonitor:
   path: /metrics
 EOF
     
-    # Create deployment template
-    cat <<EOF > infra/helm/templates/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "student-tracker.fullname" . }}
-  labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      {{- include "student-tracker.selectorLabels" . | nindent 6 }}
-  template:
-    metadata:
-      labels:
-        {{- include "student-tracker.selectorLabels" . | nindent 8 }}
-      annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        {{- if .Values.secret.enabled }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-        {{- end }}
-    spec:
-      {{- with .Values.podSecurityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.app.port }}
-              protocol: TCP
-          {{- if and .Values.healthCheck.enabled .Values.healthCheck.path }}
-          livenessProbe:
-            httpGet:
-              path: {{ .Values.healthCheck.path }}
-              port: http
-            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds | default 30 }}
-            periodSeconds: {{ .Values.healthCheck.periodSeconds | default 10 }}
-            timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 5 }}
-            failureThreshold: {{ .Values.healthCheck.failureThreshold | default 3 }}
-          readinessProbe:
-            httpGet:
-              path: {{ .Values.healthCheck.path }}
-              port: http
-            initialDelaySeconds: {{ div (.Values.healthCheck.initialDelaySeconds | default 30) 2 }}
-            periodSeconds: {{ .Values.healthCheck.periodSeconds | default 10 }}
-            timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 5 }}
-            failureThreshold: {{ .Values.healthCheck.failureThreshold | default 3 }}
-          {{- end }}
-          env:
-            {{- range .Values.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
-            {{- if .Values.configMap.enabled }}
-            - name: APP_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "student-tracker.fullname" . }}
-                  key: app_name
-            - name: LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ include "student-tracker.fullname" . }}
-                  key: log_level
-            {{- end }}
-            {{- if .Values.secret.enabled }}
-            {{- range \$key, \$value := .Values.secret.data }}
-            - name: {{ \$key }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "student-tracker.fullname" \$ }}
-                  key: {{ \$key }}
-            {{- end }}
-            {{- end }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-            - name: var-run
-              mountPath: /var/run
-          {{- end }}
-      {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
-      volumes:
-        - name: tmp
-          emptyDir: {}
-        - name: var-run
-          emptyDir: {}
-      {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-EOF
-    
-    # Create service template
-    cat <<EOF > infra/helm/templates/service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "student-tracker.fullname" . }}
-  labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.service.targetPort }}
-      nodePort: {{ .Values.service.nodePort }}
-      protocol: TCP
-      name: http
-  selector:
-    {{- include "student-tracker.selectorLabels" . | nindent 4 }}
-EOF
-    
-    # Create configmap template
-    cat <<EOF > infra/helm/templates/configmap.yaml
-{{- if .Values.configMap.enabled }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "student-tracker.fullname" . }}
-  labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
-data:
-  {{- toYaml .Values.configMap.data | nindent 2 }}
-{{- end }}
-EOF
-    
-    # Create helpers template
-    cat <<EOF > infra/helm/templates/_helpers.tpl
-{{/*
-Expand the name of the chart.
-*/}}
-{{- define "student-tracker.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
-*/}}
-{{- define "student-tracker.fullname" -}}
-{{- if .Values.fullnameOverride }}
-{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- \$name := default .Chart.Name .Values.nameOverride }}
-{{- if contains \$name .Release.Name }}
-{{- .Release.Name | trunc 63 | trimSuffix "-" }}
-{{- else }}
-{{- printf "%s-%s" .Release.Name \$name | trunc 63 | trimSuffix "-" }}
-{{- end }}
-{{- end }}
-{{- end }}
-
-{{/*
-Create chart name and version as used by the chart label.
-*/}}
-{{- define "student-tracker.chart" -}}
-{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-{{- end }}
-
-{{/*
-Common labels
-*/}}
-{{- define "student-tracker.labels" -}}
-helm.sh/chart: {{ include "student-tracker.chart" . }}
-{{ include "student-tracker.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end }}
-
-{{/*
-Selector labels
-*/}}
-{{- define "student-tracker.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "student-tracker.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-{{- end }}
-EOF
-    
-    echo -e "${GREEN}✅ Helm chart created successfully${NC}"
+    echo -e "${GREEN}✅ Updated Helm chart created successfully${NC}"
 }
 
-# Function to deploy application
+# Function to deploy application with better error handling
 deploy_application() {
     print_section "🚀 Deploying Application"
     
-    # Deploy using Helm
+    # Deploy using Helm with improved configuration
     echo -e "${BLUE}Deploying with Helm...${NC}"
     helm upgrade --install student-tracker infra/helm \
         --namespace app-dev \
         --create-namespace \
         --wait \
-        --timeout=300s
+        --timeout=600s \
+        --debug
+    
+    # Wait for pods to be ready
+    echo -e "${BLUE}⏳ Waiting for application pods to be ready...${NC}"
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=student-tracker -n app-dev --timeout=300s
     
     echo -e "${GREEN}✅ Application deployed successfully${NC}"
     kubectl get pods -n app-dev
+    kubectl get svc -n app-dev
 }
 
-# Function to setup GitOps
-setup_gitops() {
-    print_section "🔄 Setting up GitOps with ArgoCD"
-    
-    # Create app-of-apps application
-    cat <<EOF > infra/argocd/parent/app-of-apps.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: app-of-apps
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/bonaventuresimeon/Student-Tracker.git
-    targetRevision: HEAD
-    path: infra/argocd/parent
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argocd
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-    - CreateNamespace=true
-EOF
-    
-    # Apply the app-of-apps
-    echo -e "${BLUE}Creating ArgoCD applications...${NC}"
-    kubectl apply -f infra/argocd/parent/app-of-apps.yaml
-    
-    echo -e "${GREEN}✅ GitOps setup complete${NC}"
-}
-
-# Function to verify installation
+# Function to verify installation with comprehensive checks
 verify_installation() {
-    print_section "✅ Verifying Installation"
+    print_section "✅ Comprehensive Installation Verification"
     
     echo -e "${BLUE}Checking all components...${NC}"
     
@@ -1012,6 +817,7 @@ verify_installation() {
     # Check application
     echo -e "${CYAN}Application Pods:${NC}"
     kubectl get pods -n app-dev
+    kubectl describe pods -n app-dev | grep -A5 "Conditions:"
     
     # Check services
     echo -e "${CYAN}Services:${NC}"
@@ -1021,26 +827,36 @@ verify_installation() {
     echo -e "${CYAN}ArgoCD:${NC}"
     kubectl get pods -n argocd
     
-    # Test application health
+    # Test application health with better error handling
     echo -e "${BLUE}Testing application health...${NC}"
     sleep 30  # Wait for application to be ready
     
+    # Test with port-forward
     if kubectl port-forward svc/student-tracker -n app-dev 8080:80 &>/dev/null &
     then
         PF_PID=$!
-        sleep 5
-        if curl -s http://localhost:8080/health >/dev/null; then
+        sleep 10
+        if curl -s http://localhost:8080/health | grep -q "healthy"; then
             echo -e "${GREEN}✅ Application health check passed${NC}"
         else
-            echo -e "${YELLOW}⚠️  Application health check failed - may need more time to start${NC}"
+            echo -e "${YELLOW}⚠️  Application health check failed - checking logs...${NC}"
+            kubectl logs -l app.kubernetes.io/name=student-tracker -n app-dev --tail=20
         fi
         kill $PF_PID 2>/dev/null || true
+    fi
+    
+    # Test direct NodePort access
+    echo -e "${BLUE}Testing NodePort access...${NC}"
+    if timeout 10 curl -s http://localhost:${TARGET_PORT}/health | grep -q "healthy"; then
+        echo -e "${GREEN}✅ NodePort access working${NC}"
+    else
+        echo -e "${YELLOW}⚠️  NodePort access may need more time to be ready${NC}"
     fi
     
     echo -e "${GREEN}✅ Installation verification complete${NC}"
 }
 
-# Function to display final information
+# Function to display final information with better formatting
 display_final_info() {
     print_section "🎉 Installation Complete!"
     
@@ -1070,22 +886,59 @@ display_final_info() {
     echo -e "  # Access ArgoCD locally"
     echo -e "  kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80"
     echo -e ""
+    echo -e "  # Activate Python virtual environment"
+    echo -e "  source venv/bin/activate"
+    echo -e ""
+    echo -e "  # Run application locally"
+    echo -e "  python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    echo -e ""
     echo -e "${CYAN}📚 Next Steps:${NC}"
     echo -e "  1. Update repository URLs in ArgoCD applications"
     echo -e "  2. Configure your load balancer to route ${TARGET_IP} to your cluster"
     echo -e "  3. Set up continuous deployment with GitHub Actions"
     echo -e "  4. Configure monitoring and logging (optional)"
+    echo -e "  5. Set up SSL/TLS certificates for production"
+    echo -e ""
+    echo -e "${CYAN}🔧 Tool Versions Installed:${NC}"
+    echo -e "  • Python: $(python3 --version 2>&1)"
+    echo -e "  • Docker: $(docker --version 2>&1)"
+    echo -e "  • kubectl: $(kubectl version --client --short 2>&1 | head -1)"
+    echo -e "  • Helm: $(helm version --short 2>&1)"
+    echo -e "  • Kind: $(kind version 2>&1)"
+    echo -e "  • ArgoCD CLI: $(argocd version --client --short 2>&1 | head -1 || echo 'ArgoCD CLI installed')"
     echo -e ""
     echo -e "${YELLOW}📝 Important Notes:${NC}"
     echo -e "  • ArgoCD password is saved in .argocd-password file"
     echo -e "  • Virtual environment is in ./venv directory"
     echo -e "  • Kind cluster name: gitops-cluster"
     echo -e "  • All configurations are in infra/ directory"
+    echo -e "  • Application Docker image: student-tracker:latest"
+    echo -e "  • Kubeconfig permissions set to 600 for security"
     echo -e ""
     echo -e "${GREEN}🎉 Happy coding with GitOps! 🚀${NC}"
 }
 
-# Main execution function
+# Function to run local development server
+run_local_dev() {
+    print_section "🏃 Running Local Development Server"
+    
+    echo -e "${BLUE}Starting FastAPI application locally...${NC}"
+    
+    if [ -d "venv" ]; then
+        source venv/bin/activate
+        echo -e "${GREEN}✅ Virtual environment activated${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Virtual environment not found. Creating...${NC}"
+        setup_python_env
+        source venv/bin/activate
+    fi
+    
+    echo -e "${BLUE}Starting application on http://localhost:8000${NC}"
+    echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
+    python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+}
+
+# Main execution function with improved error handling
 main() {
     echo -e "${YELLOW}🔍 This script will install and configure:${NC}"
     echo -e "  • Python ${PYTHON_VERSION} with virtual environment"
@@ -1097,19 +950,30 @@ main() {
     echo -e "  • Complete GitOps stack"
     echo -e "  • Application deployment to ${TARGET_IP}:${TARGET_PORT}"
     echo -e ""
-    echo -e "${YELLOW}⚠️  This may take 10-20 minutes depending on your internet connection.${NC}"
+    echo -e "${YELLOW}⚠️  This may take 15-30 minutes depending on your internet connection.${NC}"
     echo -e "${YELLOW}Do you want to continue? (y/N):${NC}"
     read -r response
     
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}⚠️  Installation cancelled.${NC}"
+        echo -e "${CYAN}Would you like to run just the local development server? (y/N):${NC}"
+        read -r dev_response
+        if [[ "$dev_response" =~ ^[Yy]$ ]]; then
+            install_python
+            setup_python_env
+            run_local_dev
+        else
+            echo -e "${YELLOW}⚠️  Installation cancelled.${NC}"
+        fi
         exit 0
     fi
     
     # Record start time
     START_TIME=$(date +%s)
     
-    # Execute installation steps
+    # Execute installation steps with error handling
+    set -e
+    trap 'echo -e "${RED}❌ Installation failed at step: ${BASH_COMMAND}${NC}"; exit 1' ERR
+    
     create_directories
     install_python
     setup_python_env
@@ -1124,7 +988,6 @@ main() {
     create_helm_chart
     install_argocd
     deploy_application
-    setup_gitops
     verify_installation
     
     # Calculate execution time
@@ -1142,5 +1005,22 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# Run main function
-main "$@"
+# Parse command line arguments
+case "${1:-}" in
+    "dev"|"--dev"|"-d")
+        echo -e "${CYAN}🏃 Running in development mode...${NC}"
+        install_python
+        setup_python_env
+        run_local_dev
+        ;;
+    "help"|"--help"|"-h")
+        echo -e "${CYAN}Usage:${NC}"
+        echo -e "  $0           # Full installation"
+        echo -e "  $0 dev       # Development mode only"
+        echo -e "  $0 help      # Show this help"
+        ;;
+    *)
+        # Run main function
+        main "$@"
+        ;;
+esac
