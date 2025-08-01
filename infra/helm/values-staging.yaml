@@ -3,7 +3,7 @@ replicaCount: 2
 
 image:
   repository: student-tracker
-  tag: a47996581f2a285893ec4fa4ff22c57440dbe370
+  tag: 735141de428ecefd64e422c258caf35407b0755c
   pullPolicy: Always
 
 # Resource limits for staging
