@@ -807,3 +807,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For detailed deployment guide, see [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)
 # Student-Tracker
+# NativeSeries
