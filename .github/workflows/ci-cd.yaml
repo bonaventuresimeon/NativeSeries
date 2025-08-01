@@ -185,7 +185,7 @@ jobs:
     - name: Update image tag in ArgoCD
       run: |
         # Update the image tag in the dev values file
-        NEW_TAG="${{ github.sha }}"
+        NEW_TAG="develop-${{ github.sha }}"
         sed -i "s/tag: .*/tag: ${NEW_TAG}/" infra/helm/values-dev.yaml
         
         # Commit and push the changes
@@ -218,7 +218,7 @@ jobs:
     - name: Update image tag in ArgoCD
       run: |
         # Update the image tag in the staging values file
-        NEW_TAG="${{ github.sha }}"
+        NEW_TAG="main-${{ github.sha }}"
         sed -i "s/tag: .*/tag: ${NEW_TAG}/" infra/helm/values-staging.yaml
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -248,9 +248,10 @@ jobs:
 
     - name: Update production values and create PR
       run: |
-        NEW_TAG="${{ github.sha }}"
+        COMMIT_SHA="${{ github.sha }}"
+        NEW_TAG="main-$COMMIT_SHA"
         # Create a new branch for the production update
-        git checkout -b deploy/prod-$NEW_TAG
+        git checkout -b deploy/prod-$COMMIT_SHA
         
         # Update the production values file
         sed -i "s/tag: .*/tag: ${NEW_TAG}/" infra/helm/values-prod.yaml
@@ -260,7 +261,7 @@ jobs:
         git config --local user.name "GitHub Action"
         git add infra/helm/values-prod.yaml
         git commit -m "Deploy $NEW_TAG to production"
-        git push origin deploy/prod-$NEW_TAG
+        git push origin deploy/prod-$COMMIT_SHA
 
     - name: Create Production Release PR
       uses: peter-evans/create-pull-request@v6

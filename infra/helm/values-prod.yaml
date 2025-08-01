@@ -2,8 +2,8 @@
 replicaCount: 3
 
 image:
-  repository: student-tracker
-  tag: stable
+  repository: ghcr.io/bonaventuresimeon/student-tracker
+  tag: main-735141de428ecefd64e422c258caf35407b0755c
   pullPolicy: IfNotPresent
 
 # Resource limits for production
