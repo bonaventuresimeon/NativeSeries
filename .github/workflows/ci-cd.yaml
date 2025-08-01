@@ -159,6 +159,7 @@ jobs:
       run: |
         helm lint infra/helm
         helm template student-tracker infra/helm --values infra/helm/values-dev.yaml > /dev/null
+        helm template student-tracker infra/helm --values infra/helm/values-staging.yaml > /dev/null
         helm template student-tracker infra/helm --values infra/helm/values-prod.yaml > /dev/null
 
   deploy-dev:
@@ -216,16 +217,14 @@ jobs:
 
     - name: Update image tag in ArgoCD
       run: |
-        # Update the image tag in the staging values file (if exists)
+        # Update the image tag in the staging values file
         NEW_TAG="${{ github.sha }}"
-        if [ -f "infra/helm/values-staging.yaml" ]; then
-          sed -i "s/tag: .*/tag: ${NEW_TAG}/" infra/helm/values-staging.yaml
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add infra/helm/values-staging.yaml
-          git commit -m "Update staging image tag to $NEW_TAG" || exit 0
-          git push origin main
-        fi
+        sed -i "s/tag: .*/tag: ${NEW_TAG}/" infra/helm/values-staging.yaml
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add infra/helm/values-staging.yaml
+        git commit -m "Update staging image tag to $NEW_TAG" || exit 0
+        git push origin main
 
   deploy-prod:
     name: Deploy to Production

@@ -31,8 +31,8 @@ jobs:
 
       - name: Copy templates content to root deploy folder
         run: |
-          mkdir deploy
-          cp -r templates/* deploy/
+          mkdir -p deploy
+          cp -r templates/* deploy/ || echo "No templates directory found"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
