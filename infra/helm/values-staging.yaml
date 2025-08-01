@@ -3,7 +3,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/bonaventuresimeon/student-tracker
-  tag: main-410cca184dfee417fac7e99e36d8ab022b7c466c
+  tag: main-a24d0a89b7a0292389b6bfab58c8ff9569f20f40
   pullPolicy: Always
 
 # Resource limits for staging
