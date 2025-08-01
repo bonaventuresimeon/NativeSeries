@@ -3,7 +3,7 @@ replicaCount: 2
 
 image:
   repository: student-tracker
-  tag: staging-latest
+  tag: a47996581f2a285893ec4fa4ff22c57440dbe370
   pullPolicy: Always
 
 # Resource limits for staging
