@@ -3,14 +3,18 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/bonaventuresimeon/student-tracker
-  tag: develop-e504f198adbbabab9a0eeb1a05f4693e56dedaf3
+  tag: develop-latest
   pullPolicy: Always
+
+# Application configuration
+app:
+  port: 8000
 
 # Resource limits for development
 resources:
   limits:
-    cpu: 250m
-    memory: 256Mi
+    cpu: 500m
+    memory: 512Mi
   requests:
     cpu: 100m
     memory: 128Mi
@@ -18,7 +22,7 @@ resources:
 # Development environment variables
 env:
   - name: DATABASE_URL
-    value: "postgresql://dev_user:dev_pass@postgres-dev:5432/studentdb_dev"
+    value: "sqlite:///./dev.db"
   - name: APP_ENV
     value: "development"
   - name: DEBUG
@@ -29,20 +33,11 @@ service:
   type: NodePort
   port: 80
   targetPort: 8000
-  nodePort: 30011  # Maps to 8011 on the host IP
+  nodePort: 30011
 
 # Ingress for development
 ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-  hosts:
-    - host: 18.208.149.195
-      paths:
-        - path: /
-          pathType: Prefix
+  enabled: false
 
 # Disable autoscaling in development
 autoscaling:
@@ -52,5 +47,33 @@ autoscaling:
 configMap:
   enabled: true
   data:
-    app_name: "Student Tracker API (Development)"
+    app_name: "Student Tracker API (Dev)"
     log_level: "DEBUG"
+
+# Secret configuration for development
+secret:
+  enabled: false
+  data:
+    # Development secret data - replace with actual values
+    # DATABASE_PASSWORD: "dev-password"
+    # API_KEY: "dev-api-key"
+    # JWT_SECRET: "dev-jwt-secret"
+
+# Health checks for development
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security context for development
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000

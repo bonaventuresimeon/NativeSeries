@@ -1,4 +1,4 @@
-name: Deploy static content to Pages
+name: Deploy Documentation and Static Content
 
 on:
   push:
@@ -24,15 +24,72 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages (enable if needed)
+      - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
 
-      - name: Copy templates content to root deploy folder
+      - name: Prepare static content
         run: |
           mkdir -p deploy
-          cp -r templates/* deploy/ || echo "No templates directory found"
+          # Copy templates if they exist
+          if [ -d "templates" ]; then
+            cp -r templates/* deploy/
+          fi
+          # Copy docs if they exist
+          if [ -d "docs" ]; then
+            cp -r docs/* deploy/
+          fi
+          # Copy any other static content
+          if [ -f "README.md" ]; then
+            cp README.md deploy/
+          fi
+          if [ -f "DEPLOYMENT_GUIDE.md" ]; then
+            cp DEPLOYMENT_GUIDE.md deploy/
+          fi
+          if [ -f "HELM_ANALYSIS.md" ]; then
+            cp HELM_ANALYSIS.md deploy/
+          fi
+          # Create index page
+          cat > deploy/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Student Tracker Documentation</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 40px; }
+                  .container { max-width: 800px; margin: 0 auto; }
+                  h1 { color: #333; }
+                  .link { margin: 10px 0; }
+                  a { color: #0066cc; text-decoration: none; }
+                  a:hover { text-decoration: underline; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🎓 Student Tracker Documentation</h1>
+                  <p>Welcome to the Student Tracker application documentation.</p>
+                  
+                  <h2>📖 Documentation</h2>
+                  <div class="link"><a href="README.md">README.md</a> - Main project documentation</div>
+                  <div class="link"><a href="DEPLOYMENT_GUIDE.md">DEPLOYMENT_GUIDE.md</a> - Deployment instructions</div>
+                  <div class="link"><a href="HELM_ANALYSIS.md">HELM_ANALYSIS.md</a> - Helm chart analysis</div>
+                  
+                  <h2>🌐 Live Application</h2>
+                  <div class="link"><a href="http://18.208.149.195:8011">Production Application</a></div>
+                  <div class="link"><a href="http://18.208.149.195:8011/docs">API Documentation</a></div>
+                  
+                  <h2>📊 Monitoring</h2>
+                  <div class="link"><a href="http://18.208.149.195:3000">Grafana Dashboards</a></div>
+                  <div class="link"><a href="http://18.208.149.195:9090">Prometheus Metrics</a></div>
+                  
+                  <p><em>Last updated: $(date)</em></p>
+              </div>
+          </body>
+          </html>
+          EOF
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

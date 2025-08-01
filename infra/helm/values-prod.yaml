@@ -6,6 +6,10 @@ image:
   tag: main-735141de428ecefd64e422c258caf35407b0755c
   pullPolicy: IfNotPresent
 
+# Application configuration
+app:
+  port: 8000
+
 # Resource limits for production
 resources:
   limits:
@@ -69,6 +73,24 @@ configMap:
   data:
     app_name: "Student Tracker API"
     log_level: "INFO"
+
+# Secret configuration for production
+secret:
+  enabled: false
+  data:
+    # Production secret data - replace with actual values
+    # DATABASE_PASSWORD: "your-secure-production-password"
+    # API_KEY: "your-production-api-key"
+    # JWT_SECRET: "your-production-jwt-secret"
+
+# Health checks for production
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
 
 # Enhanced security context for production
 securityContext:
