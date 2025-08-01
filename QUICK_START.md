@@ -26,9 +26,9 @@ cd Student-Tracker
 ## 🌐 Access URLs
 
 After installation:
-- **📱 Application**: http://30.80.98.218:8011
-- **📖 API Docs**: http://30.80.98.218:8011/docs
-- **🩺 Health Check**: http://30.80.98.218:8011/health
+- **📱 Application**: http://18.208.149.195:8011
+- **📖 API Docs**: http://18.208.149.195:8011/docs
+- **🩺 Health Check**: http://18.208.149.195:8011/health
 - **🎯 ArgoCD UI**: http://30.80.98.218:30080
 
 ## 🔑 Default Credentials

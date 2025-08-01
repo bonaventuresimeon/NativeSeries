@@ -42,9 +42,9 @@ The Student Tracker is a modern web application that demonstrates a complete Git
 - **Multi-Environment Support** - Development, staging, and production configurations
 
 ### 🎯 Access URLs
-- **Application**: http://30.80.98.218:8011
-- **API Documentation**: http://30.80.98.218:8011/docs
-- **Health Check**: http://30.80.98.218:8011/health
+- **Application**: http://18.208.149.195:8011
+- **API Documentation**: http://18.208.149.195:8011/docs
+- **Health Check**: http://18.208.149.195:8011/health
 - **ArgoCD UI**: http://30.80.98.218:30080
 
 ## 🏗️ Architecture
@@ -154,7 +154,7 @@ This single command will:
 
 ```bash
 # Check application health
-curl http://localhost:8011/health
+curl http://18.208.149.195:8011/health
 
 # Check Kubernetes resources
 kubectl get all -n app-dev
@@ -389,9 +389,9 @@ argocd app get student-tracker-dev
 ## 🌐 Access Information
 
 ### Production URLs
-- 🌐 **Student Tracker**: http://30.80.98.218:8011
-- 📖 **API Documentation**: http://30.80.98.218:8011/docs
-- 🩺 **Health Check**: http://30.80.98.218:8011/health
+- 🌐 **Student Tracker**: http://18.208.149.195:8011
+- 📖 **API Documentation**: http://18.208.149.195:8011/docs
+- 🩺 **Health Check**: http://18.208.149.195:8011/health
 - 🎯 **ArgoCD UI**: http://30.80.98.218:30080
 
 ### Local Development URLs
@@ -443,9 +443,9 @@ gh pr create --title "Add new feature" --body "Description of changes"
 
 | Environment | Branch | Namespace | URL | Auto-Deploy |
 |-------------|--------|-----------|-----|-------------|
-| Development | `develop` | `app-dev` | http://30.80.98.218:8011 | ✅ Yes |
-| Staging | `main` | `app-staging` | http://30.80.98.218:8011 | ✅ Yes |
-| Production | `main` | `app-prod` | http://30.80.98.218:8011 | ⚠️ Manual |
+| Development | `develop` | `app-dev` | http://18.208.149.195:8011 | ✅ Yes |
+| Staging | `main` | `app-staging` | http://18.208.149.195:8011 | ✅ Yes |
+| Production | `main` | `app-prod` | http://18.208.149.195:8011 | ⚠️ Manual |
 
 ### ArgoCD Applications
 
@@ -597,7 +597,7 @@ helm upgrade --install student-tracker infra/helm \
 
 ```bash
 # Application health
-curl http://30.80.98.218:8011/health
+curl http://18.208.149.195:8011/health
 
 # Kubernetes health
 kubectl get pods -n app-dev

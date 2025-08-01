@@ -69,9 +69,9 @@
 ## 🎯 Access URLs
 
 ### Production Access:
-- **Student Tracker**: http://30.80.98.218:8011
-- **API Documentation**: http://30.80.98.218:8011/docs  
-- **Health Check**: http://30.80.98.218:8011/health
+- **Student Tracker**: http://18.208.149.195:8011
+- **API Documentation**: http://18.208.149.195:8011/docs  
+- **Health Check**: http://18.208.149.195:8011/health
 - **ArgoCD UI**: http://30.80.98.218:30080
 
 ### Local Development:
@@ -108,7 +108,7 @@ helm upgrade --install student-tracker infra/helm \
 
 ```bash
 # Check application health
-curl http://30.80.98.218:8011/health
+curl http://18.208.149.195:8011/health
 
 # Check Kubernetes resources
 kubectl get pods -n app-dev
@@ -137,9 +137,9 @@ kubectl logs -f deployment/student-tracker -n app-dev
 4. **Deploy**: GitOps-style deployment via git commits
 
 ### Environment URLs in CI:
-- Development: `http://30.80.98.218:8011`
-- Staging: `http://30.80.98.218:8011`  
-- Production: `http://30.80.98.218:8011`
+- Development: `http://18.208.149.195:8011`
+- Staging: `http://18.208.149.195:8011`  
+- Production: `http://18.208.149.195:8011`
 
 ## 📋 Configuration Files Updated
 

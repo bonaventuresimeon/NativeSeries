@@ -40,7 +40,7 @@ ingress:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Commented out for IP-based access
   hosts:
-    - host: 30.80.98.218
+    - host: 18.208.149.195
       paths:
         - path: /
           pathType: Prefix
@@ -48,7 +48,7 @@ ingress:
   # tls:
   #   - secretName: student-tracker-tls
   #     hosts:
-  #       - 30.80.98.218
+  #       - 18.208.149.195
 
 # Enable autoscaling in production
 autoscaling:
