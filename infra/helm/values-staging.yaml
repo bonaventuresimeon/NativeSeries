@@ -1,0 +1,75 @@
+# Staging environment values
+replicaCount: 2
+
+image:
+  repository: student-tracker
+  tag: staging-latest
+  pullPolicy: Always
+
+# Resource limits for staging
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Staging environment variables
+env:
+  - name: DATABASE_URL
+    value: "postgresql://staging_user:staging_pass@postgres-staging:5432/studentdb_staging"
+  - name: APP_ENV
+    value: "staging"
+  - name: DEBUG
+    value: "false"
+
+# Service configuration for staging
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 30011  # Maps to 8011 on the host IP
+
+# Ingress for staging
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: 18.208.149.195
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Enable autoscaling in staging
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget for staging
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ConfigMap for staging
+configMap:
+  enabled: true
+  data:
+    app_name: "Student Tracker API (Staging)"
+    log_level: "INFO"
+
+# Security context for staging
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
