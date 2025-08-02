@@ -10,14 +10,8 @@ data:
     name = {{ .Values.app.name }}
     environment = production
     
-    [vault]
-    addr = http://vault:8200
-    
-    [mongodb]
-    database = student_project_tracker
-    
-    [redis]
-    url = redis://redis:6379/0
+    [database]
+    type = in-memory
     
     [logging]
     level = INFO
