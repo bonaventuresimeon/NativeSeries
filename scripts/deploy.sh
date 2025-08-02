@@ -16,6 +16,12 @@ ARGOCD_NAMESPACE="argocd"
 HELM_CHART_PATH="./helm-chart"
 ARGOCD_APP_PATH="./argocd"
 
+# Production configuration (can be overridden via environment variables)
+PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
+PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
+ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-30080}"
+ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-30443}"
+
 # Function to print colored output
 print_status() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -59,10 +65,14 @@ check_prerequisites() {
     # Check ArgoCD CLI
     if ! command_exists argocd; then
         print_warning "ArgoCD CLI is not installed. Installing ArgoCD CLI..."
-        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-        sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-        rm argocd-linux-amd64
-        print_status "✅ ArgoCD CLI installed successfully"
+        if curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64; then
+            sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+            rm argocd-linux-amd64
+            print_status "✅ ArgoCD CLI installed successfully"
+        else
+            print_error "Failed to download ArgoCD CLI"
+            exit 1
+        fi
     fi
     
     # Check Docker (optional)
@@ -87,13 +97,13 @@ check_deployment_issues() {
     
     # Check if namespace exists and is accessible
     if kubectl cluster-info >/dev/null 2>&1; then
-        if ! kubectl get namespace $NAMESPACE >/dev/null 2>&1; then
+        if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
             print_info "Creating namespace $NAMESPACE..."
-            kubectl create namespace $NAMESPACE
+            kubectl create namespace "$NAMESPACE"
         fi
         
         # Check for existing resources that might conflict
-        if kubectl get deployment $APP_NAME -n $NAMESPACE >/dev/null 2>&1; then
+        if kubectl get deployment "$APP_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
             print_warning "Deployment $APP_NAME already exists in namespace $NAMESPACE"
             print_info "This will be updated during deployment"
         fi
@@ -125,24 +135,36 @@ check_cluster() {
 validate_helm_chart() {
     print_status "Validating Helm chart..."
     
-    # Add Bitnami repository
-    helm repo add bitnami https://charts.bitnami.com/bitnami
-    helm repo update
+    # Add Bitnami repository with error handling
+    if ! helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null; then
+        print_info "Bitnami repository already exists, skipping..."
+    fi
+    
+    if ! helm repo update; then
+        print_warning "Failed to update Helm repositories, continuing..."
+    fi
     
     # Update Helm dependencies (only if dependencies exist)
-    cd $HELM_CHART_PATH
-    if [ -f "Chart.yaml" ] && grep -q "dependencies:" Chart.yaml; then
-        helm dependency update || echo "Dependency update failed, continuing..."
+    if [ -f "$HELM_CHART_PATH/Chart.yaml" ] && grep -q "dependencies:" "$HELM_CHART_PATH/Chart.yaml"; then
+        print_status "Updating Helm dependencies..."
+        (cd "$HELM_CHART_PATH" && helm dependency update) || {
+            print_warning "Dependency update failed, continuing..."
+        }
     else
-        echo "No dependencies to update"
+        print_info "No dependencies to update"
     fi
-    cd ..
     
     # Lint Helm chart
-    helm lint $HELM_CHART_PATH
+    if ! helm lint "$HELM_CHART_PATH"; then
+        print_error "Helm chart linting failed"
+        return 1
+    fi
     
     # Dry run to validate templates
-    helm template $APP_NAME $HELM_CHART_PATH --namespace $NAMESPACE --dry-run
+    if ! helm template "$APP_NAME" "$HELM_CHART_PATH" --namespace "$NAMESPACE" --dry-run >/dev/null; then
+        print_error "Helm template validation failed"
+        return 1
+    fi
     
     print_status "Helm chart validation completed successfully."
 }
@@ -151,11 +173,18 @@ validate_helm_chart() {
 validate_argocd_app() {
     print_status "Validating ArgoCD application configuration..."
     
+    # Check if ArgoCD application file exists
+    if [ ! -f "$ARGOCD_APP_PATH/application.yaml" ]; then
+        print_error "ArgoCD application file not found: $ARGOCD_APP_PATH/application.yaml"
+        return 1
+    fi
+    
     # Validate YAML syntax without connecting to cluster
-    kubectl apply -f $ARGOCD_APP_PATH/application.yaml --dry-run=client --validate=false 2>/dev/null || {
+    if kubectl apply -f "$ARGOCD_APP_PATH/application.yaml" --dry-run=client --validate=false >/dev/null 2>&1; then
+        print_status "✅ ArgoCD application YAML syntax is valid"
+    else
         print_warning "ArgoCD application validation skipped (no cluster connection)"
-        print_status "ArgoCD application YAML syntax is valid"
-    }
+    fi
     
     print_status "ArgoCD application validation completed successfully."
 }
@@ -172,13 +201,13 @@ build_docker_image() {
         IMAGE_NAME="$APP_NAME:$IMAGE_TAG"
         
         # Build Docker image
-        if docker build -t $IMAGE_NAME .; then
+        if docker build -t "$IMAGE_NAME" .; then
             print_status "✅ Docker image built successfully: $IMAGE_NAME"
             
-                        # Check if we should push the image
+            # Check if we should push the image
             if [ "$PUSH_IMAGE" = "true" ]; then
                 print_status "Pushing Docker image to registry..."
-                if docker push $IMAGE_NAME; then
+                if docker push "$IMAGE_NAME"; then
                     print_status "✅ Docker image pushed successfully"
                 else
                     print_warning "⚠️ Failed to push Docker image"
@@ -206,15 +235,18 @@ install_argocd() {
     print_status "Installing ArgoCD..."
     
     # Create namespace if it doesn't exist
-    kubectl create namespace $ARGOCD_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
     
     # Install ArgoCD
     print_status "Applying ArgoCD manifests..."
-    kubectl apply -n $ARGOCD_NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    if ! kubectl apply -n "$ARGOCD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml; then
+        print_error "Failed to install ArgoCD"
+        return 1
+    fi
     
     # Wait for ArgoCD to be ready
     print_status "Waiting for ArgoCD to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n $ARGOCD_NAMESPACE || {
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n "$ARGOCD_NAMESPACE" || {
         print_warning "ArgoCD server not ready within timeout, but continuing..."
         print_info "You can check status with: kubectl get pods -n $ARGOCD_NAMESPACE"
     }
@@ -236,12 +268,12 @@ spec:
     - name: http
       port: 80
       targetPort: 8080
-      nodePort: 30080
+      nodePort: $ARGOCD_HTTP_PORT
       protocol: TCP
     - name: https
       port: 443
       targetPort: 8080
-      nodePort: 30443
+      nodePort: $ARGOCD_HTTPS_PORT
       protocol: TCP
   selector:
     app.kubernetes.io/name: argocd-server
@@ -256,10 +288,15 @@ install_prometheus_crds() {
     print_status "Installing Prometheus Operator CRDs..."
     
     # Install ServiceMonitor CRD
-    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+    if ! kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml; then
+        print_error "Failed to install Prometheus Operator CRDs"
+        return 1
+    fi
     
     # Wait for CRD to be ready
-    kubectl wait --for condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
+    kubectl wait --for=condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com || {
+        print_warning "ServiceMonitor CRD not ready within timeout"
+    }
     
     print_status "Prometheus Operator CRDs installed successfully."
 }
@@ -267,9 +304,25 @@ install_prometheus_crds() {
 # Function to get ArgoCD admin password
 get_argocd_password() {
     print_status "Getting ArgoCD admin password..."
-    ARGOCD_PASSWORD=$(kubectl -n $ARGOCD_NAMESPACE get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-    echo "ArgoCD admin password: $ARGOCD_PASSWORD"
-    print_warning "Please save this password for ArgoCD UI access."
+    
+    # Wait for secret to be available
+    local retry_count=0
+    local max_retries=30
+    
+    while [ $retry_count -lt $max_retries ]; do
+        if kubectl get secret argocd-initial-admin-secret -n "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+            ARGOCD_PASSWORD=$(kubectl -n "$ARGOCD_NAMESPACE" get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+            echo "ArgoCD admin password: $ARGOCD_PASSWORD"
+            print_warning "Please save this password for ArgoCD UI access."
+            return 0
+        fi
+        print_info "Waiting for ArgoCD password secret... (attempt $((retry_count + 1))/$max_retries)"
+        sleep 5
+        retry_count=$((retry_count + 1))
+    done
+    
+    print_error "Failed to retrieve ArgoCD password after $max_retries attempts"
+    return 1
 }
 
 # Function to deploy Helm chart (if cluster is available)
@@ -277,7 +330,7 @@ deploy_helm_chart() {
     print_status "Deploying Helm chart..."
     
     # Create namespace
-    kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
     
     # Check if ServiceMonitor CRD exists
     if kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
@@ -291,15 +344,18 @@ deploy_helm_chart() {
     fi
     
     # Install/upgrade Helm chart
-    helm upgrade --install $APP_NAME $HELM_CHART_PATH \
-        --namespace $NAMESPACE \
+    if ! helm upgrade --install "$APP_NAME" "$HELM_CHART_PATH" \
+        --namespace "$NAMESPACE" \
         --create-namespace \
-        --set serviceMonitor.enabled=$SERVICE_MONITOR_ENABLED \
-        --timeout 10m
+        --set serviceMonitor.enabled="$SERVICE_MONITOR_ENABLED" \
+        --timeout 10m; then
+        print_error "Helm deployment failed"
+        return 1
+    fi
     
     # Wait for deployment to be ready (separate from helm wait)
     print_status "Waiting for deployment to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment/$APP_NAME -n $NAMESPACE || {
+    kubectl wait --for=condition=available --timeout=300s deployment/"$APP_NAME" -n "$NAMESPACE" || {
         print_warning "Deployment not ready within timeout, but continuing..."
         print_info "You can check status with: kubectl get pods -n $NAMESPACE"
     }
@@ -312,18 +368,21 @@ deploy_argocd_app() {
     print_status "Deploying ArgoCD application..."
     
     # Apply ArgoCD application
-    kubectl apply -f $ARGOCD_APP_PATH/application.yaml
+    if ! kubectl apply -f "$ARGOCD_APP_PATH/application.yaml"; then
+        print_error "Failed to apply ArgoCD application"
+        return 1
+    fi
     
     # Wait for application to be synced
     print_status "Waiting for ArgoCD application to sync..."
-    argocd app sync $APP_NAME || {
+    argocd app sync "$APP_NAME" || {
         print_warning "ArgoCD sync failed, but application may still be deployed"
         print_info "You can check status with: argocd app get $APP_NAME"
     }
     
     # Wait for application to be healthy
     print_status "Waiting for ArgoCD application to be healthy..."
-    timeout 60 bash -c 'until argocd app get $APP_NAME --output json | grep -q "Healthy" >/dev/null 2>&1; do sleep 5; done' || {
+    timeout 60 bash -c "until argocd app get \"$APP_NAME\" --output json | grep -q \"Healthy\" >/dev/null 2>&1; do sleep 5; done" || {
         print_warning "Application not healthy within timeout, but continuing..."
         print_info "You can check status with: argocd app get $APP_NAME"
     }
@@ -341,7 +400,7 @@ check_deployment_health() {
     fi
     
     # Check if pods are running
-    if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=student-tracker --no-headers | grep -q "Running"; then
+    if kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=student-tracker --no-headers | grep -q "Running"; then
         print_status "✅ Application pods are running"
     else
         print_warning "⚠️ Application pods are not running"
@@ -350,7 +409,7 @@ check_deployment_health() {
     fi
     
     # Check if service is available
-    if kubectl get service -n $NAMESPACE student-tracker >/dev/null 2>&1; then
+    if kubectl get service -n "$NAMESPACE" student-tracker >/dev/null 2>&1; then
         print_status "✅ Service is available"
     else
         print_warning "⚠️ Service is not available"
@@ -359,7 +418,7 @@ check_deployment_health() {
     
     # Check ArgoCD application status
     if command_exists argocd; then
-        if argocd app get $APP_NAME >/dev/null 2>&1; then
+        if argocd app get "$APP_NAME" >/dev/null 2>&1; then
             print_status "✅ ArgoCD application exists"
         else
             print_warning "⚠️ ArgoCD application not found"
@@ -376,31 +435,31 @@ show_status() {
     
     if kubectl cluster-info >/dev/null 2>&1; then
         echo "Kubernetes Resources:"
-        kubectl get all -n $NAMESPACE
+        kubectl get all -n "$NAMESPACE"
         
         echo ""
         echo "Pod Status:"
-        kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=student-tracker
+        kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=student-tracker
         
         echo ""
         echo "Service Status:"
-        kubectl get service -n $NAMESPACE
+        kubectl get service -n "$NAMESPACE"
         
         if command_exists argocd; then
             echo ""
             echo "ArgoCD Application Status:"
-            argocd app get $APP_NAME || echo "ArgoCD application not found"
+            argocd app get "$APP_NAME" || echo "ArgoCD application not found"
         fi
         
         echo ""
         echo "Application URLs:"
-        echo "  - Student Tracker App: http://18.206.89.183:30011"
-        echo "  - API Documentation: http://18.206.89.183:30011/docs"
-        echo "  - Health Check: http://18.206.89.183:30011/health"
+        echo "  - Student Tracker App: http://$PRODUCTION_HOST:$PRODUCTION_PORT"
+        echo "  - API Documentation: http://$PRODUCTION_HOST:$PRODUCTION_PORT/docs"
+        echo "  - Health Check: http://$PRODUCTION_HOST:$PRODUCTION_PORT/health"
         echo ""
         echo "ArgoCD Access:"
-        echo "  - ArgoCD UI: http://18.206.89.183:30080"
-        echo "  - ArgoCD HTTPS: https://18.206.89.183:30443"
+        echo "  - ArgoCD UI: http://$PRODUCTION_HOST:$ARGOCD_HTTP_PORT"
+        echo "  - ArgoCD HTTPS: https://$PRODUCTION_HOST:$ARGOCD_HTTPS_PORT"
         echo "  - Username: admin"
         echo "  - Password: (see above)"
         
@@ -415,6 +474,15 @@ show_status() {
 run_comprehensive_validation() {
     print_status "Running comprehensive validation..."
     
+    # Check if required files exist
+    local required_files=("app/main.py" "app/crud.py" "app/database.py" "app/models.py" "app/routes/students.py" "app/routes/api.py")
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            print_error "Required file not found: $file"
+            return 1
+        fi
+    done
+    
     # Validate Python code
     print_status "Validating Python code..."
     if python3 -m py_compile app/main.py app/crud.py app/database.py app/models.py app/routes/students.py app/routes/api.py; then
@@ -426,15 +494,19 @@ run_comprehensive_validation() {
     
     # Run basic tests
     print_status "Running basic tests..."
-    if python3 app/test_basic.py; then
-        print_status "✅ Basic tests passed"
+    if [ -f "app/test_basic.py" ]; then
+        if python3 app/test_basic.py; then
+            print_status "✅ Basic tests passed"
+        else
+            print_warning "⚠️ Basic tests failed (expected without dependencies)"
+        fi
     else
-        print_warning "⚠️ Basic tests failed (expected without dependencies)"
+        print_warning "⚠️ Test file not found: app/test_basic.py"
     fi
     
     # Validate Helm chart
     print_status "Validating Helm chart..."
-    if cd helm-chart && helm lint . && cd ..; then
+    if (cd helm-chart && helm lint . && cd ..); then
         print_status "✅ Helm chart validation passed"
     else
         print_error "❌ Helm chart validation failed"
@@ -443,7 +515,7 @@ run_comprehensive_validation() {
     
     # Validate ArgoCD application
     print_status "Validating ArgoCD application..."
-    if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))"; then
+    if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))" 2>/dev/null; then
         print_status "✅ ArgoCD application validation passed"
     else
         print_error "❌ ArgoCD application validation failed"
@@ -496,10 +568,10 @@ show_next_steps() {
     echo "docker push ghcr.io/bonaventuresimeon/NativeSeries/student-tracker:latest"
     echo ""
     echo "🌐 PRODUCTION ACCESS:"
-    echo "  - Student Tracker App: http://18.206.89.183:30011"
-    echo "  - API Documentation: http://18.206.89.183:30011/docs"
-    echo "  - ArgoCD UI: http://18.206.89.183:30080"
-    echo "  - ArgoCD HTTPS: https://18.206.89.183:30443"
+    echo "  - Student Tracker App: http://$PRODUCTION_HOST:$PRODUCTION_PORT"
+    echo "  - API Documentation: http://$PRODUCTION_HOST:$PRODUCTION_PORT/docs"
+    echo "  - ArgoCD UI: http://$PRODUCTION_HOST:$ARGOCD_HTTP_PORT"
+    echo "  - ArgoCD HTTPS: https://$PRODUCTION_HOST:$ARGOCD_HTTPS_PORT"
     echo ""
     echo "📖 For detailed instructions, see README.md"
 }
