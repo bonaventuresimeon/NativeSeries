@@ -10,25 +10,86 @@
 
 ## 🎯 **Overview**
 
-NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management.
+NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management with integrated troubleshooting and cluster management capabilities.
 
 ---
 
 ## 🌟 **Quick Start - One Command Deployment**
 
-### **Full Deployment (Kubernetes + ArgoCD)**
+### **🚀 Unified Deployment (Recommended)**
 ```bash
-# Clone and deploy with full Kubernetes stack
+# Clone and deploy with unified script (includes all fixes and troubleshooting)
 git clone <your-repository-url>
 cd NativeSeries
-sudo ./deploy.sh
+sudo ./deploy-unified.sh
 ```
 
 **🎉 Your NativeSeries application will be live at:**
 - **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
 - **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
 
-📖 **📋 For complete documentation, see [COMPREHENSIVE_DOCUMENTATION.md](COMPREHENSIVE_DOCUMENTATION.md)**
+---
+
+## 🛠️ **Unified Deployment Script Options**
+
+The `deploy-unified.sh` script provides comprehensive deployment and management capabilities:
+
+```bash
+# Full deployment with Kubernetes + ArgoCD (default)
+sudo ./deploy-unified.sh
+
+# Troubleshoot existing deployment issues
+sudo ./deploy-unified.sh --troubleshoot
+
+# Update cluster configuration with worker nodes
+sudo ./deploy-unified.sh --update-cluster
+
+# Run comprehensive health check
+sudo ./deploy-unified.sh --health-check
+
+# Clean up all resources
+sudo ./deploy-unified.sh --cleanup
+
+# Show help
+sudo ./deploy-unified.sh --help
+```
+
+### **🔧 What the Unified Script Does:**
+
+#### **Full Deployment (`--deploy`)**
+- ✅ Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
+- ✅ Creates Kubernetes cluster with worker nodes
+- ✅ Deploys NativeSeries application
+- ✅ Installs ArgoCD for GitOps
+- ✅ Sets up port forwarding
+- ✅ Verifies deployment health
+- ✅ Includes all fixes and optimizations
+
+#### **Troubleshooting (`--troubleshoot`)**
+- 🔍 Checks cluster connectivity
+- 🔍 Verifies existing deployments
+- 🔍 Identifies deployment issues
+- 🔍 Offers redeployment options
+- 🔍 Provides detailed diagnostics
+
+#### **Cluster Update (`--update-cluster`)**
+- 🔄 Creates new cluster configuration with worker nodes
+- 🔄 Recreates cluster with better resource distribution
+- 🔄 Redeploys application to new cluster
+- 🔄 Installs ArgoCD on new cluster
+
+#### **Health Check (`--health-check`)**
+- 🏥 Comprehensive system health verification
+- 🏥 Cluster status monitoring
+- 🏥 Application endpoint testing
+- 🏥 Resource usage analysis
+- 🏥 Detailed health report
+
+#### **Cleanup (`--cleanup`)**
+- 🧹 Removes all Kubernetes resources
+- 🧹 Deletes ArgoCD and applications
+- 🧹 Cleans up Docker resources
+- 🧹 Removes Kind cluster
 
 ---
 
@@ -54,12 +115,12 @@ sudo ./deploy.sh
 
 ```bash
 # Complete automated deployment with all tools and fixes
-sudo ./deploy.sh
+sudo ./deploy-unified.sh
 ```
 
 **✅ What this does:**
 - Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
-- Creates Kubernetes cluster (port 30012)
+- Creates Kubernetes cluster with worker nodes (port 30012)
 - Installs ArgoCD for GitOps (port 30080)
 - Sets up port forwarding for ArgoCD UI
 - Verifies all services are healthy
@@ -72,7 +133,7 @@ sudo ./deploy.sh
 
 ```bash
 # Comprehensive health check
-sudo ./health-check.sh
+sudo ./deploy-unified.sh --health-check
 ```
 
 **✅ What this does:**
@@ -83,17 +144,46 @@ sudo ./health-check.sh
 - Monitors resource usage
 - Provides detailed health report
 
+### 🔧 **Troubleshooting**
+
+```bash
+# Troubleshoot deployment issues
+sudo ./deploy-unified.sh --troubleshoot
+```
+
+**✅ What this does:**
+- Diagnoses deployment problems
+- Checks cluster connectivity
+- Verifies resource status
+- Offers repair options
+- Provides detailed diagnostics
+
+### 🔄 **Cluster Management**
+
+```bash
+# Update cluster with worker nodes
+sudo ./deploy-unified.sh --update-cluster
+```
+
+**✅ What this does:**
+- Creates cluster with worker nodes
+- Improves resource distribution
+- Enhances reliability
+- Redeploys application
+- Updates ArgoCD configuration
+
 ### 🧹 **Cleanup**
 
 ```bash
 # Complete cleanup of all resources
-sudo ./cleanup.sh
+sudo ./deploy-unified.sh --cleanup
 ```
 
 **✅ What this does:**
 - Stops and removes all Docker containers
 - Cleans up Docker images and volumes
 - Removes Kubernetes cluster
+- Deletes ArgoCD and applications
 - Cleans temporary files and logs
 
 ---
@@ -198,406 +288,318 @@ graph LR
 
 ### 🎓 **Application Stack**
 
-```mermaid
-graph TB
-    subgraph "🎓 Application Layer"
-        FastAPI[FastAPI 0.116+]
-        Python[Python 3.11+]
-        SQLAlchemy[SQLAlchemy 2.0+]
-        Pydantic[Pydantic 2.11+]
-    end
-    
-    subgraph "🗄️ Data Layer"
-        PostgreSQL[PostgreSQL 16]
-        Redis[Redis 7]
-    end
-    
-    subgraph "🌐 Network Layer"
-        Nginx[Nginx Alpine]
-        Uvicorn[Uvicorn Server]
-    end
-    
-    subgraph "📊 Monitoring Layer"
-        Prometheus[Prometheus]
-        Grafana[Grafana]
-        Adminer[Adminer]
-    end
-    
-    FastAPI --> PostgreSQL
-    FastAPI --> Redis
-    Nginx --> FastAPI
-    Prometheus --> FastAPI
-    Grafana --> Prometheus
-    Adminer --> PostgreSQL
-    
-    style FastAPI fill:#c8e6c9
-    style PostgreSQL fill:#fff3e0
-    style Redis fill:#f3e5f5
-    style Nginx fill:#e8f5e8
-```
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Backend** | FastAPI | Latest | REST API Framework |
+| **Database** | PostgreSQL | 15+ | Primary Database |
+| **Cache** | Redis | 7+ | Session & Cache Store |
+| **Frontend** | HTML/CSS/JS | - | Web Interface |
+| **API Docs** | Swagger UI | Auto | Interactive Documentation |
 
-### 📋 **Technology Matrix**
+### 🐳 **Container & Orchestration**
 
-| Layer | Technology | Version | Port | Purpose |
-|-------|------------|---------|------|---------|
-| **🌐 Web Server** | Nginx | Alpine | 80 | Reverse proxy, SSL termination |
-| **🎓 API Framework** | FastAPI | 0.116+ | 8011 | High-performance Python API |
-| **🐍 Runtime** | Python | 3.11+ | - | Modern Python environment |
-| **🗄️ Database** | PostgreSQL | 16-alpine | 5432 | Primary data storage |
-| **📦 Cache** | Redis | 7-alpine | 6379 | Session & performance cache |
-| **📈 Metrics** | Prometheus | Latest | 9090 | Metrics collection |
-| **📊 Visualization** | Grafana | Latest | 3000 | Monitoring dashboards |
-| **🛠️ Database Admin** | Adminer | Latest | 8080 | Database administration |
-| **☸️ Container Orchestration** | Kubernetes | 1.33+ | 30012 | Production deployment |
-| **🔄 GitOps** | ArgoCD | Latest | 30080 | Continuous deployment |
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Containerization** | Docker | 25.0+ | Application Packaging |
+| **Orchestration** | Kubernetes | 1.33+ | Container Orchestration |
+| **Local K8s** | Kind | 0.20+ | Local Kubernetes Cluster |
+| **Package Manager** | Helm | 3.12+ | Kubernetes Package Manager |
+| **GitOps** | ArgoCD | 2.8+ | Continuous Deployment |
 
----
+### 📊 **Monitoring & Observability**
 
-## 📁 **Project Structure**
-
-```
-NativeSeries/
-├── 🎓 app/                          # FastAPI Application
-│   ├── main.py                      # Production-configured main app
-│   ├── models.py                    # SQLAlchemy database models
-│   ├── crud.py                      # Database operations
-│   ├── database.py                  # Database configuration
-│   └── routes/                      # API route modules
-│
-├── 🐳 docker/                       # Container Configurations
-│   ├── Dockerfile                   # Multi-stage application container
-│   ├── nginx.conf                   # Production Nginx configuration
-│   ├── redis.conf                   # Redis cache configuration
-│   └── prometheus.yml               # Monitoring configuration
-│
-├── ☸️ infra/                        # Infrastructure as Code
-│   ├── kind/                        # Local Kubernetes cluster
-│   │   └── cluster-config.yaml      # Kind cluster configuration
-│   └── helm/                        # Kubernetes Helm charts
-│       ├── Chart.yaml               # Chart metadata
-│       ├── values.yaml              # Production values
-│       └── templates/               # K8s resource templates
-│
-├── 🔄 argocd/                       # GitOps Configuration
-│   └── app.yaml                     # ArgoCD application definition
-│
-├── 🚀 Scripts                       # Deployment Scripts
-│   ├── deploy.sh                    # Complete deployment (all fixes included)
-│   ├── health-check.sh              # Comprehensive health monitoring
-│   └── cleanup.sh                   # Complete cleanup script
-│
-├── 📖 docs/                         # Documentation
-│   └── HEALTH_CHECK_GUIDE.md        # Health monitoring guide
-│
-├── 🎨 templates/                    # Web UI Templates
-├── 📋 requirements.txt              # Python dependencies
-├── 🌐 nginx.conf                    # Nginx configuration
-├── 📊 prometheus.yml                # Prometheus configuration
-└── 📖 README.md                     # This comprehensive guide
-```
-
----
-
-## 🌟 **Features & Capabilities**
-
-### 🎯 **Core Application Features**
-
-```mermaid
-mindmap
-  root((NativeSeries))
-    👥 Student Management
-      Registration
-      Profile Management
-      Enrollment Tracking
-      Status Monitoring
-    📚 Course Management
-      Multi-course Enrollment
-      Course Creation
-      Instructor Assignment
-      Curriculum Management
-    📊 Progress Tracking
-      Week-by-week Monitoring
-      Performance Analytics
-      Custom Milestones
-      Progress Reports
-    📝 Assignment System
-      Assignment Creation
-      Submission Tracking
-      Grading Workflows
-      Feedback System
-    🌐 Modern Web Interface
-      Responsive Design
-      Interactive Dashboards
-      Real-time Updates
-      Mobile Optimization
-```
-
-### 🔧 **Technical Features**
-
-- **🚀 High Performance**
-  - Async FastAPI framework for maximum throughput
-  - Redis caching for optimal response times
-  - Connection pooling and database optimization
-  - Load balancing with Nginx
-
-- **📊 Comprehensive Monitoring**
-  - Prometheus metrics collection
-  - Grafana dashboards for visualization
-  - Health checks for all system components
-  - Performance tracking and alerting
-
-- **🛡️ Production Security**
-  - Security headers (HSTS, CSP, XSS protection)
-  - Rate limiting and DDoS protection
-  - Input validation and SQL injection prevention
-  - Database access restrictions
-
-- **☸️ Kubernetes Ready**
-  - Helm charts for easy deployment
-  - Horizontal Pod Autoscaling
-  - Resource limits and requests
-  - Health checks and readiness probes
-
-- **🔄 GitOps Integration**
-  - ArgoCD for continuous deployment
-  - Declarative infrastructure management
-  - Automated sync and health monitoring
-  - Rollback capabilities
-
----
-
-## 🏥 **Health Monitoring System**
-
-### 🔍 **What Gets Monitored**
-
-1. **🐳 Docker Compose Health**
-   - 7 services (student-tracker, postgres, redis, nginx, prometheus, grafana, adminer)
-   - Service status, logs, error detection
-
-2. **☸️ Kubernetes Health**
-   - Cluster status, nodes, deployment, pods, services
-   - NativeSeries deployment readiness
-
-3. **🔄 ArgoCD Health**
-   - Namespace, server deployment, application status
-   - GitOps synchronization status
-
-4. **🌐 Network Connectivity**
-   - External hosts (google.com, github.com, docker.io)
-   - Local ports (8011, 30012, 30080, 80, 3000, 9090, 8080)
-
-5. **🎯 Application Endpoints**
-   - Health endpoints, API docs, metrics
-   - Monitoring tools accessibility
-
-6. **🗄️ Database Connectivity**
-   - PostgreSQL connection and query testing
-   - Redis ping response verification
-
-7. **📊 Resource Usage**
-   - Disk, memory, CPU utilization
-   - Docker and Kubernetes resource metrics
-
-8. **🔧 System Services**
-   - Docker daemon, kubelet, containerd status
-
-### 📊 **Health Assessment Levels**
-
-- **🟢 Healthy (80-100%)**: All critical services operational
-- **🟡 Warning (60-79%)**: Minor issues detected
-- **🔴 Critical (0-59%)**: Critical issues detected
-
-### 🚀 **Health Check Usage**
-
-```bash
-# Run comprehensive health check
-sudo ./health-check.sh
-
-# View detailed guide
-cat HEALTH_CHECK_GUIDE.md
-
-# Set up automated monitoring
-crontab -e
-# Add: 0 * * * * /path/to/health-check.sh >> /var/log/nativeseries-health.log 2>&1
-```
+| Component | Technology | Version | Purpose |
+|-----------|------------|---------|---------|
+| **Metrics** | Prometheus | 2.45+ | Metrics Collection |
+| **Visualization** | Grafana | 10.0+ | Dashboards & Alerts |
+| **Database Admin** | Adminer | 4.8+ | Database Management |
+| **Load Balancer** | Nginx | 1.25+ | Reverse Proxy |
 
 ---
 
 ## 🔧 **Troubleshooting Guide**
 
-### **Common Issues & Solutions**
+### 🚨 **Common Issues & Solutions**
 
-#### **Docker Compose Issues:**
+#### **1. Deployment Not Found Error**
 ```bash
-# Check service status
-docker compose ps
-
-# View service logs
-docker compose logs -f
-
-# Restart services
-docker compose restart
-
-# Check specific service
-docker compose logs student-tracker
+Error from server (NotFound): deployments.apps "nativeseries" not found
 ```
 
-#### **Kubernetes Issues:**
+**Solution:**
 ```bash
-# Check pod status
-kubectl get pods
+# Run troubleshooting
+sudo ./deploy-unified.sh --troubleshoot
 
-# View pod logs
-kubectl logs -f deployment/nativeseries
+# Or redeploy completely
+sudo ./deploy-unified.sh --update-cluster
+```
+
+#### **2. Cluster Connectivity Issues**
+```bash
+Cannot connect to Kubernetes cluster
+```
+
+**Solution:**
+```bash
+# Check cluster status
+kubectl cluster-info
+
+# Recreate cluster if needed
+sudo ./deploy-unified.sh --update-cluster
+```
+
+#### **3. Application Not Responding**
+```bash
+Application endpoints not responding
+```
+
+**Solution:**
+```bash
+# Check application health
+sudo ./deploy-unified.sh --health-check
+
+# Check pod status
+kubectl get pods -n student-tracker
+
+# Check logs
+kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker
+```
+
+#### **4. Port Conflicts**
+```bash
+Port already in use
+```
+
+**Solution:**
+```bash
+# Clean up and redeploy
+sudo ./deploy-unified.sh --cleanup
+sudo ./deploy-unified.sh
+```
+
+### 🔍 **Manual Troubleshooting Commands**
+
+#### **Check Cluster Status**
+```bash
+# Check if kubectl is available
+which kubectl
+
+# Check cluster connectivity
+kubectl cluster-info
+
+# Check nodes
+kubectl get nodes -o wide
+
+# Check all resources
+kubectl get all --all-namespaces
+```
+
+#### **Check Deployment Status**
+```bash
+# Check namespaces
+kubectl get namespaces
+
+# Check if student-tracker namespace exists
+kubectl get namespace student-tracker
+
+# Check deployments in student-tracker namespace
+kubectl get deployments -n student-tracker
+
+# Check pods in student-tracker namespace
+kubectl get pods -n student-tracker
+
+# Check services in student-tracker namespace
+kubectl get services -n student-tracker
+```
+
+#### **Check Helm Releases**
+```bash
+# Check if Helm is installed
+which helm
+
+# List Helm releases
+helm list --all-namespaces
+
+# Check specific release
+helm status nativeseries -n student-tracker
+```
+
+#### **Check Application Logs**
+```bash
+# Check pod logs
+kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker
+
+# Check pod events
+kubectl describe pods -n student-tracker
+
+# Check service events
+kubectl describe service nativeseries -n student-tracker
+```
+
+### 🎯 **Expected Results After Fix**
+
+After running the fix scripts, you should see:
+
+1. **✅ Cluster with 3 nodes** (1 control-plane + 2 workers)
+2. **✅ NativeSeries deployment running** in student-tracker namespace
+3. **✅ Application accessible** on port 30012
+4. **✅ Health endpoints responding** at http://localhost:30012/health
+
+### 🔍 **Verification Commands**
+
+After fixing the deployment, verify with:
+
+```bash
+# Check cluster nodes
+kubectl get nodes -o wide
 
 # Check deployment status
-kubectl describe deployment nativeseries
+kubectl get deployments -n student-tracker
 
-# Check service status
-kubectl get svc
-```
+# Check pod status
+kubectl get pods -n student-tracker -o wide
 
-#### **ArgoCD Issues:**
-```bash
-# Check ArgoCD application
-kubectl get application nativeseries -n argocd
+# Check service endpoints
+kubectl get endpoints -n student-tracker
 
-# Check ArgoCD server
-kubectl get pods -n argocd
-
-# View ArgoCD logs
-kubectl logs -f deployment/argocd-server -n argocd
-```
-
-#### **Network Issues:**
-```bash
-# Test connectivity
-curl http://localhost:8011/health
+# Test application health
 curl http://localhost:30012/health
 
-# Check listening ports
-netstat -tuln | grep -E "(8011|30012|30080)"
-
-# Test external connectivity
-ping google.com
+# Check application logs
+kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker
 ```
 
-#### **Database Issues:**
+---
+
+## 📋 **Cluster Configuration**
+
+### **Current Configuration (Single Node)**
+```yaml
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: nativeseries
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 30012
+    hostPort: 30012
+    protocol: TCP
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+```
+
+### **Updated Configuration (With Worker Nodes)**
+```yaml
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: nativeseries
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 30012
+    hostPort: 30012
+    protocol: TCP
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+```
+
+---
+
+## 🚀 **Quick Fix Commands**
+
+For immediate resolution, run these commands in sequence:
+
 ```bash
-# Check PostgreSQL
-docker exec $(docker ps -q -f name=postgres) pg_isready -U student_user
+# 1. Update cluster configuration and recreate with worker nodes
+sudo ./deploy-unified.sh --update-cluster
 
-# Check Redis
-docker exec $(docker ps -q -f name=redis) redis-cli ping
+# 2. Or troubleshoot existing deployment
+sudo ./deploy-unified.sh --troubleshoot
 
-# Test database connection
-docker exec $(docker ps -q -f name=postgres) psql -U student_user -d student_db -c "SELECT 1;"
-```
-
-#### **Disk Space Issues:**
-```bash
-# Check disk space
-df -h
-
-# Clean up Docker system
-sudo docker system prune -af
-
-# Clean up Docker volumes
-sudo docker system prune -af --volumes
-
-# Check Docker disk usage
-docker system df
+# 3. Verify the fix
+sudo ./deploy-unified.sh --health-check
 ```
 
 ---
 
-## 📈 **Performance & Monitoring**
+## 📞 **Support**
 
-### **Resource Thresholds:**
-- **CPU Usage**: >80% triggers warning
-- **Memory Usage**: >85% triggers warning
-- **Disk Usage**: >80% triggers warning, >90% triggers critical alert
-- **Service Health**: <100% triggers investigation
-- **Docker Space**: Automatic cleanup when space is low
+If issues persist after following this guide:
 
-### **Response Time Metrics:**
-- **Health Endpoint**: <2 seconds
-- **API Endpoints**: <5 seconds
-- **Database Queries**: <1 second
-
-### **Monitoring Integration:**
-- **Prometheus Metrics**: Available at `/metrics` endpoints
-- **Grafana Dashboards**: Pre-configured monitoring dashboards
-- **Health Check Endpoints**: Real-time health status
+1. Check the logs: `kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker`
+2. Check pod events: `kubectl describe pods -n student-tracker`
+3. Check service events: `kubectl describe service nativeseries -n student-tracker`
+4. Run the comprehensive health check: `sudo ./deploy-unified.sh --health-check`
 
 ---
 
-## 🚀 **Automation & CI/CD**
+## 🎉 **Success Indicators**
 
-### **Deployment Workflow:**
-1. **Deploy**: `sudo ./deploy.sh`
-2. **Monitor**: `sudo ./health-check.sh`
-3. **Cleanup**: `sudo ./cleanup.sh` (when needed)
+You'll know the fix was successful when:
 
-### **Monitoring Workflow:**
-1. **Initial Check**: Run health check after deployment
-2. **Regular Monitoring**: Automated hourly checks
-3. **Issue Resolution**: Use troubleshooting commands
-4. **Verification**: Re-run health check after fixes
-
-### **Scheduled Health Checks:**
-```bash
-# Add to crontab for hourly health checks
-0 * * * * /path/to/health-check.sh >> /var/log/nativeseries-health.log 2>&1
-
-# Add to crontab for daily health reports
-0 9 * * * /path/to/health-check.sh | mail -s "NativeSeries Daily Health Report" admin@example.com
-```
+- ✅ `kubectl get nodes` shows 3 nodes
+- ✅ `kubectl get deployments -n student-tracker` shows nativeseries deployment
+- ✅ `kubectl get pods -n student-tracker` shows running pods
+- ✅ `curl http://localhost:30012/health` returns a successful response
+- ✅ Health check script shows green status indicators
 
 ---
 
-## 🔒 **Security Considerations**
+## 📚 **Additional Documentation**
 
-### **Access Control:**
-- Health check script requires sudo privileges
-- Sensitive information is not logged
-- Network tests use safe endpoints
-
-### **Data Privacy:**
-- No personal data is collected
-- Only system health metrics are gathered
-- Logs can be safely shared for troubleshooting
+- **📖 Comprehensive Documentation**: [COMPREHENSIVE_DOCUMENTATION.md](COMPREHENSIVE_DOCUMENTATION.md)
+- **🏥 Health Check Guide**: [HEALTH_CHECK_GUIDE.md](HEALTH_CHECK_GUIDE.md)
+- **🔧 Troubleshooting Guide**: [TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)
+- **📋 Deployment Summary**: [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md)
 
 ---
 
-## 🎉 **Benefits**
+## 🤝 **Contributing**
 
-1. **🚀 One-Command Deployment**: Everything in one script
-2. **🔧 All Fixes Included**: No need for separate fix scripts
-3. **📊 Comprehensive Monitoring**: Real-time deployment tracking
-4. **🛠️ Error Handling**: Robust error handling and debugging
-5. **🌐 Dual Deployment**: Both Docker Compose and Kubernetes
-6. **🔄 GitOps Ready**: ArgoCD integration included
-7. **📋 Complete Documentation**: All information in one place
-8. **🏥 Health Monitoring**: Comprehensive health checks
-9. **🔧 Troubleshooting**: Built-in diagnostic commands
-10. **📈 Performance**: Optimized for production use
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ---
 
-## 🎯 **Next Steps**
+## 📄 **License**
 
-1. **Deploy**: Run `sudo ./deploy.sh`
-2. **Monitor**: Run `sudo ./health-check.sh`
-3. **Access**: Use the provided URLs to access your application
-4. **Customize**: Modify configurations as needed
-5. **Scale**: Use Kubernetes for production scaling
-6. **Monitor**: Set up automated health monitoring
-
-**🎉 Your NativeSeries application is ready for production use!**
+This project is licensed under the MIT License - see the [License.md](License.md) file for details.
 
 ---
 
-**📝 NativeSeries Platform**: August 2, 2025  
-**📊 Status**: Complete deployment and monitoring solution  
-**🎯 Result**: Production-ready application with comprehensive health monitoring
+## 🙏 **Acknowledgments**
+
+- FastAPI community for the excellent framework
+- Kubernetes community for container orchestration
+- ArgoCD team for GitOps capabilities
+- Docker community for containerization
+- All contributors and supporters
+
+---
+
+**🚀 Happy Deploying!**
