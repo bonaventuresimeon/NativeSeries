@@ -392,6 +392,8 @@ setup_port_forwarding() {
         echo "   docker compose logs -f"
         echo ""
         echo "📝 Note: You have both Docker Compose (port 8011) and Kubernetes (port 8012) deployments running!"
+        echo "   - Docker Compose: Port 8011 (for development/testing)"
+        echo "   - Kubernetes: Port 8012 (for production/GitOps)"
         echo ""
     }
 
