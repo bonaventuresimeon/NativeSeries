@@ -42,24 +42,43 @@ command_exists() {
 check_prerequisites() {
     print_status "Checking prerequisites..."
     
+    # Check kubectl
     if ! command_exists kubectl; then
         print_error "kubectl is not installed. Please install kubectl first."
+        print_info "Install kubectl: https://kubernetes.io/docs/tasks/tools/install-kubectl/"
         exit 1
     fi
     
+    # Check Helm
     if ! command_exists helm; then
         print_error "Helm is not installed. Please install Helm first."
+        print_info "Install Helm: https://helm.sh/docs/intro/install/"
         exit 1
     fi
     
+    # Check ArgoCD CLI
     if ! command_exists argocd; then
         print_warning "ArgoCD CLI is not installed. Installing ArgoCD CLI..."
         curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
         sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
         rm argocd-linux-amd64
+        print_status "✅ ArgoCD CLI installed successfully"
     fi
     
-    print_status "Prerequisites check completed."
+    # Check Docker (optional)
+    if command_exists docker; then
+        if docker info >/dev/null 2>&1; then
+            print_status "✅ Docker is available and running"
+        else
+            print_warning "⚠️ Docker is installed but not running"
+            print_info "Start Docker: sudo systemctl start docker"
+        fi
+    else
+        print_warning "⚠️ Docker is not installed (optional for image building)"
+        print_info "Install Docker: https://docs.docker.com/get-docker/"
+    fi
+    
+    print_status "✅ Prerequisites check completed."
 }
 
 # Function to check and fix common deployment issues
@@ -156,7 +175,7 @@ build_docker_image() {
         if docker build -t $IMAGE_NAME .; then
             print_status "✅ Docker image built successfully: $IMAGE_NAME"
             
-            # Check if we should push the image
+                        # Check if we should push the image
             if [ "$PUSH_IMAGE" = "true" ]; then
                 print_status "Pushing Docker image to registry..."
                 if docker push $IMAGE_NAME; then
@@ -164,9 +183,11 @@ build_docker_image() {
                 else
                     print_warning "⚠️ Failed to push Docker image"
                     print_info "You can push manually with: docker push $IMAGE_NAME"
+                    print_info "Make sure you're logged in to the registry: docker login"
                 fi
             else
                 print_info "To push the image, run: docker push $IMAGE_NAME"
+                print_info "Make sure you're logged in to the registry: docker login"
             fi
         else
             print_error "❌ Docker image build failed"
@@ -295,14 +316,14 @@ deploy_argocd_app() {
     
     # Wait for application to be synced
     print_status "Waiting for ArgoCD application to sync..."
-    argocd app sync $APP_NAME --prune || {
+    argocd app sync $APP_NAME || {
         print_warning "ArgoCD sync failed, but application may still be deployed"
         print_info "You can check status with: argocd app get $APP_NAME"
     }
     
     # Wait for application to be healthy
     print_status "Waiting for ArgoCD application to be healthy..."
-    timeout 60 bash -c 'until argocd app get $APP_NAME --output json | jq -e ".status.health.status == \"Healthy\"" >/dev/null 2>&1; do sleep 5; done' || {
+    timeout 60 bash -c 'until argocd app get $APP_NAME --output json | grep -q "Healthy" >/dev/null 2>&1; do sleep 5; done' || {
         print_warning "Application not healthy within timeout, but continuing..."
         print_info "You can check status with: argocd app get $APP_NAME"
     }
@@ -455,16 +476,32 @@ run_comprehensive_validation() {
 show_next_steps() {
     print_status "Next Steps:"
     echo "============"
+    echo ""
+    echo "🚀 DEPLOYMENT OPTIONS:"
     echo "1. Set up a Kubernetes cluster (minikube, kind, or cloud provider)"
     echo "2. Build and push your Docker image to a registry"
     echo "3. Update the image repository in helm-chart/values.yaml"
     echo "4. Run the deployment script again with a connected cluster"
     echo ""
-    echo "Once deployed, you can access:"
-    echo "  - Student Tracker App: http://18.206.89.183:8011"
-    echo "  - ArgoCD UI: http://18.206.89.183:30080"
+    echo "📋 QUICK SETUP COMMANDS:"
+    echo "# For minikube:"
+    echo "minikube start --driver=docker"
+    echo "minikube addons enable ingress"
     echo ""
-    echo "For detailed instructions, see HELM_ARGOCD_DEPLOYMENT.md"
+    echo "# For kind:"
+    echo "kind create cluster --name student-tracker"
+    echo ""
+    echo "# Build and push Docker image:"
+    echo "docker build -t ghcr.io/bonaventuresimeon/NativeSeries/student-tracker:latest ."
+    echo "docker push ghcr.io/bonaventuresimeon/NativeSeries/student-tracker:latest"
+    echo ""
+    echo "🌐 PRODUCTION ACCESS:"
+    echo "  - Student Tracker App: http://18.206.89.183:8011"
+    echo "  - API Documentation: http://18.206.89.183:8011/docs"
+    echo "  - ArgoCD UI: http://18.206.89.183:30080"
+    echo "  - ArgoCD HTTPS: https://18.206.89.183:30443"
+    echo ""
+    echo "📖 For detailed instructions, see README.md"
 }
 
 # Main deployment function
