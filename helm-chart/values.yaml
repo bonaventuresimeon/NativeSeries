@@ -22,7 +22,7 @@ app:
       protocol: TCP
   env:
     - name: DATABASE_URL
-      value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/myapp"
+      value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/studenttracker"
     - name: REDIS_URL
       value: "redis://redis:6379/0"
     - name: ENVIRONMENT
@@ -34,26 +34,26 @@ app:
 # Service configuration
 service:
   type: NodePort
-  port: 80
+  port: 8000
   targetPort: 8000
   nodePort: 8011
 
 # Ingress configuration
 ingress:
-  enabled: true
+  enabled: false  # Disabled for IP-based deployment, using NodePort instead
   className: nginx
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
-    - host: 18.206.89.183
+    - host: student-tracker.example.com
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: student-tracker-tls
       hosts:
-        - 18.206.89.183
+        - student-tracker.example.com
 
 # Horizontal Pod Autoscaler
 hpa:
@@ -68,7 +68,7 @@ postgresql:
   enabled: true
   auth:
     postgresPassword: "your-secure-password"
-    database: myapp
+    database: studenttracker
   primary:
     persistence:
       enabled: true

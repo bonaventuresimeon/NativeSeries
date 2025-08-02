@@ -1,6 +1,6 @@
 apiVersion: v2
-name: my-app
-description: A Helm chart for deploying my application with ArgoCD
+name: student-tracker
+description: A Helm chart for deploying Student Tracker application with ArgoCD
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
@@ -10,12 +10,13 @@ keywords:
   - kubernetes
   - helm
   - argocd
-home: https://github.com/your-username/my-app
+  - student-management
+home: https://github.com/bonaventuresimeon/NativeSeries
 sources:
-  - https://github.com/your-username/my-app
+  - https://github.com/bonaventuresimeon/NativeSeries
 maintainers:
-  - name: Your Name
-    email: your.email@example.com
+  - name: Bonaventure Simeon
+    email: contact@bonaventure.org.ng
 dependencies:
   - name: postgresql
     version: 16.7.21
