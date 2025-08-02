@@ -48,6 +48,35 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to install Docker Compose
+install_docker_compose() {
+    print_step "Installing Docker Compose..."
+    if command_exists docker-compose; then
+        print_status "Docker Compose is already installed"
+        return
+    fi
+    
+    # Install Docker Compose
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    
+    print_status "Docker Compose installed successfully"
+}
+
+# Function to check Docker Compose
+check_docker_compose() {
+    if command_exists docker-compose; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    elif docker compose version >/dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        print_error "Docker Compose is not available. Installing..."
+        install_docker_compose
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+    print_status "Using Docker Compose command: $DOCKER_COMPOSE_CMD"
+}
+
 # Function to check Docker
 check_docker() {
     print_step "Checking Docker installation..."
@@ -72,7 +101,7 @@ cleanup_existing() {
     print_step "Cleaning up existing deployment..."
     
     print_status "Stopping existing Docker Compose services..."
-    docker compose down -v 2>/dev/null || true
+    $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
     
     print_status "Removing old images..."
     docker rmi simple-app:latest 2>/dev/null || true
@@ -87,13 +116,13 @@ deploy_docker_compose() {
     print_step "Deploying with Docker Compose..."
     
     print_status "Building and starting services..."
-    docker compose up -d --build
+    $DOCKER_COMPOSE_CMD up -d --build
     
     print_status "Waiting for services to be healthy..."
     sleep 30
     
     print_status "Checking service status..."
-    docker compose ps
+    $DOCKER_COMPOSE_CMD ps
 }
 
 # Function to verify deployment
@@ -101,11 +130,11 @@ verify_deployment() {
     print_step "Verifying deployment..."
     
     # Check if containers are running
-    if docker compose ps | grep -q "Up"; then
+    if $DOCKER_COMPOSE_CMD ps | grep -q "Up"; then
         print_status "All services are running"
     else
         print_error "Some services failed to start"
-        docker compose logs
+        $DOCKER_COMPOSE_CMD logs
         exit 1
     fi
     
@@ -141,10 +170,10 @@ display_final_info() {
     echo "   Adminer: http://18.206.89.183:8080"
     echo ""
     echo "🔧 Useful Commands:"
-    echo "   docker compose ps          # View service status"
-    echo "   docker compose logs -f     # View logs"
-    echo "   docker compose restart     # Restart services"
-    echo "   docker compose down        # Stop services"
+    echo "   $DOCKER_COMPOSE_CMD ps          # View service status"
+echo "   $DOCKER_COMPOSE_CMD logs -f     # View logs"
+echo "   $DOCKER_COMPOSE_CMD restart     # Restart services"
+echo "   $DOCKER_COMPOSE_CMD down        # Stop services"
     echo "   sudo ./cleanup.sh          # Complete cleanup"
     echo ""
 }
@@ -155,6 +184,9 @@ main() {
     
     # Check Docker
     check_docker
+    
+    # Check Docker Compose
+    check_docker_compose
     
     # Cleanup existing
     cleanup_existing

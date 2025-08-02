@@ -196,6 +196,38 @@ install_additional_tools() {
     print_status "Additional tools installed successfully"
 }
 
+# Function to install Docker Compose
+install_docker_compose() {
+    print_step "Installing Docker Compose..."
+    if command_exists docker-compose; then
+        print_status "Docker Compose is already installed"
+        return
+    fi
+    
+    # Install Docker Compose
+    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    
+    # Create symlink for docker compose (plugin version)
+    sudo ln -sf /usr/local/bin/docker-compose /usr/local/bin/docker-compose-plugin
+    
+    print_status "Docker Compose installed successfully"
+}
+
+# Function to check Docker Compose
+check_docker_compose() {
+    if command_exists docker-compose; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+    elif docker compose version >/dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+    else
+        print_error "Docker Compose is not available. Installing..."
+        install_docker_compose
+        DOCKER_COMPOSE_CMD="docker-compose"
+    fi
+    print_status "Using Docker Compose command: $DOCKER_COMPOSE_CMD"
+}
+
 # Function to cleanup existing resources
 cleanup_existing() {
     print_step "Cleaning up existing resources..."
@@ -205,6 +237,12 @@ cleanup_existing() {
         print_status "Stopping existing Docker containers..."
         docker stop $(docker ps -q) 2>/dev/null || true
         docker rm $(docker ps -aq) 2>/dev/null || true
+    fi
+    
+    # Stop Docker Compose services
+    if [ ! -z "$DOCKER_COMPOSE_CMD" ]; then
+        print_status "Stopping existing Docker Compose services..."
+        $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
     fi
     
     # Delete existing kind cluster if it exists
@@ -228,14 +266,14 @@ setup_docker_compose() {
     print_step "Setting up Docker Compose environment..."
     
     # Stop any running containers
-    if command_exists docker; then
+    if [ ! -z "$DOCKER_COMPOSE_CMD" ]; then
         print_status "Stopping existing Docker Compose services..."
-        docker compose down -v 2>/dev/null || true
+        $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
     fi
     
     # Build and start services
     print_status "Building and starting Docker Compose services..."
-    docker compose up -d --build
+    $DOCKER_COMPOSE_CMD up -d --build
     
     # Wait for services to be healthy
     print_status "Waiting for services to be healthy..."
@@ -243,7 +281,7 @@ setup_docker_compose() {
     
     # Check service status
     print_status "Checking service status..."
-    docker compose ps
+    $DOCKER_COMPOSE_CMD ps
     
     print_status "Docker Compose setup completed"
 }
@@ -365,6 +403,7 @@ main() {
     install_helm
     install_argocd_cli
     install_additional_tools
+    check_docker_compose
     
     # Cleanup existing resources
     cleanup_existing
