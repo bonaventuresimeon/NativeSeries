@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "simple-app.name" -}}
+{{- define "nativeseries.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "simple-app.fullname" -}}
+{{- define "nativeseries.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "simple-app.chart" -}}
+{{- define "nativeseries.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "simple-app.labels" -}}
-helm.sh/chart: {{ include "simple-app.chart" . }}
-{{ include "simple-app.selectorLabels" . }}
+{{- define "nativeseries.labels" -}}
+helm.sh/chart: {{ include "nativeseries.chart" . }}
+{{ include "nativeseries.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,7 +43,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "simple-app.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "simple-app.name" . }}
+{{- define "nativeseries.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "nativeseries.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
