@@ -1,5 +1,13 @@
 # 🚀 NativeSeries - Complete Application Platform
 
+## 👨‍💻 **Author**
+
+**Bonaventure Simeon**  
+📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+
+---
+
 ## 🎯 **Overview**
 
 NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management.
@@ -487,6 +495,21 @@ docker exec $(docker ps -q -f name=redis) redis-cli ping
 docker exec $(docker ps -q -f name=postgres) psql -U student_user -d student_db -c "SELECT 1;"
 ```
 
+#### **Disk Space Issues:**
+```bash
+# Check disk space
+df -h
+
+# Clean up Docker system
+sudo docker system prune -af
+
+# Clean up Docker volumes
+sudo docker system prune -af --volumes
+
+# Check Docker disk usage
+docker system df
+```
+
 ---
 
 ## 📈 **Performance & Monitoring**
@@ -494,8 +517,9 @@ docker exec $(docker ps -q -f name=postgres) psql -U student_user -d student_db 
 ### **Resource Thresholds:**
 - **CPU Usage**: >80% triggers warning
 - **Memory Usage**: >85% triggers warning
-- **Disk Usage**: >90% triggers warning
+- **Disk Usage**: >80% triggers warning, >90% triggers critical alert
 - **Service Health**: <100% triggers investigation
+- **Docker Space**: Automatic cleanup when space is low
 
 ### **Response Time Metrics:**
 - **Health Endpoint**: <2 seconds

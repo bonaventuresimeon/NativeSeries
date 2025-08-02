@@ -1,5 +1,13 @@
 # 🚀 NativeSeries - Comprehensive Platform Summary
 
+## 👨‍💻 **Author**
+
+**Bonaventure Simeon**  
+📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+
+---
+
 ## 🎯 **Executive Summary**
 
 NativeSeries is a complete, production-ready student management platform featuring automated deployment, comprehensive health monitoring, and modern DevOps practices. The platform includes Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps automation.
@@ -166,8 +174,9 @@ NativeSeries is a complete, production-ready student management platform featuri
 ### **Resource Thresholds:**
 - **CPU Usage**: >80% triggers warning
 - **Memory Usage**: >85% triggers warning
-- **Disk Usage**: >90% triggers warning
+- **Disk Usage**: >80% triggers warning, >90% triggers critical alert
 - **Service Health**: <100% triggers investigation
+- **Docker Space**: Automatic cleanup when space is low
 
 ### **Response Time Metrics:**
 - **Health Endpoint**: <2 seconds
@@ -219,6 +228,14 @@ ping google.com                      # Test external connectivity
 docker exec $(docker ps -q -f name=postgres) pg_isready -U student_user  # Check PostgreSQL
 docker exec $(docker ps -q -f name=redis) redis-cli ping  # Check Redis
 docker exec $(docker ps -q -f name=postgres) psql -U student_user -d student_db -c "SELECT 1;"  # Test DB connection
+```
+
+### **Disk Space:**
+```bash
+df -h  # Check disk space
+sudo docker system prune -af  # Clean up Docker system
+sudo docker system prune -af --volumes  # Clean up Docker volumes
+docker system df  # Check Docker disk usage
 ```
 
 ---
