@@ -223,6 +223,22 @@ sudo ./deploy.sh
 - Verifies all services are healthy
 - **Includes all fixes**: Port conflicts, deployment timeouts, naming consistency
 
+### 🏥 **Health Monitoring**
+
+```bash
+# Comprehensive health check
+sudo ./health-check.sh
+```
+
+**✅ What this does:**
+- Checks Docker Compose service health
+- Verifies Kubernetes deployment status
+- Monitors ArgoCD application health
+- Tests network connectivity
+- Validates database connectivity
+- Monitors resource usage
+- Provides detailed health report
+
 ### 🧹 **Cleanup**
 
 ```bash
@@ -325,6 +341,7 @@ NativeSeries/
 │
 ├── 🚀 Scripts                       # Deployment Scripts
 │   ├── deploy.sh                    # Complete deployment (all fixes included)
+│   ├── health-check.sh              # Comprehensive health monitoring
 │   └── cleanup.sh                   # Complete cleanup script
 │
 ├── 📖 docs/                         # Documentation
