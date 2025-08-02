@@ -23,7 +23,9 @@ cd student-tracker
 sudo ./deploy.sh
 ```
 
-**🎉 Your application will be live at: http://18.206.89.183:8011**
+**🎉 Your application will be live at:**
+- **🐳 Docker Compose**: http://18.206.89.183:8011 (Development/Testing)
+- **☸️ Kubernetes**: http://18.206.89.183:8012 (Production/GitOps)
 
 ---
 
@@ -31,7 +33,8 @@ sudo ./deploy.sh
 
 | Service | Production URL | Status | Purpose | Credentials |
 |---------|----------------|--------|---------|-------------|
-| 🎓 **Main Application** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | ✅ **LIVE** | Student Tracker Interface | - |
+| 🐳 **Docker Compose App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | ✅ **LIVE** | Development/Testing | - |
+| ☸️ **Kubernetes App** | [http://18.206.89.183:8012](http://18.206.89.183:8012) | ✅ **LIVE** | Production/GitOps | - |
 | 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | ✅ **LIVE** | Interactive Swagger UI | - |
 | 🩺 **Health Check** | [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health) | ✅ **LIVE** | System Health Status | - |
 | 📊 **Metrics** | [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics) | ✅ **LIVE** | Prometheus Metrics | - |
@@ -327,9 +330,9 @@ Student-Tracker/
 │   └── app.yaml                     # ArgoCD application definition
 │
 ├── 🚀 Scripts                       # Deployment Scripts
-│   ├── deploy.sh                    # Complete deployment script
-│   ├── docker-compose.sh            # Docker Compose deployment
-│   └── cleanup.sh                   # Cleanup script
+│   ├── deploy.sh                    # Complete deployment (Docker + Kubernetes)
+│   ├── docker-compose.sh            # Docker Compose only deployment
+│   └── cleanup.sh                   # Complete cleanup script
 │
 ├── 📖 docs/                         # Documentation
 │   └── DEPLOYMENT_SUCCESS.md        # Success summary
