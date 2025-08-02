@@ -8,17 +8,18 @@ app:
   env:
     - name: ENVIRONMENT
       value: "production"
-    - name: VAULT_ADDR
-      value: "http://localhost:8200"
-    - name: VAULT_ROLE_ID
-      value: "student-tracker-role"
-    - name: VAULT_SECRET_ID
-      value: "student-tracker-secret"
+    - name: MONGO_URI
+      value: "mongodb://localhost:27017"
+    - name: DATABASE_NAME
+      value: "student_project_tracker"
+    - name: COLLECTION_NAME
+      value: "students"
 
 # Service configuration
 service:
   type: NodePort
   port: 8000
+  targetPort: 8000
   nodePort: 8011
 
 # Ingress configuration (disabled for direct IP deployment)

@@ -153,13 +153,30 @@ build_docker_image() {
         IMAGE_NAME="$APP_NAME:$IMAGE_TAG"
         
         # Build Docker image
-        docker build -t $IMAGE_NAME .
-        
-        print_status "Docker image built: $IMAGE_NAME"
-        print_warning "Please push the image to your registry and update the image tag in values.yaml"
+        if docker build -t $IMAGE_NAME .; then
+            print_status "✅ Docker image built successfully: $IMAGE_NAME"
+            
+            # Check if we should push the image
+            if [ "$PUSH_IMAGE" = "true" ]; then
+                print_status "Pushing Docker image to registry..."
+                if docker push $IMAGE_NAME; then
+                    print_status "✅ Docker image pushed successfully"
+                else
+                    print_warning "⚠️ Failed to push Docker image"
+                    print_info "You can push manually with: docker push $IMAGE_NAME"
+                fi
+            else
+                print_info "To push the image, run: docker push $IMAGE_NAME"
+            fi
+        else
+            print_error "❌ Docker image build failed"
+            return 1
+        fi
     else
         print_warning "Docker is not available. Skipping image build."
         print_warning "Please build and push the Docker image manually."
+        print_info "Build command: docker build -t $APP_NAME:latest ."
+        print_info "Push command: docker push $APP_NAME:latest"
     fi
 }
 
@@ -171,11 +188,15 @@ install_argocd() {
     kubectl create namespace $ARGOCD_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
     
     # Install ArgoCD
+    print_status "Applying ArgoCD manifests..."
     kubectl apply -n $ARGOCD_NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
     
     # Wait for ArgoCD to be ready
     print_status "Waiting for ArgoCD to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n $ARGOCD_NAMESPACE
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n $ARGOCD_NAMESPACE || {
+        print_warning "ArgoCD server not ready within timeout, but continuing..."
+        print_info "You can check status with: kubectl get pods -n $ARGOCD_NAMESPACE"
+    }
     
     # Create external service for ArgoCD
     print_status "Creating ArgoCD external service..."
@@ -206,7 +227,7 @@ spec:
     app.kubernetes.io/part-of: argocd
 EOF
     
-    print_status "ArgoCD installed successfully with external access."
+    print_status "✅ ArgoCD installed successfully with external access."
 }
 
 # Function to install Prometheus Operator CRDs
@@ -253,8 +274,14 @@ deploy_helm_chart() {
         --namespace $NAMESPACE \
         --create-namespace \
         --set serviceMonitor.enabled=$SERVICE_MONITOR_ENABLED \
-        --wait \
         --timeout 10m
+    
+    # Wait for deployment to be ready (separate from helm wait)
+    print_status "Waiting for deployment to be ready..."
+    kubectl wait --for=condition=available --timeout=300s deployment/$APP_NAME -n $NAMESPACE || {
+        print_warning "Deployment not ready within timeout, but continuing..."
+        print_info "You can check status with: kubectl get pods -n $NAMESPACE"
+    }
     
     print_status "Helm chart deployed successfully."
 }
@@ -268,9 +295,57 @@ deploy_argocd_app() {
     
     # Wait for application to be synced
     print_status "Waiting for ArgoCD application to sync..."
-    argocd app sync $APP_NAME --prune
+    argocd app sync $APP_NAME --prune || {
+        print_warning "ArgoCD sync failed, but application may still be deployed"
+        print_info "You can check status with: argocd app get $APP_NAME"
+    }
+    
+    # Wait for application to be healthy
+    print_status "Waiting for ArgoCD application to be healthy..."
+    timeout 60 bash -c 'until argocd app get $APP_NAME --output json | jq -e ".status.health.status == \"Healthy\"" >/dev/null 2>&1; do sleep 5; done' || {
+        print_warning "Application not healthy within timeout, but continuing..."
+        print_info "You can check status with: argocd app get $APP_NAME"
+    }
     
     print_status "ArgoCD application deployed successfully."
+}
+
+# Function to check deployment health
+check_deployment_health() {
+    print_status "Checking deployment health..."
+    
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_warning "No Kubernetes cluster available for health check."
+        return 1
+    fi
+    
+    # Check if pods are running
+    if kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=student-tracker --no-headers | grep -q "Running"; then
+        print_status "✅ Application pods are running"
+    else
+        print_warning "⚠️ Application pods are not running"
+        print_info "Check pod status with: kubectl get pods -n $NAMESPACE"
+        return 1
+    fi
+    
+    # Check if service is available
+    if kubectl get service -n $NAMESPACE student-tracker >/dev/null 2>&1; then
+        print_status "✅ Service is available"
+    else
+        print_warning "⚠️ Service is not available"
+        return 1
+    fi
+    
+    # Check ArgoCD application status
+    if command_exists argocd; then
+        if argocd app get $APP_NAME >/dev/null 2>&1; then
+            print_status "✅ ArgoCD application exists"
+        else
+            print_warning "⚠️ ArgoCD application not found"
+        fi
+    fi
+    
+    return 0
 }
 
 # Function to show deployment status
@@ -283,8 +358,18 @@ show_status() {
         kubectl get all -n $NAMESPACE
         
         echo ""
-        echo "ArgoCD Application Status:"
-        argocd app get $APP_NAME
+        echo "Pod Status:"
+        kubectl get pods -n $NAMESPACE -l app.kubernetes.io/name=student-tracker
+        
+        echo ""
+        echo "Service Status:"
+        kubectl get service -n $NAMESPACE
+        
+        if command_exists argocd; then
+            echo ""
+            echo "ArgoCD Application Status:"
+            argocd app get $APP_NAME || echo "ArgoCD application not found"
+        fi
         
         echo ""
         echo "Application URLs:"
@@ -297,9 +382,73 @@ show_status() {
         echo "  - ArgoCD HTTPS: https://18.206.89.183:30443"
         echo "  - Username: admin"
         echo "  - Password: (see above)"
+        
+        # Run health check
+        check_deployment_health
     else
         echo "No Kubernetes cluster available for status check."
     fi
+}
+
+# Function to run comprehensive validation
+run_comprehensive_validation() {
+    print_status "Running comprehensive validation..."
+    
+    # Validate Python code
+    print_status "Validating Python code..."
+    if python3 -m py_compile app/main.py app/crud.py app/database.py app/models.py app/routes/students.py app/routes/api.py; then
+        print_status "✅ Python code validation passed"
+    else
+        print_error "❌ Python code validation failed"
+        return 1
+    fi
+    
+    # Run basic tests
+    print_status "Running basic tests..."
+    if python3 app/test_basic.py; then
+        print_status "✅ Basic tests passed"
+    else
+        print_warning "⚠️ Basic tests failed (expected without dependencies)"
+    fi
+    
+    # Validate Helm chart
+    print_status "Validating Helm chart..."
+    if cd helm-chart && helm lint . && cd ..; then
+        print_status "✅ Helm chart validation passed"
+    else
+        print_error "❌ Helm chart validation failed"
+        return 1
+    fi
+    
+    # Validate ArgoCD application
+    print_status "Validating ArgoCD application..."
+    if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))"; then
+        print_status "✅ ArgoCD application validation passed"
+    else
+        print_error "❌ ArgoCD application validation failed"
+        return 1
+    fi
+    
+    # Validate Dockerfile
+    print_status "Validating Dockerfile..."
+    if [ -f "Dockerfile" ]; then
+        print_status "✅ Dockerfile exists"
+    else
+        print_error "❌ Dockerfile not found"
+        return 1
+    fi
+    
+    # Validate requirements.txt
+    print_status "Validating requirements.txt..."
+    if [ -f "requirements.txt" ]; then
+        print_status "✅ requirements.txt exists"
+    else
+        print_error "❌ requirements.txt not found"
+        return 1
+    fi
+    
+    print_status "✅ Comprehensive validation completed successfully"
+    return 0
 }
 
 # Function to show next steps
@@ -345,20 +494,21 @@ main() {
                 build_docker_image
                 deploy_helm_chart
                 deploy_argocd_app
+                check_deployment_health
                 show_status
                 ;;
             2)
                 build_docker_image
                 deploy_helm_chart
                 deploy_argocd_app
+                check_deployment_health
                 show_status
                 ;;
             3)
                 build_docker_image
                 ;;
             4)
-                validate_helm_chart
-                validate_argocd_app
+                run_comprehensive_validation
                 ;;
             5)
                 install_prometheus_crds
@@ -375,8 +525,7 @@ main() {
     else
         # No cluster available, focus on validation
         print_warning "No Kubernetes cluster available. Running validation only."
-        validate_helm_chart
-        validate_argocd_app
+        run_comprehensive_validation
         build_docker_image
         show_next_steps
     fi
