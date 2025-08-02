@@ -56,7 +56,12 @@ cleanup_docker_compose() {
     
     if command_exists docker; then
         print_status "Stopping Docker Compose services..."
-        docker compose down -v 2>/dev/null || true
+        # Try both docker-compose and docker compose
+        if command_exists docker-compose; then
+            docker-compose down -v 2>/dev/null || true
+        elif docker compose version >/dev/null 2>&1; then
+            docker compose down -v 2>/dev/null || true
+        fi
         
         print_status "Removing Docker Compose networks..."
         docker network prune -f 2>/dev/null || true
