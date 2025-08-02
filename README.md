@@ -35,6 +35,7 @@ sudo ./deploy.sh
 |---------|----------------|--------|---------|-------------|
 | 🐳 **Docker Compose App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | ✅ **LIVE** | Development/Testing | - |
 | ☸️ **Kubernetes App** | [http://18.206.89.183:8012](http://18.206.89.183:8012) | ✅ **LIVE** | Production/GitOps | - |
+| 🔄 **ArgoCD UI** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | ✅ **LIVE** | GitOps Management | admin/(auto-generated) |
 | 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | ✅ **LIVE** | Interactive Swagger UI | - |
 | 🩺 **Health Check** | [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health) | ✅ **LIVE** | System Health Status | - |
 | 📊 **Metrics** | [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics) | ✅ **LIVE** | Prometheus Metrics | - |
@@ -214,6 +215,7 @@ sudo ./deploy.sh
 - Deploys all services with Docker Compose
 - Creates Kubernetes cluster (optional)
 - Installs ArgoCD for GitOps
+- Sets up port forwarding for ArgoCD UI
 - Verifies all services are healthy
 
 ### 🐳 **Option 2: Docker Compose Only**

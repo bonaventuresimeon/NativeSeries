@@ -102,7 +102,7 @@ argocd app sync student-tracker --server http://18.206.89.183:30080
 ### **Pipeline Status**
 - GitHub Actions: Check Actions tab
 - ArgoCD UI: http://18.206.89.183:30080
-- Application: http://18.206.89.183:8011
+- Application: http://18.206.89.183:8011 (Docker Compose) / http://18.206.89.183:8012 (Kubernetes)
 
 ### **Health Checks**
 ```bash

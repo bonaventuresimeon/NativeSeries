@@ -52,6 +52,7 @@ The following scripts were removed as they were redundant or no longer needed:
 |---------|------|---------|
 | 🐳 **Docker Compose** | 8011 | Development/Testing |
 | ☸️ **Kubernetes** | 8012 | Production/GitOps |
+| 🔄 **ArgoCD UI** | 30080 | GitOps Management |
 | 🌐 **Nginx Proxy** | 80 | Reverse proxy |
 | 📈 **Grafana** | 3000 | Monitoring |
 | 📊 **Prometheus** | 9090 | Metrics |
