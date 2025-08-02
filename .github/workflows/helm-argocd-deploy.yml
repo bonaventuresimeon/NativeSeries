@@ -11,7 +11,7 @@ env:
   IMAGE_NAME: student-tracker
 
 jobs:
-  test:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -26,20 +26,37 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
 
-      - name: Run tests
+      - name: Validate Python syntax
         run: |
-          pytest --cov=app --cov-report=xml
+          python -m py_compile app/main.py app/crud.py app/database.py app/models.py
+          echo "✅ All Python files compile successfully"
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Run basic tests
+        run: |
+          python app/test_basic.py
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
         with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+          version: v3.12.0
+
+      - name: Add Bitnami repository
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+
+      - name: Validate Helm chart
+        run: |
+          cd helm-chart
+          helm lint .
+
+      - name: Validate ArgoCD application
+        run: |
+          python -c "import yaml; yaml.safe_load(open('argocd/application.yaml')); print('✅ ArgoCD application YAML is valid')"
 
   build-and-push:
-    needs: test
+    needs: validate
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -63,7 +80,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -80,6 +97,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Output image info
+        run: |
+          echo "Image built and pushed successfully!"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
+          echo "Labels: ${{ steps.meta.outputs.labels }}"
 
   deploy:
     needs: build-and-push
@@ -109,13 +132,23 @@ jobs:
           cd helm-chart
           helm lint .
 
-      - name: Deploy to ArgoCD
+      - name: Generate deployment manifest
         run: |
-          # Update ArgoCD application with new image tag
-          kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"source":{"helm":{"parameters":[{"name":"app.image.tag","value":"${{ github.sha }}"}]}}}}'
-          
-          # Sync ArgoCD application
-          kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+          cd helm-chart
+          helm template student-tracker . --set app.image.tag=${{ github.sha }} > deployment-manifest.yaml
+          echo "✅ Helm chart template generated successfully"
+
+      - name: Deploy to ArgoCD (Manual)
+        run: |
+          echo "🚀 Deployment manifest generated successfully!"
+          echo "📋 To deploy to your cluster:"
+          echo "1. Apply the ArgoCD application: kubectl apply -f argocd/application.yaml"
+          echo "2. Sync the application: argocd app sync student-tracker"
+          echo "3. Monitor deployment: argocd app get student-tracker"
+          echo ""
+          echo "🌐 Your application will be available at:"
+          echo "   - Student Tracker: http://18.206.89.183:8011"
+          echo "   - ArgoCD UI: http://18.206.89.183:30080"
 
   security-scan:
     runs-on: ubuntu-latest

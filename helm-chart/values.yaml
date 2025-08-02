@@ -2,7 +2,7 @@
 app:
   name: student-tracker
   image:
-    repository: student-tracker
+    repository: ghcr.io/bonaventuresimeon/NativeSeries/student-tracker
     tag: latest
     pullPolicy: IfNotPresent
   env:
