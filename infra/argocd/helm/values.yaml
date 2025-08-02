@@ -21,7 +21,7 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
   hosts:
-    - host: 3.80.98.218  # Replace with your actual domain
+    - host: 18.206.89.183  # Replace with your actual domain
       paths:
         - path: /
           pathType: Prefix
