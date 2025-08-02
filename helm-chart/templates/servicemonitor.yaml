@@ -1,27 +1,17 @@
-{{- if and .Values.monitoring.enabled .Values.monitoring.serviceMonitor.enabled }}
+{{- if .Values.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "student-tracker.fullname" . }}
   labels:
     {{- include "student-tracker.labels" . | nindent 4 }}
-    {{- with .Values.monitoring.serviceMonitor.additionalLabels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+
 spec:
   selector:
     matchLabels:
       {{- include "student-tracker.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: http
-      path: {{ .Values.monitoring.serviceMonitor.path }}
-      interval: {{ .Values.monitoring.serviceMonitor.interval }}
-      {{- with .Values.monitoring.serviceMonitor.metricRelabelings }}
-      metricRelabelings:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.monitoring.serviceMonitor.relabelings }}
-      relabelings:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
 {{- end }}

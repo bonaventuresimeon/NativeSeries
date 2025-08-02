@@ -1,6 +1,3 @@
-# Default values for my-app
-# This is a YAML-formatted file.
-
 # Application configuration
 app:
   name: student-tracker
@@ -8,52 +5,45 @@ app:
     repository: student-tracker
     tag: latest
     pullPolicy: IfNotPresent
-  replicas: 2
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
-  ports:
-    - name: http
-      containerPort: 8000
-      protocol: TCP
   env:
-    - name: DATABASE_URL
-      value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/studenttracker"
-    - name: REDIS_URL
-      value: "redis://redis:6379/0"
     - name: ENVIRONMENT
       value: "production"
-  # envFrom:
-  #   - secretRef:
-  #       name: app-secrets
+    - name: VAULT_ADDR
+      value: "http://localhost:8200"
+    - name: VAULT_ROLE_ID
+      value: "student-tracker-role"
+    - name: VAULT_SECRET_ID
+      value: "student-tracker-secret"
 
 # Service configuration
 service:
   type: NodePort
   port: 8000
-  targetPort: 8000
   nodePort: 8011
 
-# Ingress configuration
+# Ingress configuration (disabled for direct IP deployment)
 ingress:
-  enabled: false  # Disabled for IP-based deployment, using NodePort instead
-  className: nginx
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+  enabled: false
+  className: ""
+  annotations: {}
   hosts:
     - host: student-tracker.example.com
       paths:
         - path: /
-          pathType: Prefix
-  tls:
-    - secretName: student-tracker-tls
-      hosts:
-        - student-tracker.example.com
+          pathType: ImplementationSpecific
+  tls: []
+
+# MongoDB configuration (external)
+mongodb:
+  enabled: false
+
+# Redis configuration (external)
+redis:
+  enabled: false
+
+# Vault configuration (external)
+vault:
+  enabled: false
 
 # Horizontal Pod Autoscaler
 hpa:
@@ -63,75 +53,22 @@ hpa:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
-# PostgreSQL configuration
-postgresql:
-  enabled: true
-  auth:
-    postgresPassword: "your-secure-password"
-    database: studenttracker
-  primary:
-    persistence:
-      enabled: true
-      size: 8Gi
-    resources:
-      limits:
-        cpu: 500m
-        memory: 1Gi
-      requests:
-        cpu: 250m
-        memory: 512Mi
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
 
-# Redis configuration
-redis:
-  enabled: true
-  auth:
-    enabled: true
-    password: "your-redis-password"
-  master:
-    persistence:
-      enabled: true
-      size: 2Gi
-    resources:
-      limits:
-        cpu: 200m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
 
-# Monitoring configuration
-monitoring:
+# Service monitor for Prometheus
+serviceMonitor:
   enabled: true
-  serviceMonitor:
-    enabled: true
-    interval: 30s
-    path: /metrics
-
-# Security configuration
-security:
-  podSecurityContext:
-    fsGroup: 1000
-    runAsNonRoot: true
-    runAsUser: 1000
-  containerSecurityContext:
-    allowPrivilegeEscalation: false
-    readOnlyRootFilesystem: true
-    runAsNonRoot: true
-    runAsUser: 1000
-    capabilities:
-      drop:
-        - ALL
-
-# ArgoCD application configuration
-argocd:
-  enabled: true
-  namespace: argocd
-  project: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - PrunePropagationPolicy=foreground
-      - PruneLast=true
+  interval: 30s

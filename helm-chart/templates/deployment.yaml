@@ -6,7 +6,7 @@ metadata:
     {{- include "student-tracker.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.hpa.enabled }}
-  replicas: {{ .Values.app.replicas }}
+  replicas: 2
   {{- end }}
   selector:
     matchLabels:
@@ -18,7 +18,7 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
-      {{- with .Values.security.podSecurityContext }}
+      {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -27,12 +27,9 @@ spec:
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
           imagePullPolicy: {{ .Values.app.image.pullPolicy }}
           ports:
-            {{- range .Values.app.ports }}
-            - name: {{ .name }}
-              containerPort: {{ .containerPort }}
-              protocol: {{ .protocol }}
-            {{- end }}
-          {{- if .Values.monitoring.enabled }}
+            - name: http
+              containerPort: 8000
+              protocol: TCP
           livenessProbe:
             httpGet:
               path: /health
@@ -45,36 +42,27 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 5
-          {{- end }}
           resources:
-            {{- toYaml .Values.app.resources | nindent 12 }}
-          {{- with .Values.security.containerSecurityContext }}
+            {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
           env:
             {{- range .Values.app.env }}
             - name: {{ .name }}
+              {{- if .value }}
               value: {{ .value | quote }}
-            {{- end }}
-            {{- if .Values.postgresql.enabled }}
-            - name: POSTGRES_PASSWORD
+              {{- end }}
+              {{- if .valueFrom }}
               valueFrom:
-                secretKeyRef:
-                  name: {{ include "student-tracker.fullname" . }}-postgresql
-                  key: postgres-password
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
             {{- end }}
-            {{- if .Values.redis.enabled }}
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "student-tracker.fullname" . }}-redis
-                  key: redis-password
-            {{- end }}
-          {{- with .Values.app.envFrom }}
-          envFrom:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
           volumeMounts:
             - name: config
               mountPath: /app/config
