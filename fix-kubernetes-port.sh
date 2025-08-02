@@ -33,22 +33,22 @@ print_error() {
 print_status "Step 1: Cleaning up existing Kubernetes resources..."
 
 # Delete existing Helm release
-if helm list | grep -q simple-app; then
+if helm list | grep -q nativeseries; then
     print_status "Deleting existing Helm release..."
-    helm uninstall simple-app
+    helm uninstall nativeseries
 fi
 
 # Delete existing Kind cluster
-if kind get clusters | grep -q simple-cluster; then
+if kind get clusters | grep -q nativeseries; then
     print_status "Deleting existing Kind cluster..."
-    kind delete cluster --name simple-cluster
+    kind delete cluster --name nativeseries
 fi
 
 print_status "Step 2: Creating Kind cluster with new port configuration..."
 
 # Create Kind cluster with new port (30012)
 print_status "Creating Kind cluster with port 30012..."
-kind create cluster --name simple-cluster --config infra/kind/cluster-config.yaml
+kind create cluster --name nativeseries --config infra/kind/cluster-config.yaml
 
 print_status "Waiting for cluster to be ready..."
 kubectl wait --for=condition=Ready nodes --all --timeout=300s
@@ -67,10 +67,10 @@ print_status "Step 4: Deploying application with new port..."
 
 # Deploy application using Helm
 print_status "Deploying application with Helm..."
-helm install simple-app infra/helm/ --namespace default --create-namespace
+helm install nativeseries infra/helm/ --namespace default --create-namespace
 
 print_status "Waiting for application to be ready..."
-kubectl wait --for=condition=Available deployment/simple-app --timeout=300s
+kubectl wait --for=condition=Available deployment/nativeseries --timeout=300s
 
 print_status "Step 5: Setting up port forwarding..."
 
@@ -112,7 +112,7 @@ echo ""
 echo "🔧 Useful Commands:"
 echo "   kubectl get pods"
 echo "   kubectl get svc"
-echo "   kubectl logs -f deployment/simple-app"
+echo "   kubectl logs -f deployment/nativeseries"
 echo "   curl http://18.206.89.183:30012/health"
 echo ""
 echo "📝 Note: Kubernetes now uses port 30012 (valid NodePort range)"

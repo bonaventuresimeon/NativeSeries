@@ -246,15 +246,15 @@ cleanup_existing() {
     fi
     
     # Delete existing kind cluster if it exists
-    if command_exists kind && kind get clusters | grep -q "simple-cluster"; then
+    if command_exists kind && kind get clusters | grep -q "nativeseries"; then
         print_status "Deleting existing kind cluster..."
-        kind delete cluster --name simple-cluster
+        kind delete cluster --name nativeseries
     fi
     
     # Remove Docker images
     if command_exists docker; then
         print_status "Removing old Docker images..."
-        docker rmi simple-app:latest 2>/dev/null || true
+        docker rmi nativeseries:latest 2>/dev/null || true
         docker system prune -f
     fi
     
@@ -291,7 +291,7 @@ create_kind_cluster() {
     print_step "Creating Kind cluster..."
     
     # Create new kind cluster
-    kind create cluster --name simple-cluster --config infra/kind/cluster-config.yaml
+    kind create cluster --name nativeseries --config infra/kind/cluster-config.yaml
     
     # Wait for cluster to be ready
     print_status "Waiting for cluster to be ready..."
@@ -305,10 +305,10 @@ build_and_load_image() {
     print_step "Building and loading Docker image..."
     
     # Build Docker image
-    docker build -t simple-app:latest .
+    docker build -t nativeseries:latest .
     
     # Load image into kind cluster
-    kind load docker-image simple-app:latest --name simple-cluster
+    kind load docker-image nativeseries:latest --name nativeseries
     
     print_status "Docker image built and loaded successfully"
 }
@@ -342,26 +342,26 @@ deploy_application() {
     kubectl apply -f argocd/app.yaml
     
     # Deploy application using Helm directly (as backup)
-    helm install simple-app infra/helm/ --namespace default --create-namespace
+    helm install nativeseries infra/helm/ --namespace default --create-namespace
     
     # Wait for deployment to be ready with better error handling
     print_status "Waiting for application to be ready (timeout: 10 minutes)..."
     timeout 600 bash -c '
     while true; do
-        if kubectl get deployment simple-app -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
+        if kubectl get deployment nativeseries -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
             echo "✅ Deployment is available!"
             break
         fi
         
         echo "⏳ Waiting for deployment to be ready..."
-        kubectl get pods -l app=simple-app
+        kubectl get pods -l app=nativeseries
         
         # Check for pod issues
-        POD_STATUS=$(kubectl get pods -l app=simple-app -o jsonpath="{.items[0].status.phase}")
+        POD_STATUS=$(kubectl get pods -l app=nativeseries -o jsonpath="{.items[0].status.phase}")
         if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
             echo "❌ Pod is in $POD_STATUS state"
-            kubectl describe pods -l app=simple-app
-            kubectl logs -l app=simple-app --tail=50
+            kubectl describe pods -l app=nativeseries
+            kubectl logs -l app=nativeseries --tail=50
             exit 1
         fi
         
@@ -372,7 +372,7 @@ deploy_application() {
     if [ $? -ne 0 ]; then
         print_error "Deployment failed or timed out"
         print_status "Checking pod logs for debugging..."
-        kubectl logs -l app=simple-app --tail=100
+        kubectl logs -l app=nativeseries --tail=100
         exit 1
     fi
     
@@ -415,7 +415,7 @@ setup_port_forwarding() {
         echo "🔧 Useful Commands:"
         echo "   kubectl get pods"
         echo "   kubectl get svc"
-        echo "   kubectl logs -f deployment/simple-app"
+        echo "   kubectl logs -f deployment/nativeseries"
         echo "   docker compose ps"
         echo "   docker compose logs -f"
         echo ""

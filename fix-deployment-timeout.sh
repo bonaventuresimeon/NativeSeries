@@ -33,10 +33,10 @@ print_error() {
 print_status "Step 1: Checking current deployment status..."
 
 # Check if deployment exists
-if kubectl get deployment simple-app 2>/dev/null; then
+if kubectl get deployment nativeseries 2>/dev/null; then
     print_status "Found existing deployment, checking status..."
-    kubectl get pods -l app=simple-app
-    kubectl describe deployment simple-app
+    kubectl get pods -l app=nativeseries
+    kubectl describe deployment nativeseries
 else
     print_status "No existing deployment found"
 fi
@@ -44,32 +44,32 @@ fi
 print_status "Step 2: Cleaning up existing resources..."
 
 # Delete existing Helm release
-if helm list | grep -q simple-app; then
+if helm list | grep -q nativeseries; then
     print_status "Deleting existing Helm release..."
-    helm uninstall simple-app
+    helm uninstall nativeseries
 fi
 
 # Delete existing ArgoCD application
-if kubectl get application student-tracker -n argocd 2>/dev/null; then
+if kubectl get application nativeseries -n argocd 2>/dev/null; then
     print_status "Deleting existing ArgoCD application..."
-    kubectl delete application student-tracker -n argocd
+    kubectl delete application nativeseries -n argocd
 fi
 
 print_status "Step 3: Building and loading Docker image..."
 
 # Build the Docker image
 print_status "Building Docker image..."
-docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest .
+docker build -t nativeseries:latest .
 
 # Load image into Kind cluster
 print_status "Loading image into Kind cluster..."
-kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name simple-cluster
+kind load docker-image nativeseries:latest --name nativeseries
 
 print_status "Step 4: Deploying application with updated configuration..."
 
 # Deploy application using Helm
 print_status "Deploying application with Helm..."
-helm install simple-app infra/helm/ --namespace default --create-namespace
+helm install nativeseries infra/helm/ --namespace default --create-namespace
 
 print_status "Step 5: Monitoring deployment..."
 
@@ -77,20 +77,20 @@ print_status "Step 5: Monitoring deployment..."
 print_status "Waiting for deployment to be ready (timeout: 10 minutes)..."
 timeout 600 bash -c '
 while true; do
-    if kubectl get deployment simple-app -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
+            if kubectl get deployment nativeseries -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
         echo "✅ Deployment is available!"
         break
     fi
     
-    echo "⏳ Waiting for deployment to be ready..."
-    kubectl get pods -l app=simple-app
-    
-    # Check for pod issues
-    POD_STATUS=$(kubectl get pods -l app=simple-app -o jsonpath="{.items[0].status.phase}")
-    if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
-        echo "❌ Pod is in $POD_STATUS state"
-        kubectl describe pods -l app=simple-app
-        kubectl logs -l app=simple-app --tail=50
+            echo "⏳ Waiting for deployment to be ready..."
+        kubectl get pods -l app=nativeseries
+        
+        # Check for pod issues
+        POD_STATUS=$(kubectl get pods -l app=nativeseries -o jsonpath="{.items[0].status.phase}")
+        if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
+            echo "❌ Pod is in $POD_STATUS state"
+            kubectl describe pods -l app=nativeseries
+            kubectl logs -l app=nativeseries --tail=50
         exit 1
     fi
     
@@ -102,8 +102,8 @@ if [ $? -eq 0 ]; then
     print_status "✅ Deployment successful!"
 else
     print_error "❌ Deployment failed or timed out"
-    print_status "Checking pod logs for debugging..."
-    kubectl logs -l app=simple-app --tail=100
+            print_status "Checking pod logs for debugging..."
+        kubectl logs -l app=nativeseries --tail=100
     exit 1
 fi
 
@@ -134,9 +134,9 @@ if curl -s http://localhost:30012/health >/dev/null; then
     curl -s http://localhost:30012/health | jq . 2>/dev/null || curl -s http://localhost:30012/health
 else
     print_warning "⚠️ Kubernetes deployment not yet ready"
-    print_status "Checking pod status..."
-    kubectl get pods -l app=simple-app
-    kubectl logs -l app=simple-app --tail=20
+            print_status "Checking pod status..."
+        kubectl get pods -l app=nativeseries
+        kubectl logs -l app=nativeseries --tail=20
 fi
 
 print_status "Step 9: Deployment Summary"
@@ -157,7 +157,7 @@ echo ""
 echo "🔧 Useful Commands:"
 echo "   kubectl get pods"
 echo "   kubectl get svc"
-echo "   kubectl logs -f deployment/simple-app"
+echo "   kubectl logs -f deployment/nativeseries"
 echo "   curl http://18.206.89.183:30012/health"
 echo ""
 echo "📝 Note: Kubernetes deployment now uses simplified configuration"
