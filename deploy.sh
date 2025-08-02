@@ -344,9 +344,37 @@ deploy_application() {
     # Deploy application using Helm directly (as backup)
     helm install simple-app infra/helm/ --namespace default --create-namespace
     
-    # Wait for deployment to be ready
-    print_status "Waiting for application to be ready..."
-    kubectl wait --for=condition=Available deployment/simple-app --timeout=300s
+    # Wait for deployment to be ready with better error handling
+    print_status "Waiting for application to be ready (timeout: 10 minutes)..."
+    timeout 600 bash -c '
+    while true; do
+        if kubectl get deployment simple-app -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
+            echo "✅ Deployment is available!"
+            break
+        fi
+        
+        echo "⏳ Waiting for deployment to be ready..."
+        kubectl get pods -l app=simple-app
+        
+        # Check for pod issues
+        POD_STATUS=$(kubectl get pods -l app=simple-app -o jsonpath="{.items[0].status.phase}")
+        if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
+            echo "❌ Pod is in $POD_STATUS state"
+            kubectl describe pods -l app=simple-app
+            kubectl logs -l app=simple-app --tail=50
+            exit 1
+        fi
+        
+        sleep 10
+    done
+    '
+    
+    if [ $? -ne 0 ]; then
+        print_error "Deployment failed or timed out"
+        print_status "Checking pod logs for debugging..."
+        kubectl logs -l app=simple-app --tail=100
+        exit 1
+    fi
     
     print_status "Application deployed successfully"
 }
