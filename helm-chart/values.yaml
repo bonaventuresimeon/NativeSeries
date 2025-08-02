@@ -46,6 +46,10 @@ redis:
 vault:
   enabled: false
 
+# ArgoCD configuration
+argocd:
+  enabled: false
+
 # Horizontal Pod Autoscaler
 hpa:
   enabled: true
