@@ -375,7 +375,7 @@ setup_port_forwarding() {
         echo ""
         echo "📋 Access Information:"
         echo "   🐳 Docker Compose Application: http://18.206.89.183:8011"
-        echo "   ☸️ Kubernetes Application: http://18.206.89.183:8012"
+        echo "   ☸️ Kubernetes Application: http://18.206.89.183:30012"
         echo "   🌐 Nginx Proxy: http://18.206.89.183:80"
         echo "   🔄 ArgoCD UI: http://18.206.89.183:30080"
         echo "   ArgoCD Username: admin"
@@ -391,9 +391,9 @@ setup_port_forwarding() {
         echo "   docker compose ps"
         echo "   docker compose logs -f"
         echo ""
-        echo "📝 Note: You have both Docker Compose (port 8011) and Kubernetes (port 8012) deployments running!"
+        echo "📝 Note: You have both Docker Compose (port 8011) and Kubernetes (port 30012) deployments running!"
         echo "   - Docker Compose: Port 8011 (for development/testing)"
-        echo "   - Kubernetes: Port 8012 (for production/GitOps)"
+        echo "   - Kubernetes: Port 30012 (for production/GitOps)"
         echo ""
     }
 
@@ -446,7 +446,7 @@ main() {
     trap cleanup EXIT
     
     print_status "Press Ctrl+C to stop the port forward and exit"
-    print_status "The application will continue running on 18.206.89.183:8011 and 18.206.89.183:8012"
+    print_status "The application will continue running on 18.206.89.183:8011 and 18.206.89.183:30012"
     print_status "ArgoCD UI is available at http://18.206.89.183:30080"
     
     # Keep the script running to maintain port forward
