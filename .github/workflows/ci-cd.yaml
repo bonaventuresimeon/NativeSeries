@@ -173,7 +173,7 @@ jobs:
       
     environment:
       name: development
-      url: http://18.208.149.195:8011
+      url: http://18.206.89.183:8011
 
     steps:
     - name: Checkout code
@@ -206,7 +206,7 @@ jobs:
       
     environment:
       name: staging
-      url: http://18.208.149.195:8011
+      url: http://18.206.89.183:8011
 
     steps:
     - name: Checkout code
@@ -238,7 +238,7 @@ jobs:
       
     environment:
       name: production
-      url: http://18.208.149.195:8011
+      url: http://18.206.89.183:8011
 
     steps:
     - name: Checkout code

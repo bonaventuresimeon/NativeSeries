@@ -37,7 +37,7 @@ RUN apt-get update && \
 RUN groupadd --system appgroup && \
     useradd --system --gid appgroup --no-create-home appuser
 
-COPY --from=build /usr/local/lib/python3.*/site-packages/ /usr/local/lib/python3.*/site-packages/
+COPY --from=build /usr/local/ /usr/local/
 COPY --from=build /app /app
 
 RUN chown -R appuser:appgroup /app

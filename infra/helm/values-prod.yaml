@@ -44,7 +44,7 @@ ingress:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Commented out for IP-based access
   hosts:
-    - host: 18.208.149.195
+    - host: 18.206.89.183
       paths:
         - path: /
           pathType: Prefix

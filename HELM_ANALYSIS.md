@@ -206,7 +206,7 @@ graph TD
    # In production deployment job
    environment:
      name: production
-     url: http://18.208.149.195:8011
+     url: http://18.206.89.183:8011
      protection_rules:
        required_reviewers:
          - username1

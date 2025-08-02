@@ -33,7 +33,7 @@ service:
   type: NodePort
   port: 80
   targetPort: 8000
-  nodePort: 30011  # Maps to 8011 on the host IP
+  nodePort: 30011  # Maps to 8011 on the host IP 18.206.89.183
 
 # Ingress for production
 ingress:

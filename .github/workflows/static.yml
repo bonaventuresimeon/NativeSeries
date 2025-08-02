@@ -78,12 +78,12 @@ jobs:
                   <div class="link"><a href="HELM_ANALYSIS.md">HELM_ANALYSIS.md</a> - Helm chart analysis</div>
                   
                   <h2>🌐 Live Application</h2>
-                  <div class="link"><a href="http://18.208.149.195:8011">Production Application</a></div>
-                  <div class="link"><a href="http://18.208.149.195:8011/docs">API Documentation</a></div>
+                  <div class="link"><a href="http://18.206.89.183:8011">Production Application</a></div>
+                  <div class="link"><a href="http://18.206.89.183:8011/docs">API Documentation</a></div>
                   
                   <h2>📊 Monitoring</h2>
-                  <div class="link"><a href="http://18.208.149.195:3000">Grafana Dashboards</a></div>
-                  <div class="link"><a href="http://18.208.149.195:9090">Prometheus Metrics</a></div>
+                  <div class="link"><a href="http://18.206.89.183:3000">Grafana Dashboards</a></div>
+                  <div class="link"><a href="http://18.206.89.183:9090">Prometheus Metrics</a></div>
                   
                   <p><em>Last updated: $(date)</em></p>
               </div>

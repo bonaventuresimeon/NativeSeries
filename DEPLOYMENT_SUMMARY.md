@@ -1,7 +1,7 @@
 # Student Tracker Application - Deployment Summary
 
 ## 🎯 Deployment Target
-- **Server**: 18.208.149.195
+- **Server**: 18.206.89.183
 - **Application Port**: 8011
 - **ArgoCD Port**: 30080
 
@@ -29,7 +29,7 @@
 
 ### Option A: Docker Compose (Recommended for immediate deployment)
 ```bash
-# On the target server (18.208.149.195)
+# On the target server (18.206.89.183)
 git clone <your-repository>
 cd student-tracker
 chmod +x deploy-docker-compose.sh
@@ -38,7 +38,7 @@ chmod +x deploy-docker-compose.sh
 
 ### Option B: ArgoCD GitOps (Recommended for production)
 ```bash
-# On the target server (18.208.149.195)
+# On the target server (18.206.89.183)
 git clone <your-repository>
 cd student-tracker
 chmod +x deploy-to-server.sh
@@ -48,15 +48,15 @@ chmod +x deploy-to-server.sh
 ## 🌐 Access URLs (After Deployment)
 
 ### Application
-- **Main App**: http://18.208.149.195:8011
-- **API Docs**: http://18.208.149.195:8011/docs
-- **Health Check**: http://18.208.149.195:8011/health
+- **Main App**: http://18.206.89.183:8011
+- **API Docs**: http://18.206.89.183:8011/docs
+- **Health Check**: http://18.206.89.183:8011/health
 
 ### Management Interfaces
-- **ArgoCD**: http://18.208.149.195:30080 (admin / password in .argocd-password)
-- **Grafana**: http://18.208.149.195:3000 (admin / admin123)
-- **Prometheus**: http://18.208.149.195:9090
-- **Adminer**: http://18.208.149.195:8080
+- **ArgoCD**: http://18.206.89.183:30080 (admin / password in .argocd-password)
+- **Grafana**: http://18.206.89.183:3000 (admin / admin123)
+- **Prometheus**: http://18.206.89.183:9090
+- **Adminer**: http://18.206.89.183:8080
 
 ## 🔧 Prerequisites for Target Server
 
@@ -76,7 +76,7 @@ chmod +x deploy-to-server.sh
 
 ### Before Deployment
 - [ ] Ensure target server has sudo access
-- [ ] Verify network connectivity to 18.208.149.195
+- [ ] Verify network connectivity to 18.206.89.183
 - [ ] Check available disk space (20GB+)
 - [ ] Ensure ports are not in use
 
@@ -133,7 +133,7 @@ kubectl scale deployment student-tracker --replicas=3 -n app-prod
 ./check-deployment.sh
 
 # Application health
-curl http://18.208.149.195:8011/health
+curl http://18.206.89.183:8011/health
 
 # Database connectivity
 docker-compose exec postgres pg_isready -U student_user -d student_db
@@ -164,8 +164,8 @@ docker-compose exec postgres pg_isready -U student_user -d student_db
 
 ### Documentation
 - **Deployment Guide**: `DEPLOYMENT_GUIDE.md`
-- **Application Docs**: http://18.208.149.195:8011/docs
-- **API Reference**: http://18.208.149.195:8011/redoc
+- **Application Docs**: http://18.206.89.183:8011/docs
+- **API Reference**: http://18.206.89.183:8011/redoc
 
 ### Troubleshooting
 - **Status Check**: `./check-deployment.sh`

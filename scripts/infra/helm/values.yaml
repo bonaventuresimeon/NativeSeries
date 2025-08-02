@@ -38,7 +38,7 @@ service:
   type: NodePort
   port: 80
   targetPort: 8000
-  nodePort: 30011  # Maps to 18.208.149.195:8011
+      nodePort: 30011  # Maps to 18.206.89.183:8011
 
 # Ingress configuration
 ingress:
@@ -63,7 +63,7 @@ env:
   - name: LOG_LEVEL
     value: "INFO"
   - name: EXTERNAL_URL
-    value: "http://18.208.149.195:8011"
+    value: "http://18.206.89.183:8011"
 
 # ConfigMap data
 configMap:
@@ -72,7 +72,7 @@ configMap:
     app_name: "Student Tracker API"
     log_level: "INFO"
     version: "1.1.0"
-    external_url: "http://18.208.149.195:8011"
+    external_url: "http://18.206.89.183:8011"
 
 # Secret configuration
 secret:
