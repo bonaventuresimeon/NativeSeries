@@ -1,5 +1,13 @@
 # 🏥 NativeSeries - Comprehensive Health Check Guide
 
+## 👨‍💻 **Author**
+
+**Bonaventure Simeon**  
+📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+
+---
+
 ## 🎯 **Overview**
 
 The `health-check.sh` script provides a complete health monitoring solution for your NativeSeries application infrastructure. It checks all components including Docker Compose, Kubernetes, ArgoCD, databases, networks, and system resources.

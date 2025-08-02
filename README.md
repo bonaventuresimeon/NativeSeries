@@ -1,5 +1,13 @@
 # 🚀 NativeSeries - Complete Application Platform
 
+## 👨‍💻 **Author**
+
+**Bonaventure Simeon**  
+📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+
+---
+
 ## 🎯 **Overview**
 
 NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management.

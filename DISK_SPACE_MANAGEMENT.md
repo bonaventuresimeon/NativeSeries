@@ -1,5 +1,13 @@
 # 💾 NativeSeries - Disk Space Management Guide
 
+## 👨‍💻 **Author**
+
+**Bonaventure Simeon**  
+📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+
+---
+
 ## 🎯 **Overview**
 
 This guide provides comprehensive disk space management for the NativeSeries platform, including automatic cleanup, monitoring, and troubleshooting for disk space issues.
