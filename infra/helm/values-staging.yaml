@@ -3,7 +3,7 @@ replicaCount: 2
 
 image:
   repository: ghcr.io/bonaventuresimeon/student-tracker
-  tag: main-552eab793221ee51767cc526fc62531f73ddff03
+  tag: main-a2434b4be7e5968026add4be4189c657eea309c9
   pullPolicy: IfNotPresent
 
 # Application configuration
