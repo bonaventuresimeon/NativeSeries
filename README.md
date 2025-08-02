@@ -19,15 +19,16 @@ A production-ready, cloud-native student tracking application demonstrating mode
 ```bash
 # Clone and deploy in one command
 git clone <your-repository-url>
-cd student-tracker
+cd NativeSeries
 sudo ./deploy.sh
 ```
 
-**🎉 Your application will be live at:**
+**🎉 Your NativeSeries application will be live at:**
 - **🐳 Docker Compose**: http://18.206.89.183:8011 (Development/Testing)
 - **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
+- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
 
-📖 **📋 For a complete overview, see [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)**
+📖 **📋 For a complete overview, see [COMPREHENSIVE_DEPLOYMENT_SUMMARY.md](COMPREHENSIVE_DEPLOYMENT_SUMMARY.md)**
 
 ---
 
@@ -204,12 +205,12 @@ sequenceDiagram
 
 ## 🚀 **Deployment Options**
 
-📖 **📋 For detailed deployment information, see [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)**
+📖 **📋 For detailed deployment information, see [COMPREHENSIVE_DEPLOYMENT_SUMMARY.md](COMPREHENSIVE_DEPLOYMENT_SUMMARY.md)**
 
-### 🎯 **Option 1: Complete Deployment (Recommended)**
+### 🎯 **Complete Deployment (Single Script)**
 
 ```bash
-# Complete automated deployment with all tools
+# Complete automated deployment with all tools and fixes
 sudo ./deploy.sh
 ```
 
@@ -220,21 +221,25 @@ sudo ./deploy.sh
 - Installs ArgoCD for GitOps (port 30080)
 - Sets up port forwarding for ArgoCD UI
 - Verifies all services are healthy
+- **Includes all fixes**: Port conflicts, deployment timeouts, naming consistency
 
-### 🐳 **Option 2: Docker Compose Only**
+### 🏥 **Health Monitoring**
 
 ```bash
-# Quick Docker Compose deployment
-sudo ./docker-compose.sh
+# Comprehensive health check
+sudo ./health-check.sh
 ```
 
 **✅ What this does:**
-- Quick Docker Compose deployment
-- Health verification
-- Service status display
-- Perfect for development and simple production
+- Checks Docker Compose service health
+- Verifies Kubernetes deployment status
+- Monitors ArgoCD application health
+- Tests network connectivity
+- Validates database connectivity
+- Monitors resource usage
+- Provides detailed health report
 
-### 🧹 **Option 3: Cleanup**
+### 🧹 **Cleanup**
 
 ```bash
 # Complete cleanup of all resources
@@ -309,7 +314,7 @@ graph TB
 ## 📁 **Project Structure**
 
 ```
-Student-Tracker/
+NativeSeries/
 ├── 🎓 app/                          # FastAPI Application
 │   ├── main.py                      # Production-configured main app
 │   ├── models.py                    # SQLAlchemy database models
@@ -335,12 +340,12 @@ Student-Tracker/
 │   └── app.yaml                     # ArgoCD application definition
 │
 ├── 🚀 Scripts                       # Deployment Scripts
-│   ├── deploy.sh                    # Complete deployment (Docker + Kubernetes)
-│   ├── docker-compose.sh            # Docker Compose only deployment
+│   ├── deploy.sh                    # Complete deployment (all fixes included)
+│   ├── health-check.sh              # Comprehensive health monitoring
 │   └── cleanup.sh                   # Complete cleanup script
 │
 ├── 📖 docs/                         # Documentation
-│   └── DEPLOYMENT_SUCCESS.md        # Success summary
+│   └── COMPREHENSIVE_DEPLOYMENT_SUMMARY.md  # Complete deployment guide
 │
 ├── 🎨 templates/                    # Web UI Templates
 ├── 📋 requirements.txt              # Python dependencies
@@ -358,7 +363,7 @@ Student-Tracker/
 
 ```mermaid
 mindmap
-  root((Student Tracker))
+  root((NativeSeries))
     👥 Student Management
       Registration
       Profile Management

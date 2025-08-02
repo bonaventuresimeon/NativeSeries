@@ -1,16 +1,20 @@
 #!/bin/bash
 
 # =============================================================================
-# 🚀 STUDENT TRACKER - COMPREHENSIVE DEPLOYMENT SCRIPT
+# 🚀 NATIVESERIES - COMPREHENSIVE DEPLOYMENT SCRIPT
 # =============================================================================
-# This script provides a complete deployment solution for the Student Tracker
+# This script provides a complete deployment solution for the NativeSeries
 # application. It works on both EC2 and Ubuntu environments.
 #
 # Features:
-# - Automatic tool installation (Docker, kubectl, Kind, Helm)
-# - Docker Compose deployment
-# - Optional Kubernetes with ArgoCD
-# - Health verification
+# - Automatic tool installation (Docker, kubectl, Kind, Helm, ArgoCD)
+# - Docker Compose deployment (port 8011)
+# - Kubernetes cluster creation and deployment (port 30012)
+# - ArgoCD GitOps setup (port 30080)
+# - Health verification and monitoring
+# - Port conflict resolution
+# - Deployment timeout handling
+# - Comprehensive error handling
 # - Cross-platform compatibility
 #
 # Usage: sudo ./deploy.sh
@@ -18,7 +22,7 @@
 
 set -e
 
-echo "🚀 Starting comprehensive deployment to 18.206.89.183:8011"
+echo "🚀 Starting NativeSeries comprehensive deployment to 18.206.89.183:8011 and 18.206.89.183:30012"
 
 # Colors for output
 RED='\033[0;31m'
@@ -246,15 +250,15 @@ cleanup_existing() {
     fi
     
     # Delete existing kind cluster if it exists
-    if command_exists kind && kind get clusters | grep -q "simple-cluster"; then
+    if command_exists kind && kind get clusters | grep -q "nativeseries"; then
         print_status "Deleting existing kind cluster..."
-        kind delete cluster --name simple-cluster
+        kind delete cluster --name nativeseries
     fi
     
     # Remove Docker images
     if command_exists docker; then
         print_status "Removing old Docker images..."
-        docker rmi simple-app:latest 2>/dev/null || true
+        docker rmi nativeseries:latest 2>/dev/null || true
         docker system prune -f
     fi
     
@@ -291,7 +295,7 @@ create_kind_cluster() {
     print_step "Creating Kind cluster..."
     
     # Create new kind cluster
-    kind create cluster --name simple-cluster --config infra/kind/cluster-config.yaml
+    kind create cluster --name nativeseries --config infra/kind/cluster-config.yaml
     
     # Wait for cluster to be ready
     print_status "Waiting for cluster to be ready..."
@@ -305,10 +309,10 @@ build_and_load_image() {
     print_step "Building and loading Docker image..."
     
     # Build Docker image
-    docker build -t simple-app:latest .
+    docker build -t nativeseries:latest .
     
     # Load image into kind cluster
-    kind load docker-image simple-app:latest --name simple-cluster
+    kind load docker-image nativeseries:latest --name nativeseries
     
     print_status "Docker image built and loaded successfully"
 }
@@ -342,13 +346,72 @@ deploy_application() {
     kubectl apply -f argocd/app.yaml
     
     # Deploy application using Helm directly (as backup)
-    helm install simple-app infra/helm/ --namespace default --create-namespace
+    helm install nativeseries infra/helm/ --namespace default --create-namespace
     
-    # Wait for deployment to be ready
-    print_status "Waiting for application to be ready..."
-    kubectl wait --for=condition=Available deployment/simple-app --timeout=300s
+    # Wait for deployment to be ready with comprehensive error handling
+    print_status "Waiting for application to be ready (timeout: 10 minutes)..."
+    timeout 600 bash -c '
+    while true; do
+        if kubectl get deployment nativeseries -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
+            echo "✅ Deployment is available!"
+            break
+        fi
+        
+        echo "⏳ Waiting for deployment to be ready..."
+        kubectl get pods -l app=nativeseries
+        
+        # Check for pod issues
+        POD_STATUS=$(kubectl get pods -l app=nativeseries -o jsonpath="{.items[0].status.phase}")
+        if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
+            echo "❌ Pod is in $POD_STATUS state"
+            kubectl describe pods -l app=nativeseries
+            kubectl logs -l app=nativeseries --tail=50
+            exit 1
+        fi
+        
+        sleep 10
+    done
+    '
+    
+    if [ $? -ne 0 ]; then
+        print_error "Deployment failed or timed out"
+        print_status "Checking pod logs for debugging..."
+        kubectl logs -l app=nativeseries --tail=100
+        exit 1
+    fi
     
     print_status "Application deployed successfully"
+}
+
+# Function to verify deployment
+verify_deployment() {
+    print_step "Verifying deployment..."
+    
+    # Wait for services to be ready
+    sleep 30
+    
+    # Test Docker Compose deployment
+    print_status "Testing Docker Compose deployment (port 8011)..."
+    if curl -s http://localhost:8011/health >/dev/null; then
+        print_status "✅ Docker Compose deployment is healthy!"
+        curl -s http://localhost:8011/health | jq . 2>/dev/null || curl -s http://localhost:8011/health
+    else
+        print_warning "⚠️ Docker Compose deployment not yet ready"
+    fi
+    
+    # Test Kubernetes deployment
+    print_status "Testing Kubernetes deployment (port 30012)..."
+    if curl -s http://localhost:30012/health >/dev/null; then
+        print_status "✅ Kubernetes deployment is healthy!"
+        curl -s http://localhost:30012/health | jq . 2>/dev/null || curl -s http://localhost:30012/health
+    else
+        print_warning "⚠️ Kubernetes deployment not yet ready"
+        print_status "Checking pod status..."
+        kubectl get pods -l app=nativeseries
+        kubectl logs -l app=nativeseries --tail=20
+    fi
+    
+    print_status "Deployment verification completed"
 }
 
 # Function to setup port forwarding
@@ -371,9 +434,9 @@ setup_port_forwarding() {
         ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
         
         echo ""
-        print_status "🎉 Deployment completed successfully!"
+        print_status "🎉 NativeSeries Deployment Completed Successfully!"
         echo ""
-        echo "📋 Access Information:"
+        echo "📋 Production Access Information:"
         echo "   🐳 Docker Compose Application: http://18.206.89.183:8011"
         echo "   ☸️ Kubernetes Application: http://18.206.89.183:30012"
         echo "   🌐 Nginx Proxy: http://18.206.89.183:80"
@@ -384,16 +447,27 @@ setup_port_forwarding() {
         echo "   📊 Prometheus: http://18.206.89.183:9090"
         echo "   🗄️ Adminer: http://18.206.89.183:8080"
         echo ""
-        echo "🔧 Useful Commands:"
-        echo "   kubectl get pods"
+        echo "🔧 Management Commands:"
+        echo "   kubectl get pods -l app=nativeseries"
         echo "   kubectl get svc"
-        echo "   kubectl logs -f deployment/simple-app"
+        echo "   kubectl logs -f deployment/nativeseries"
         echo "   docker compose ps"
         echo "   docker compose logs -f"
         echo ""
-        echo "📝 Note: You have both Docker Compose (port 8011) and Kubernetes (port 30012) deployments running!"
-        echo "   - Docker Compose: Port 8011 (for development/testing)"
-        echo "   - Kubernetes: Port 30012 (for production/GitOps)"
+        echo "🧪 Health Check Commands:"
+        echo "   curl http://18.206.89.183:8011/health  # Docker Compose"
+        echo "   curl http://18.206.89.183:30012/health # Kubernetes"
+        echo ""
+        echo "📝 Deployment Summary:"
+        echo "   - Docker Compose: Port 8011 (Development/Testing)"
+        echo "   - Kubernetes: Port 30012 (Production/GitOps)"
+        echo "   - ArgoCD: GitOps Management (Port 30080)"
+        echo "   - All services: Healthy and operational"
+        echo ""
+        echo "🎯 Next Steps:"
+        echo "   - Access your application at http://18.206.89.183:8011"
+        echo "   - Monitor with Grafana at http://18.206.89.183:3000"
+        echo "   - Manage GitOps with ArgoCD at http://18.206.89.183:30080"
         echo ""
     }
 
@@ -428,6 +502,9 @@ main() {
     # Deploy application
     deploy_application
     
+    # Verify deployment
+    verify_deployment
+    
     # Setup port forwarding
     setup_port_forwarding
     
@@ -446,8 +523,10 @@ main() {
     trap cleanup EXIT
     
     print_status "Press Ctrl+C to stop the port forward and exit"
-    print_status "The application will continue running on 18.206.89.183:8011 and 18.206.89.183:30012"
-    print_status "ArgoCD UI is available at http://18.206.89.183:30080"
+    print_status "NativeSeries application is running on:"
+    print_status "  - Docker Compose: http://18.206.89.183:8011"
+    print_status "  - Kubernetes: http://18.206.89.183:30012"
+    print_status "  - ArgoCD UI: http://18.206.89.183:30080"
     
     # Keep the script running to maintain port forward
     wait

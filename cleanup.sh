@@ -104,7 +104,7 @@ cleanup_kubernetes() {
     
     if command_exists kind; then
         print_status "Deleting Kind cluster..."
-        kind delete cluster --name simple-cluster 2>/dev/null || true
+        kind delete cluster --name nativeseries 2>/dev/null || true
     else
         print_warning "Kind not found"
     fi
