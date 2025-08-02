@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # Application metadata
 APP_VERSION = "1.1.0"
 APP_NAME = "Student Tracker API"
-PRODUCTION_URL = "http://18.208.149.195:8011"
+PRODUCTION_URL = "http://18.206.89.183:8011"
 APP_DESCRIPTION = """
 A comprehensive student tracking application built with FastAPI.
 
@@ -80,7 +80,7 @@ app.add_middleware(
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["18.208.149.195", "localhost", "127.0.0.1", "*"]
+    allowed_hosts=["18.206.89.183", "localhost", "127.0.0.1", "*"]
 )
 
 # Template configuration

@@ -1,13 +1,13 @@
 # 🎓 Student Tracker - Production Cloud-Native Application
 
-[![Production Status](https://img.shields.io/badge/Status-Production-brightgreen?style=for-the-badge)](http://18.208.149.195:8011)
+[![Production Status](https://img.shields.io/badge/Status-Production-brightgreen?style=for-the-badge)](http://18.206.89.183:8011)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io)
 [![ArgoCD](https://img.shields.io/badge/ArgoCD-326CE5?style=for-the-badge&logo=argo&logoColor=white)](https://argoproj.github.io/argo-cd/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
 
-**Live Production Deployment:** [http://18.208.149.195:8011](http://18.208.149.195:8011)
+**Live Production Deployment:** [http://18.206.89.183:8011](http://18.206.89.183:8011)
 
 A production-ready, cloud-native student tracking application demonstrating modern DevOps practices, containerization, monitoring, and scalable architecture. Built with FastAPI and deployed with Docker, Kubernetes, and ArgoCD GitOps.
 
@@ -17,14 +17,14 @@ A production-ready, cloud-native student tracking application demonstrating mode
 
 | Service | Production URL | Purpose | Credentials |
 |---------|----------------|---------|-------------|
-| 🎓 **Main Application** | [http://18.208.149.195:8011](http://18.208.149.195:8011) | Student Tracker Interface | - |
-| 📖 **API Documentation** | [http://18.208.149.195:8011/docs](http://18.208.149.195:8011/docs) | Interactive Swagger UI | - |
-| 🩺 **Health Check** | [http://18.208.149.195:8011/health](http://18.208.149.195:8011/health) | System Health Status | - |
-| 📊 **Metrics** | [http://18.208.149.195:8011/metrics](http://18.208.149.195:8011/metrics) | Prometheus Metrics | - |
-| 🔄 **ArgoCD GitOps** | [http://18.208.149.195:30080](http://18.208.149.195:30080) | GitOps Management | admin / (see .argocd-password) |
-| 📈 **Grafana** | [http://18.208.149.195:3000](http://18.208.149.195:3000) | Monitoring Dashboards | admin / admin123 |
-| 📊 **Prometheus** | [http://18.208.149.195:9090](http://18.208.149.195:9090) | Metrics Collection | - |
-| 🗄️ **Database Admin** | [http://18.208.149.195:8080](http://18.208.149.195:8080) | Adminer Interface | student_user / student_pass |
+| 🎓 **Main Application** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | Student Tracker Interface | - |
+| 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | Interactive Swagger UI | - |
+| 🩺 **Health Check** | [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health) | System Health Status | - |
+| 📊 **Metrics** | [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics) | Prometheus Metrics | - |
+| 🔄 **ArgoCD GitOps** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | GitOps Management | admin / (see .argocd-password) |
+| 📈 **Grafana** | [http://18.206.89.183:3000](http://18.206.89.183:3000) | Monitoring Dashboards | admin / admin123 |
+| 📊 **Prometheus** | [http://18.206.89.183:9090](http://18.206.89.183:9090) | Metrics Collection | - |
+| 🗄️ **Database Admin** | [http://18.206.89.183:8080](http://18.206.89.183:8080) | Adminer Interface | student_user / student_pass |
 
 ---
 
@@ -34,20 +34,20 @@ A production-ready, cloud-native student tracking application demonstrating mode
 
 ```mermaid
 graph TB
-    User[👤 End Users] --> LB[🌐 Load Balancer<br/>Nginx<br/>18.208.149.195:80/443]
+    User[👤 End Users] --> LB[🌐 Load Balancer<br/>Nginx<br/>18.206.89.183:80/443]
     
-    LB --> App[🎓 Student Tracker API<br/>FastAPI<br/>18.208.149.195:8011]
+    LB --> App[🎓 Student Tracker API<br/>FastAPI<br/>18.206.89.183:8011]
     
-    App --> DB[(🗄️ PostgreSQL<br/>Database<br/>18.208.149.195:5432)]
-    App --> Cache[(📦 Redis Cache<br/>18.208.149.195:6379)]
+    App --> DB[(🗄️ PostgreSQL<br/>Database<br/>18.206.89.183:5432)]
+    App --> Cache[(📦 Redis Cache<br/>18.206.89.183:6379)]
     
     App --> Metrics[📊 Metrics Endpoint<br/>/metrics]
-    Metrics --> Prom[📈 Prometheus<br/>18.208.149.195:9090]
-    Prom --> Graf[📊 Grafana<br/>18.208.149.195:3000]
+    Metrics --> Prom[📈 Prometheus<br/>18.206.89.183:9090]
+    Prom --> Graf[📊 Grafana<br/>18.206.89.183:3000]
     
-    DB --> Admin[🛠️ Adminer<br/>DB Admin<br/>18.208.149.195:8080]
+    DB --> Admin[🛠️ Adminer<br/>DB Admin<br/>18.206.89.183:8080]
     
-    Git[📚 Git Repository] --> Argo[🔄 ArgoCD<br/>GitOps<br/>18.208.149.195:30080]
+    Git[📚 Git Repository] --> Argo[🔄 ArgoCD<br/>GitOps<br/>18.206.89.183:30080]
     Argo --> K8s[☸️ Kubernetes<br/>Cluster]
     K8s --> App
     
@@ -294,7 +294,7 @@ Student-Tracker/
 
 ## 🚀 **Deployment Guide**
 
-### **Production Deployment on 18.208.149.195**
+### **Production Deployment on 18.206.89.183**
 
 #### Prerequisites
 - Ubuntu 20.04+ or CentOS 8+
@@ -350,7 +350,7 @@ chmod +x deploy-to-server.sh
    ./check-deployment.sh
    
    # Test application
-   curl http://18.208.149.195:8011/health
+   curl http://18.206.89.183:8011/health
    ```
 
 ---
@@ -399,7 +399,7 @@ helm upgrade student-tracker infra/helm --values infra/helm/values-prod.yaml -n 
 ./check-deployment.sh
 
 # Application health
-curl http://18.208.149.195:8011/health
+curl http://18.206.89.183:8011/health
 
 # Database connectivity
 docker-compose exec postgres pg_isready -U student_user -d student_db
@@ -509,9 +509,9 @@ pytest app/test_main.py
 ## 📚 **API Documentation**
 
 ### **Interactive Documentation**
-- **Swagger UI**: [http://18.208.149.195:8011/docs](http://18.208.149.195:8011/docs)
-- **ReDoc**: [http://18.208.149.195:8011/redoc](http://18.208.149.195:8011/redoc)
-- **OpenAPI Schema**: [http://18.208.149.195:8011/openapi.json](http://18.208.149.195:8011/openapi.json)
+- **Swagger UI**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+- **ReDoc**: [http://18.206.89.183:8011/redoc](http://18.206.89.183:8011/redoc)
+- **OpenAPI Schema**: [http://18.206.89.183:8011/openapi.json](http://18.206.89.183:8011/openapi.json)
 
 ### **Key Endpoints**
 - `GET /` - Application home page
@@ -542,7 +542,7 @@ pytest app/test_main.py
 3. **Application Not Starting**
    ```bash
    docker-compose logs student-tracker
-   curl http://18.208.149.195:8011/health
+   curl http://18.206.89.183:8011/health
    ```
 
 4. **ArgoCD Sync Issues**
@@ -564,11 +564,11 @@ pytest app/test_main.py
 ### **Documentation**
 - **Deployment Guide**: `DEPLOYMENT_GUIDE.md`
 - **Quick Reference**: `DEPLOYMENT_SUMMARY.md`
-- **Application Docs**: [http://18.208.149.195:8011/docs](http://18.208.149.195:8011/docs)
+- **Application Docs**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
 
 ### **Monitoring & Status**
-- **Health Check**: [http://18.208.149.195:8011/health](http://18.208.149.195:8011/health)
-- **Metrics**: [http://18.208.149.195:8011/metrics](http://18.208.149.195:8011/metrics)
+- **Health Check**: [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health)
+- **Metrics**: [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics)
 - **Status Check**: `./check-deployment.sh`
 
 ### **Contact & Support**
@@ -598,4 +598,4 @@ This project is licensed under the MIT License - see the [License.md](License.md
 
 **🎉 Ready to deploy?** Choose your deployment method and get started with the Student Tracker application!
 
-**Live Demo**: [http://18.208.149.195:8011](http://18.208.149.195:8011)
+**Live Demo**: [http://18.206.89.183:8011](http://18.206.89.183:8011)

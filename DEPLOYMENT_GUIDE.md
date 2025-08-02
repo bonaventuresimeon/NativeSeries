@@ -2,11 +2,11 @@
 
 ## Overview
 
-This guide provides comprehensive instructions for deploying the Student Tracker application on the target server `18.208.149.195:8011` with both Docker Compose and ArgoCD GitOps approaches.
+This guide provides comprehensive instructions for deploying the Student Tracker application on the target server `18.206.89.183:8011` with both Docker Compose and ArgoCD GitOps approaches.
 
 ## Target Server Configuration
 
-- **Server IP**: 18.208.149.195
+- **Server IP**: 18.206.89.183
 - **Application Port**: 8011
 - **ArgoCD Port**: 30080
 - **Database Port**: 5432
@@ -169,20 +169,20 @@ The deployed application includes:
 ## Access Information
 
 ### Application URLs
-- **Main Application**: http://18.208.149.195:8011
-- **API Documentation**: http://18.208.149.195:8011/docs
-- **Health Check**: http://18.208.149.195:8011/health
-- **Metrics**: http://18.208.149.195:8011/metrics
+- **Main Application**: http://18.206.89.183:8011
+- **API Documentation**: http://18.206.89.183:8011/docs
+- **Health Check**: http://18.206.89.183:8011/health
+- **Metrics**: http://18.206.89.183:8011/metrics
 
 ### Management Interfaces
-- **ArgoCD UI**: http://18.208.149.195:30080
+- **ArgoCD UI**: http://18.206.89.183:30080
   - Username: `admin`
   - Password: Check `.argocd-password` file
-- **Grafana**: http://18.208.149.195:3000
+- **Grafana**: http://18.206.89.183:3000
   - Username: `admin`
   - Password: `admin123`
-- **Prometheus**: http://18.208.149.195:9090
-- **Adminer**: http://18.208.149.195:8080
+- **Prometheus**: http://18.206.89.183:9090
+- **Adminer**: http://18.206.89.183:8080
   - System: PostgreSQL
   - Username: `student_user`
   - Password: `student_pass`
@@ -323,7 +323,7 @@ docker run --rm -v student-tracker_postgres_data:/data -v $(pwd):/backup alpine 
    docker-compose logs student-tracker
    
    # Check health endpoint
-   curl http://18.208.149.195:8011/health
+   curl http://18.206.89.183:8011/health
    ```
 
 4. **ArgoCD Sync Issues**
@@ -372,9 +372,9 @@ docker run --rm -v student-tracker_postgres_data:/data -v $(pwd):/backup alpine 
 
 ## Support and Documentation
 
-- **Application Documentation**: http://18.208.149.195:8011/docs
-- **API Reference**: http://18.208.149.195:8011/redoc
-- **Health Status**: http://18.208.149.195:8011/health
-- **Metrics**: http://18.208.149.195:8011/metrics
+- **Application Documentation**: http://18.206.89.183:8011/docs
+- **API Reference**: http://18.206.89.183:8011/redoc
+- **Health Status**: http://18.206.89.183:8011/health
+- **Metrics**: http://18.206.89.183:8011/metrics
 
 For additional support, refer to the application logs and monitoring dashboards.

@@ -207,10 +207,10 @@ graph TD
 ```
 
 ### **Monitoring Setup**
-- **Application**: http://18.208.149.195:8011/health
-- **Metrics**: http://18.208.149.195:8011/metrics
-- **Grafana**: http://18.208.149.195:3000
-- **Prometheus**: http://18.208.149.195:9090
+- **Application**: http://18.206.89.183:8011/health
+- **Metrics**: http://18.206.89.183:8011/metrics
+- **Grafana**: http://18.206.89.183:3000
+- **Prometheus**: http://18.206.89.183:9090
 
 ---
 
