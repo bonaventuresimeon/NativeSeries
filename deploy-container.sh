@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Starting comprehensive deployment to 18.206.89.183:8011"
+echo "🚀 Starting container-friendly deployment to 18.206.89.183:8011"
 
 # Colors for output
 RED='\033[0;31m'
@@ -33,151 +33,49 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to check if we're in a container environment
-is_container() {
-    [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null
-}
-
-# Function to install Docker
-install_docker() {
-    print_step "Installing Docker..."
-    if command_exists docker; then
-        print_status "Docker is already installed"
-        return
-    fi
+# Function to install tools in container environment
+install_tools() {
+    print_step "Installing required tools..."
     
     # Update package list
-    sudo apt-get update
+    apt-get update
     
-    # Install prerequisites
-    sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
+    # Install basic tools
+    apt-get install -y curl wget jq tree
     
-    # Add Docker's official GPG key
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    
-    # Add Docker repository
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    # Install Docker
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-    
-    # Add user to docker group
-    sudo usermod -aG docker $USER
-    
-    # Start Docker (only if not in container)
-    if ! is_container; then
-        sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
-        sudo systemctl enable docker 2>/dev/null || true
-    else
-        # In container, start Docker daemon in background
-        sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2376 &
-        sleep 5
+    # Install kubectl
+    if ! command_exists kubectl; then
+        print_status "Installing kubectl..."
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        mv kubectl /usr/local/bin/
     fi
     
-    print_status "Docker installed successfully"
-}
-
-# Function to install kubectl
-install_kubectl() {
-    print_step "Installing kubectl..."
-    if command_exists kubectl; then
-        print_status "kubectl is already installed"
-        return
+    # Install Kind
+    if ! command_exists kind; then
+        print_status "Installing Kind..."
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+        chmod +x kind
+        mv kind /usr/local/bin/
     fi
     
-    # Download kubectl
-    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-    
-    # Make it executable
-    chmod +x kubectl
-    
-    # Move to PATH
-    sudo mv kubectl /usr/local/bin/
-    
-    print_status "kubectl installed successfully"
-}
-
-# Function to install Kind
-install_kind() {
-    print_step "Installing Kind..."
-    if command_exists kind; then
-        print_status "Kind is already installed"
-        return
+    # Install Helm
+    if ! command_exists helm; then
+        print_status "Installing Helm..."
+        curl https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz | tar xz
+        mv linux-amd64/helm /usr/local/bin/
+        rm -rf linux-amd64
     fi
     
-    # Download Kind
-    curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
-    
-    # Make it executable
-    chmod +x kind
-    
-    # Move to PATH
-    sudo mv kind /usr/local/bin/
-    
-    print_status "Kind installed successfully"
-}
-
-# Function to install Helm
-install_helm() {
-    print_step "Installing Helm..."
-    if command_exists helm; then
-        print_status "Helm is already installed"
-        return
+    # Install ArgoCD CLI
+    if ! command_exists argocd; then
+        print_status "Installing ArgoCD CLI..."
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        chmod +x argocd-linux-amd64
+        mv argocd-linux-amd64 /usr/local/bin/argocd
     fi
     
-    # Download Helm
-    curl https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz | tar xz
-    
-    # Move to PATH
-    sudo mv linux-amd64/helm /usr/local/bin/
-    
-    # Cleanup
-    rm -rf linux-amd64
-    
-    print_status "Helm installed successfully"
-}
-
-# Function to install ArgoCD CLI
-install_argocd_cli() {
-    print_step "Installing ArgoCD CLI..."
-    if command_exists argocd; then
-        print_status "ArgoCD CLI is already installed"
-        return
-    fi
-    
-    # Download ArgoCD CLI
-    curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-    
-    # Make it executable
-    chmod +x argocd-linux-amd64
-    
-    # Move to PATH
-    sudo mv argocd-linux-amd64 /usr/local/bin/argocd
-    
-    print_status "ArgoCD CLI installed successfully"
-}
-
-# Function to install additional tools
-install_additional_tools() {
-    print_step "Installing additional tools..."
-    
-    # Install curl if not present
-    if ! command_exists curl; then
-        sudo apt-get update && sudo apt-get install -y curl
-    fi
-    
-    # Install jq if not present
-    if ! command_exists jq; then
-        sudo apt-get install -y jq
-    fi
-    
-    # Install tree if not present
-    if ! command_exists tree; then
-        sudo apt-get install -y tree
-    fi
-    
-    print_status "Additional tools installed successfully"
+    print_status "All tools installed successfully"
 }
 
 # Function to cleanup existing resources
@@ -297,20 +195,6 @@ deploy_application() {
     print_status "Application deployed successfully"
 }
 
-# Function to setup port forwarding
-setup_port_forwarding() {
-    print_step "Setting up port forwarding..."
-    
-    # Port forward ArgoCD (in background)
-    kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-    ARGOCD_PID=$!
-    
-    # Wait a moment for port forward to be ready
-    sleep 5
-    
-    print_status "Port forwarding setup completed"
-}
-
 # Function to display final information
 display_final_info() {
     # Get ArgoCD admin password
@@ -322,7 +206,7 @@ display_final_info() {
     echo "📋 Access Information:"
     echo "   Application URL: http://18.206.89.183:8011"
     echo "   Docker Compose: http://18.206.89.183:80"
-    echo "   ArgoCD UI: https://localhost:8080"
+    echo "   ArgoCD UI: https://localhost:8080 (after port forward)"
     echo "   ArgoCD Username: admin"
     echo "   ArgoCD Password: $ARGOCD_PASSWORD"
     echo "   Grafana: http://18.206.89.183:3000 (admin/admin123)"
@@ -335,20 +219,16 @@ display_final_info() {
     echo "   kubectl logs -f deployment/simple-app"
     echo "   docker-compose ps"
     echo "   docker-compose logs -f"
+    echo "   kubectl port-forward svc/argocd-server -n argocd 8080:443"
     echo ""
 }
 
 # Main deployment function
 main() {
-    print_step "Starting comprehensive deployment process..."
+    print_step "Starting container-friendly deployment process..."
     
     # Install all required tools
-    install_docker
-    install_kubectl
-    install_kind
-    install_helm
-    install_argocd_cli
-    install_additional_tools
+    install_tools
     
     # Cleanup existing resources
     cleanup_existing
@@ -368,28 +248,11 @@ main() {
     # Deploy application
     deploy_application
     
-    # Setup port forwarding
-    setup_port_forwarding
-    
     # Display final information
     display_final_info
     
-    # Cleanup function
-    cleanup() {
-        print_status "Cleaning up..."
-        if [ ! -z "$ARGOCD_PID" ]; then
-            kill $ARGOCD_PID 2>/dev/null || true
-        fi
-    }
-    
-    # Set trap to cleanup on script exit
-    trap cleanup EXIT
-    
-    print_status "Press Ctrl+C to stop the port forward and exit"
-    print_status "The application will continue running on 18.206.89.183:8011"
-    
-    # Keep the script running to maintain port forward
-    wait
+    print_status "Deployment completed! Your application is now running."
+    print_status "Access it at: http://18.206.89.183:8011"
 }
 
 # Run main function
