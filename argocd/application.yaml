@@ -18,7 +18,7 @@ spec:
         - name: app.image.tag
           value: latest
         - name: app.image.repository
-          value: student-tracker
+          value: ghcr.io/bonaventuresimeon/NativeSeries/student-tracker
   destination:
     server: https://kubernetes.default.svc
     namespace: student-tracker
