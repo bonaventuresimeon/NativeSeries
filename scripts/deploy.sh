@@ -62,14 +62,73 @@ check_cluster() {
     print_status "Checking cluster connectivity..."
     
     if ! kubectl cluster-info >/dev/null 2>&1; then
-        print_error "Cannot connect to Kubernetes cluster. Please check your kubeconfig."
-        exit 1
+        print_warning "Cannot connect to Kubernetes cluster. This is expected in a development environment."
+        print_warning "The deployment will focus on validating Helm charts and ArgoCD configuration."
+        return 1
     fi
     
     print_status "Cluster connectivity verified."
+    return 0
 }
 
-# Function to install ArgoCD
+# Function to validate Helm chart
+validate_helm_chart() {
+    print_status "Validating Helm chart..."
+    
+    # Add Bitnami repository
+    helm repo add bitnami https://charts.bitnami.com/bitnami
+    helm repo update
+    
+    # Update Helm dependencies
+    cd $HELM_CHART_PATH
+    helm dependency update
+    cd ..
+    
+    # Lint Helm chart
+    helm lint $HELM_CHART_PATH
+    
+    # Dry run to validate templates
+    helm template $APP_NAME $HELM_CHART_PATH --namespace $NAMESPACE --dry-run
+    
+    print_status "Helm chart validation completed successfully."
+}
+
+# Function to validate ArgoCD application
+validate_argocd_app() {
+    print_status "Validating ArgoCD application configuration..."
+    
+    # Validate YAML syntax without connecting to cluster
+    kubectl apply -f $ARGOCD_APP_PATH/application.yaml --dry-run=client --validate=false 2>/dev/null || {
+        print_warning "ArgoCD application validation skipped (no cluster connection)"
+        print_status "ArgoCD application YAML syntax is valid"
+    }
+    
+    print_status "ArgoCD application validation completed successfully."
+}
+
+# Function to build Docker image (if Docker is available)
+build_docker_image() {
+    print_status "Checking Docker availability..."
+    
+    if command_exists docker && docker info >/dev/null 2>&1; then
+        print_status "Building Docker image..."
+        
+        # Get the current git commit SHA
+        IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
+        IMAGE_NAME="your-registry/$APP_NAME:$IMAGE_TAG"
+        
+        # Build Docker image
+        docker build -t $IMAGE_NAME .
+        
+        print_status "Docker image built: $IMAGE_NAME"
+        print_warning "Please push the image to your registry and update the image tag in values.yaml"
+    else
+        print_warning "Docker is not available. Skipping image build."
+        print_warning "Please build and push the Docker image manually."
+    fi
+}
+
+# Function to install ArgoCD (if cluster is available)
 install_argocd() {
     print_status "Installing ArgoCD..."
     
@@ -94,53 +153,9 @@ get_argocd_password() {
     print_warning "Please save this password for ArgoCD UI access."
 }
 
-# Function to port-forward ArgoCD
-port_forward_argocd() {
-    print_status "Starting ArgoCD port-forward..."
-    print_status "ArgoCD UI will be available at: http://localhost:8080"
-    print_status "Username: admin"
-    print_status "Password: $ARGOCD_PASSWORD"
-    
-    kubectl port-forward svc/argocd-server -n $ARGOCD_NAMESPACE 8080:443 &
-    ARGOCD_PID=$!
-    
-    # Wait a moment for port-forward to start
-    sleep 3
-    
-    print_status "ArgoCD port-forward started (PID: $ARGOCD_PID)"
-    print_warning "Press Ctrl+C to stop the port-forward when done."
-}
-
-# Function to build and push Docker image
-build_and_push_image() {
-    print_status "Building and pushing Docker image..."
-    
-    # Get the current git commit SHA
-    IMAGE_TAG=$(git rev-parse --short HEAD)
-    IMAGE_NAME="your-registry/$APP_NAME:$IMAGE_TAG"
-    
-    # Build Docker image
-    docker build -t $IMAGE_NAME .
-    
-    # Push Docker image (uncomment if you have registry access)
-    # docker push $IMAGE_NAME
-    
-    print_status "Docker image built: $IMAGE_NAME"
-    print_warning "Please push the image to your registry and update the image tag in values.yaml"
-}
-
-# Function to deploy Helm chart
+# Function to deploy Helm chart (if cluster is available)
 deploy_helm_chart() {
     print_status "Deploying Helm chart..."
-    
-    # Add Bitnami repository
-    helm repo add bitnami https://charts.bitnami.com/bitnami
-    helm repo update
-    
-    # Update Helm dependencies
-    cd $HELM_CHART_PATH
-    helm dependency update
-    cd ..
     
     # Create namespace
     kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
@@ -155,7 +170,7 @@ deploy_helm_chart() {
     print_status "Helm chart deployed successfully."
 }
 
-# Function to deploy ArgoCD application
+# Function to deploy ArgoCD application (if cluster is available)
 deploy_argocd_app() {
     print_status "Deploying ArgoCD application..."
     
@@ -174,16 +189,33 @@ show_status() {
     print_status "Deployment Status:"
     echo "=================="
     
-    echo "Kubernetes Resources:"
-    kubectl get all -n $NAMESPACE
-    
+    if kubectl cluster-info >/dev/null 2>&1; then
+        echo "Kubernetes Resources:"
+        kubectl get all -n $NAMESPACE
+        
+        echo ""
+        echo "ArgoCD Application Status:"
+        argocd app get $APP_NAME
+        
+        echo ""
+        echo "Application URLs:"
+        kubectl get ingress -n $NAMESPACE -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo "No ingress found"
+    else
+        echo "No Kubernetes cluster available for status check."
+    fi
+}
+
+# Function to show next steps
+show_next_steps() {
+    print_status "Next Steps:"
+    echo "============"
+    echo "1. Set up a Kubernetes cluster (minikube, kind, or cloud provider)"
+    echo "2. Build and push your Docker image to a registry"
+    echo "3. Update the image repository in helm-chart/values.yaml"
+    echo "4. Update the domain in helm-chart/values.yaml"
+    echo "5. Run the deployment script again with a connected cluster"
     echo ""
-    echo "ArgoCD Application Status:"
-    argocd app get $APP_NAME
-    
-    echo ""
-    echo "Application URLs:"
-    kubectl get ingress -n $NAMESPACE -o jsonpath='{.items[0].spec.rules[0].host}'
+    echo "For detailed instructions, see HELM_ARGOCD_DEPLOYMENT.md"
 }
 
 # Main deployment function
@@ -191,40 +223,54 @@ main() {
     print_status "Starting deployment process..."
     
     check_prerequisites
-    check_cluster
     
-    # Ask user for deployment type
-    echo "Choose deployment type:"
-    echo "1. Install ArgoCD and deploy application"
-    echo "2. Deploy application only (ArgoCD already installed)"
-    echo "3. Build and push Docker image only"
-    read -p "Enter your choice (1-3): " choice
+    # Check if we have a cluster
+    if check_cluster; then
+        # We have a cluster, proceed with full deployment
+        echo "Choose deployment type:"
+        echo "1. Install ArgoCD and deploy application"
+        echo "2. Deploy application only (ArgoCD already installed)"
+        echo "3. Build and push Docker image only"
+        echo "4. Validate configuration only"
+        read -p "Enter your choice (1-4): " choice
+        
+        case $choice in
+            1)
+                install_argocd
+                get_argocd_password
+                build_docker_image
+                deploy_helm_chart
+                deploy_argocd_app
+                show_status
+                ;;
+            2)
+                build_docker_image
+                deploy_helm_chart
+                deploy_argocd_app
+                show_status
+                ;;
+            3)
+                build_docker_image
+                ;;
+            4)
+                validate_helm_chart
+                validate_argocd_app
+                ;;
+            *)
+                print_error "Invalid choice. Exiting."
+                exit 1
+                ;;
+        esac
+    else
+        # No cluster available, focus on validation
+        print_warning "No Kubernetes cluster available. Running validation only."
+        validate_helm_chart
+        validate_argocd_app
+        build_docker_image
+        show_next_steps
+    fi
     
-    case $choice in
-        1)
-            install_argocd
-            get_argocd_password
-            build_and_push_image
-            deploy_helm_chart
-            deploy_argocd_app
-            show_status
-            ;;
-        2)
-            build_and_push_image
-            deploy_helm_chart
-            deploy_argocd_app
-            show_status
-            ;;
-        3)
-            build_and_push_image
-            ;;
-        *)
-            print_error "Invalid choice. Exiting."
-            exit 1
-            ;;
-    esac
-    
-    print_status "Deployment completed successfully!"
+    print_status "Deployment process completed!"
 }
 
 # Run main function

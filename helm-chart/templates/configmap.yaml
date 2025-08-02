@@ -8,13 +8,13 @@ data:
   app.conf: |
     [app]
     name = {{ .Values.app.name }}
-    environment = {{ .Values.app.env | pluck "value" | first | default "production" }}
+    environment = {{ .Values.app.env | first | default "production" }}
     
     [database]
-    url = {{ .Values.app.env | pluck "value" | first | default "postgresql://localhost:5432/myapp" }}
+    url = postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/myapp
     
     [redis]
-    url = {{ .Values.app.env | pluck "value" | first | default "redis://localhost:6379/0" }}
+    url = redis://redis:6379/0
     
     [logging]
     level = INFO
