@@ -109,13 +109,13 @@ jobs:
           cd helm-chart
           helm lint .
 
-             - name: Deploy to ArgoCD
-         run: |
-           # Update ArgoCD application with new image tag
-           kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"source":{"helm":{"parameters":[{"name":"app.image.tag","value":"${{ github.sha }}"}]}}}}'
-           
-           # Sync ArgoCD application
-           kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+      - name: Deploy to ArgoCD
+        run: |
+          # Update ArgoCD application with new image tag
+          kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"source":{"helm":{"parameters":[{"name":"app.image.tag","value":"${{ github.sha }}"}]}}}}'
+          
+          # Sync ArgoCD application
+          kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
 
   security-scan:
     runs-on: ubuntu-latest
