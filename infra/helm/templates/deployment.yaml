@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "simple-app.fullname" . }}
+  name: {{ include "nativeseries.fullname" . }}
   labels:
-    {{- include "simple-app.labels" . | nindent 4 }}
+    {{- include "nativeseries.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "simple-app.selectorLabels" . | nindent 6 }}
+      {{- include "nativeseries.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "simple-app.selectorLabels" . | nindent 8 }}
+        {{- include "nativeseries.selectorLabels" . | nindent 8 }}
     spec:
       containers:
         - name: {{ .Chart.Name }}

@@ -1,16 +1,8 @@
-# 🎓 Student Tracker - Cloud-Native Production Application
+# 🚀 NativeSeries - Complete Application Platform
 
-[![Production Status](https://img.shields.io/badge/Status-LIVE%20PRODUCTION-brightgreen?style=for-the-badge)](http://18.206.89.183:8011)
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docker.com)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io)
-[![ArgoCD](https://img.shields.io/badge/ArgoCD-326CE5?style=for-the-badge&logo=argo&logoColor=white)](https://argoproj.github.io/argo-cd/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://postgresql.org)
-[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io)
+## 🎯 **Overview**
 
-**🚀 LIVE PRODUCTION:** [http://18.206.89.183:8011](http://18.206.89.183:8011)
-
-A production-ready, cloud-native student tracking application demonstrating modern DevOps practices, containerization, monitoring, and scalable architecture. Built with FastAPI and deployed with Docker, Kubernetes, and ArgoCD GitOps.
+NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management.
 
 ---
 
@@ -28,7 +20,7 @@ sudo ./deploy.sh
 - **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
 - **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
 
-📖 **📋 For a complete overview, see [COMPREHENSIVE_DEPLOYMENT_SUMMARY.md](COMPREHENSIVE_DEPLOYMENT_SUMMARY.md)**
+📖 **📋 For a complete overview, see [NATIVESERIES_COMPREHENSIVE_SUMMARY.md](NATIVESERIES_COMPREHENSIVE_SUMMARY.md)**
 
 ---
 
@@ -49,163 +41,7 @@ sudo ./deploy.sh
 
 ---
 
-## 🏗️ **System Architecture**
-
-### 🎯 **High-Level Architecture**
-
-```mermaid
-graph TB
-    subgraph "🌐 Internet"
-        User[👤 End Users]
-    end
-    
-    subgraph "🖥️ Production Server (18.206.89.183)"
-        subgraph "🐳 Docker Compose Stack"
-            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
-            
-            subgraph "🎓 Application Layer"
-                App[🎓 Student Tracker<br/>FastAPI<br/>Port 8011]
-            end
-            
-            subgraph "🗄️ Data Layer"
-                DB[(🗄️ PostgreSQL<br/>Port 5432)]
-                Cache[(📦 Redis<br/>Port 6379)]
-            end
-            
-            subgraph "📊 Monitoring Stack"
-                Prom[📈 Prometheus<br/>Port 9090]
-                Graf[📊 Grafana<br/>Port 3000]
-                Admin[🛠️ Adminer<br/>Port 8080]
-            end
-        end
-        
-        subgraph "☸️ Kubernetes Cluster (Optional)"
-            K8s[☸️ Kind Cluster<br/>ArgoCD GitOps]
-        end
-    end
-    
-    User --> Nginx
-    Nginx --> App
-    App --> DB
-    App --> Cache
-    App --> Prom
-    Prom --> Graf
-    Admin --> DB
-    
-    style User fill:#e1f5fe
-    style App fill:#c8e6c9
-    style DB fill:#fff3e0
-    style Cache fill:#f3e5f5
-    style Nginx fill:#e8f5e8
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-    style Admin fill:#e0f2f1
-```
-
-### 🐳 **Container Architecture**
-
-```mermaid
-graph LR
-    subgraph "🐳 Docker Compose Services"
-        subgraph "🎓 Application Services"
-            ST[🎓 student-tracker<br/>Port 8011<br/>FastAPI App]
-        end
-        
-        subgraph "🗄️ Data Services"
-            PG[🗄️ postgres<br/>Port 5432<br/>Database]
-            RD[📦 redis<br/>Port 6379<br/>Cache]
-        end
-        
-        subgraph "🌐 Network Services"
-            NX[🌐 nginx<br/>Port 80<br/>Reverse Proxy]
-        end
-        
-        subgraph "📊 Monitoring Services"
-            PR[📈 prometheus<br/>Port 9090<br/>Metrics]
-            GR[📊 grafana<br/>Port 3000<br/>Dashboards]
-            AD[🛠️ adminer<br/>Port 8080<br/>DB Admin]
-        end
-    end
-    
-    NX --> ST
-    ST --> PG
-    ST --> RD
-    PR --> ST
-    GR --> PR
-    AD --> PG
-    
-    style ST fill:#c8e6c9
-    style PG fill:#fff3e0
-    style RD fill:#f3e5f5
-    style NX fill:#e8f5e8
-    style PR fill:#ffe0b2
-    style GR fill:#fce4ec
-    style AD fill:#e0f2f1
-```
-
-### 🔄 **Deployment Workflow**
-
-```mermaid
-flowchart TD
-    A[🚀 Start Deployment] --> B{Environment Check}
-    B -->|Ubuntu/EC2| C[📦 Install Tools]
-    B -->|Container| D[🐳 Start Docker Daemon]
-    
-    C --> E[🧹 Cleanup Existing]
-    D --> E
-    
-    E --> F[🐳 Docker Compose Up]
-    F --> G[✅ Verify Services]
-    
-    G --> H{Deploy Kubernetes?}
-    H -->|Yes| I[☸️ Create Kind Cluster]
-    H -->|No| J[🎉 Deployment Complete]
-    
-    I --> K[🔄 Install ArgoCD]
-    K --> L[📦 Deploy with Helm]
-    L --> J
-    
-    J --> M[📊 Health Checks]
-    M --> N[🌐 Application Live]
-    
-    style A fill:#e3f2fd
-    style N fill:#c8e6c9
-    style J fill:#c8e6c9
-```
-
-### 📊 **Data Flow Architecture**
-
-```mermaid
-sequenceDiagram
-    participant U as 👤 User
-    participant N as 🌐 Nginx
-    participant A as 🎓 FastAPI
-    participant R as 📦 Redis
-    participant P as 🗄️ PostgreSQL
-    participant M as 📈 Prometheus
-    participant G as 📊 Grafana
-    
-    U->>N: HTTP Request
-    N->>A: Proxy Request
-    A->>R: Check Cache
-    R-->>A: Cache Miss
-    A->>P: Database Query
-    P-->>A: Query Result
-    A->>R: Update Cache
-    A-->>N: JSON Response
-    N-->>U: HTTP Response
-    
-    A->>M: Emit Metrics
-    M->>G: Store Metrics
-    G->>M: Query Metrics
-    G-->>G: Update Dashboard
-```
-
----
-
 ## 🚀 **Deployment Options**
-
-📖 **📋 For detailed deployment information, see [COMPREHENSIVE_DEPLOYMENT_SUMMARY.md](COMPREHENSIVE_DEPLOYMENT_SUMMARY.md)**
 
 ### 🎯 **Complete Deployment (Single Script)**
 
@@ -251,6 +87,102 @@ sudo ./cleanup.sh
 - Cleans up Docker images and volumes
 - Removes Kubernetes cluster
 - Cleans temporary files and logs
+
+---
+
+## 🏗️ **System Architecture**
+
+### 🎯 **High-Level Architecture**
+
+```mermaid
+graph TB
+    subgraph "🌐 Internet"
+        User[👤 End Users]
+    end
+    
+    subgraph "🖥️ Production Server (18.206.89.183)"
+        subgraph "🐳 Docker Compose Stack"
+            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
+            
+            subgraph "🎓 Application Layer"
+                App[🎓 Student Tracker<br/>FastAPI<br/>Port 8011]
+            end
+            
+            subgraph "🗄️ Data Layer"
+                DB[(🗄️ PostgreSQL<br/>Port 5432)]
+                Cache[(📦 Redis<br/>Port 6379)]
+            end
+            
+            subgraph "📊 Monitoring Stack"
+                Prom[📈 Prometheus<br/>Port 9090]
+                Graf[📊 Grafana<br/>Port 3000]
+                Admin[🛠️ Adminer<br/>Port 8080]
+            end
+        end
+        
+        subgraph "☸️ Kubernetes Cluster (Optional)"
+            K8s[☸️ Kind Cluster<br/>ArgoCD GitOps<br/>Port 30012]
+        end
+    end
+    
+    User --> Nginx
+    Nginx --> App
+    App --> DB
+    App --> Cache
+    App --> Prom
+    Prom --> Graf
+    Admin --> DB
+    
+    style User fill:#e1f5fe
+    style App fill:#c8e6c9
+    style DB fill:#fff3e0
+    style Cache fill:#f3e5f5
+    style Nginx fill:#e8f5e8
+    style Prom fill:#ffe0b2
+    style Graf fill:#fce4ec
+    style Admin fill:#e0f2f1
+```
+
+### 🐳 **Container Architecture**
+
+```mermaid
+graph LR
+    subgraph "🐳 Docker Compose Services"
+        subgraph "🎓 Application Services"
+            ST[🎓 student-tracker<br/>Port 8011<br/>FastAPI App]
+        end
+        
+        subgraph "🗄️ Data Services"
+            PG[🗄️ postgres<br/>Port 5432<br/>Database]
+            RD[📦 redis<br/>Port 6379<br/>Cache]
+        end
+        
+        subgraph "🌐 Network Services"
+            NG[🌐 nginx<br/>Port 80<br/>Reverse Proxy]
+        end
+        
+        subgraph "📊 Monitoring Services"
+            PM[📈 prometheus<br/>Port 9090<br/>Metrics]
+            GF[📊 grafana<br/>Port 3000<br/>Dashboards]
+            AD[🛠️ adminer<br/>Port 8080<br/>DB Admin]
+        end
+    end
+    
+    NG --> ST
+    ST --> PG
+    ST --> RD
+    ST --> PM
+    PM --> GF
+    AD --> PG
+    
+    style ST fill:#c8e6c9
+    style PG fill:#fff3e0
+    style RD fill:#f3e5f5
+    style NG fill:#e8f5e8
+    style PM fill:#ffe0b2
+    style GF fill:#fce4ec
+    style AD fill:#e0f2f1
+```
 
 ---
 
@@ -307,7 +239,9 @@ graph TB
 | **📦 Cache** | Redis | 7-alpine | 6379 | Session & performance cache |
 | **📈 Metrics** | Prometheus | Latest | 9090 | Metrics collection |
 | **📊 Visualization** | Grafana | Latest | 3000 | Monitoring dashboards |
-| **🛠️ DB Admin** | Adminer | Latest | 8080 | Database administration |
+| **🛠️ Database Admin** | Adminer | Latest | 8080 | Database administration |
+| **☸️ Container Orchestration** | Kubernetes | 1.33+ | 30012 | Production deployment |
+| **🔄 GitOps** | ArgoCD | Latest | 30080 | Continuous deployment |
 
 ---
 
@@ -345,7 +279,7 @@ NativeSeries/
 │   └── cleanup.sh                   # Complete cleanup script
 │
 ├── 📖 docs/                         # Documentation
-│   └── COMPREHENSIVE_DEPLOYMENT_SUMMARY.md  # Complete deployment guide
+│   └── HEALTH_CHECK_GUIDE.md        # Health monitoring guide
 │
 ├── 🎨 templates/                    # Web UI Templates
 ├── 📋 requirements.txt              # Python dependencies
@@ -411,339 +345,236 @@ mindmap
   - Input validation and SQL injection prevention
   - Database access restrictions
 
-- **🔄 DevOps Ready**
-  - Docker containerization with multi-stage builds
-  - Kubernetes deployment with Helm charts
-  - GitOps workflow with ArgoCD
-  - One-command deployment automation
+- **☸️ Kubernetes Ready**
+  - Helm charts for easy deployment
+  - Horizontal Pod Autoscaling
+  - Resource limits and requests
+  - Health checks and readiness probes
+
+- **🔄 GitOps Integration**
+  - ArgoCD for continuous deployment
+  - Declarative infrastructure management
+  - Automated sync and health monitoring
+  - Rollback capabilities
 
 ---
 
-## 🔧 **Management & Operations**
+## 🏥 **Health Monitoring System**
 
-### 🐳 **Docker Compose Management**
+### 🔍 **What Gets Monitored**
+
+1. **🐳 Docker Compose Health**
+   - 7 services (student-tracker, postgres, redis, nginx, prometheus, grafana, adminer)
+   - Service status, logs, error detection
+
+2. **☸️ Kubernetes Health**
+   - Cluster status, nodes, deployment, pods, services
+   - NativeSeries deployment readiness
+
+3. **🔄 ArgoCD Health**
+   - Namespace, server deployment, application status
+   - GitOps synchronization status
+
+4. **🌐 Network Connectivity**
+   - External hosts (google.com, github.com, docker.io)
+   - Local ports (8011, 30012, 30080, 80, 3000, 9090, 8080)
+
+5. **🎯 Application Endpoints**
+   - Health endpoints, API docs, metrics
+   - Monitoring tools accessibility
+
+6. **🗄️ Database Connectivity**
+   - PostgreSQL connection and query testing
+   - Redis ping response verification
+
+7. **📊 Resource Usage**
+   - Disk, memory, CPU utilization
+   - Docker and Kubernetes resource metrics
+
+8. **🔧 System Services**
+   - Docker daemon, kubelet, containerd status
+
+### 📊 **Health Assessment Levels**
+
+- **🟢 Healthy (80-100%)**: All critical services operational
+- **🟡 Warning (60-79%)**: Minor issues detected
+- **🔴 Critical (0-59%)**: Critical issues detected
+
+### 🚀 **Health Check Usage**
 
 ```bash
-# View all services
-sudo docker compose ps
+# Run comprehensive health check
+sudo ./health-check.sh
 
-# View logs
-sudo docker compose logs -f student-tracker
+# View detailed guide
+cat HEALTH_CHECK_GUIDE.md
 
-# Restart application
-sudo docker compose restart student-tracker
-
-# Scale application
-sudo docker compose up -d --scale student-tracker=3
-
-# Stop all services
-sudo docker compose down
-
-# Update application
-sudo docker compose pull && sudo docker compose up -d
+# Set up automated monitoring
+crontab -e
+# Add: 0 * * * * /path/to/health-check.sh >> /var/log/nativeseries-health.log 2>&1
 ```
 
-### ☸️ **Kubernetes Management**
+---
 
+## 🔧 **Troubleshooting Guide**
+
+### **Common Issues & Solutions**
+
+#### **Docker Compose Issues:**
 ```bash
-# Check application status
-kubectl get applications -n argocd
+# Check service status
+docker compose ps
 
-# View pods
-kubectl get pods -n default
+# View service logs
+docker compose logs -f
 
-# View logs
-kubectl logs -f deployment/simple-app -n default
+# Restart services
+docker compose restart
 
-# Scale application
-kubectl scale deployment simple-app --replicas=3 -n default
-
-# Update with Helm
-helm upgrade simple-app infra/helm/ -n default
+# Check specific service
+docker compose logs student-tracker
 ```
 
-### 📊 **Monitoring & Health Checks**
-
+#### **Kubernetes Issues:**
 ```bash
+# Check pod status
+kubectl get pods
+
+# View pod logs
+kubectl logs -f deployment/nativeseries
+
 # Check deployment status
-sudo docker compose ps
+kubectl describe deployment nativeseries
 
-# Application health
-curl http://18.206.89.183:8011/health
-
-# Database connectivity
-sudo docker compose exec postgres pg_isready -U student_user -d student_db
-
-# Redis connectivity
-sudo docker compose exec redis redis-cli ping
+# Check service status
+kubectl get svc
 ```
 
----
-
-## 📊 **Monitoring & Observability**
-
-### 📈 **Metrics Dashboard**
-
-```mermaid
-graph TB
-    subgraph "📊 Monitoring Stack"
-        subgraph "📈 Data Collection"
-            Prom[Prometheus<br/>Port 9090]
-            Node[Node Exporter<br/>Port 9100]
-        end
-        
-        subgraph "📊 Visualization"
-            Graf[Grafana<br/>Port 3000]
-            Dash[Dashboards]
-            Alerts[Alerts]
-        end
-        
-        subgraph "🎓 Application Metrics"
-            App[FastAPI App<br/>Port 8011]
-            Health[Health Checks]
-            Metrics[Custom Metrics]
-        end
-    end
-    
-    App --> Prom
-    Node --> Prom
-    Prom --> Graf
-    Graf --> Dash
-    Graf --> Alerts
-    
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-    style App fill:#c8e6c9
-```
-
-### 🔍 **Key Metrics**
-
-- **Application Metrics**
-  - Request counts and response times
-  - Error rates and availability
-  - Database connection status
-  - Redis cache hit rates
-
-- **System Metrics**
-  - CPU, Memory, and Disk usage
-  - Network traffic and bandwidth
-  - Container resource utilization
-  - Service health status
-
----
-
-## 🔄 **CI/CD & GitOps**
-
-### 🔄 **GitOps Workflow**
-
-```mermaid
-graph LR
-    subgraph "👨‍💻 Development"
-        Dev[Developer]
-        Git[Git Repository]
-    end
-    
-    subgraph "🔄 GitOps Pipeline"
-        Argo[ArgoCD]
-        K8s[Kubernetes]
-    end
-    
-    subgraph "🎓 Production"
-        App[Application]
-        DB[Database]
-        Cache[Cache]
-    end
-    
-    Dev -->|Push Code| Git
-    Git -->|Detect Changes| Argo
-    Argo -->|Deploy| K8s
-    K8s -->|Update| App
-    App --> DB
-    App --> Cache
-    
-    style Dev fill:#e1f5fe
-    style Argo fill:#e3f2fd
-    style App fill:#c8e6c9
-```
-
-### 🚀 **Deployment Pipeline**
-
-1. **Code Changes**: Push to Git repository
-2. **ArgoCD Detection**: Automatic change detection
-3. **Deployment**: Automated deployment to Kubernetes
-4. **Verification**: Health checks and monitoring
-5. **Rollback**: Automatic rollback on failures
-
----
-
-## 🛠️ **Development & Contributing**
-
-### 🚀 **Local Development Setup**
-
+#### **ArgoCD Issues:**
 ```bash
-# Quick development setup
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+# Check ArgoCD application
+kubectl get application nativeseries -n argocd
+
+# Check ArgoCD server
+kubectl get pods -n argocd
+
+# View ArgoCD logs
+kubectl logs -f deployment/argocd-server -n argocd
 ```
 
-### 🧪 **Testing**
-
+#### **Network Issues:**
 ```bash
-# Run tests
-pytest
+# Test connectivity
+curl http://localhost:8011/health
+curl http://localhost:30012/health
 
-# Run with coverage
-pytest --cov=app
+# Check listening ports
+netstat -tuln | grep -E "(8011|30012|30080)"
 
-# Run specific test file
-pytest app/test_main.py
+# Test external connectivity
+ping google.com
 ```
 
-### 📝 **Code Quality**
-
-- Type hints and mypy validation
-- Black code formatting
-- Flake8 linting
-- Pre-commit hooks
-
----
-
-## 📚 **API Documentation**
-
-### 🔗 **Interactive Documentation**
-
-- **Swagger UI**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
-- **ReDoc**: [http://18.206.89.183:8011/redoc](http://18.206.89.183:8011/redoc)
-- **OpenAPI Schema**: [http://18.206.89.183:8011/openapi.json](http://18.206.89.183:8011/openapi.json)
-
-### 🎯 **Key Endpoints**
-
-| Endpoint | Method | Description | Status |
-|----------|--------|-------------|--------|
-| `/` | GET | Application home page | ✅ Live |
-| `/health` | GET | Health check endpoint | ✅ Live |
-| `/metrics` | GET | Prometheus metrics | ✅ Live |
-| `/docs` | GET | Interactive API documentation | ✅ Live |
-| `/students` | GET | Student management | ✅ Live |
-| `/courses` | GET | Course management | ✅ Live |
-
----
-
-## 🆘 **Troubleshooting**
-
-### 🔍 **Common Issues & Solutions**
-
-```mermaid
-graph TD
-    A[🚨 Issue Detected] --> B{Issue Type?}
-    
-    B -->|Port Conflict| C[🔧 Port Already in Use]
-    B -->|Database| D[🗄️ Database Connection]
-    B -->|Application| E[🎓 App Not Starting]
-    B -->|Docker| F[🐳 Docker Issues]
-    
-    C --> C1[sudo netstat -tulpn<br/>sudo kill -9 PID]
-    D --> D1[sudo docker compose exec postgres pg_isready -U student_user -d student_db<br/>sudo docker compose logs postgres]
-    E --> E1[sudo docker compose logs student-tracker<br/>curl http://18.206.89.183:8011/health]
-    F --> F1[sudo systemctl restart docker<br/>sudo docker system prune -f]
-    
-    C1 --> G[✅ Issue Resolved]
-    D1 --> G
-    E1 --> G
-    F1 --> G
-    
-    style A fill:#ffebee
-    style G fill:#c8e6c9
-```
-
-### 📋 **Quick Fixes**
-
-1. **Port Already in Use**
-   ```bash
-   sudo netstat -tulpn | grep :8011
-   sudo kill -9 <PID>
-   ```
-
-2. **Database Connection Issues**
-   ```bash
-   sudo docker compose exec postgres pg_isready -U student_user -d student_db
-   sudo docker compose logs postgres
-   ```
-
-3. **Application Not Starting**
-   ```bash
-   sudo docker compose logs student-tracker
-   curl http://18.206.89.183:8011/health
-   ```
-
-4. **Docker Issues**
-   ```bash
-   sudo systemctl restart docker
-   sudo docker system prune -f
-   ```
-
----
-
-## 📞 **Support & Resources**
-
-### 📚 **Documentation**
-
-- **📋 Comprehensive Summary**: [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)
-- **Application Docs**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
-
-### 📊 **Monitoring & Status**
-
-- **Health Check**: [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health)
-- **Metrics**: [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics)
-- **Status Check**: `sudo docker compose ps`
-
-### 🆘 **Contact & Support**
-
-- **GitHub Issues**: [Report bugs and feature requests](https://github.com/bonaventuresimeon/NativeSeries/issues)
-- **Documentation**: Comprehensive guides and tutorials
-- **Community**: Join our development community
-
----
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [License.md](License.md) file for details.
-
----
-
-## 🙏 **Acknowledgments**
-
-- **FastAPI** - Modern, fast web framework for building APIs
-- **Docker** - Containerization platform
-- **Kubernetes** - Container orchestration
-- **ArgoCD** - GitOps continuous delivery
-- **PostgreSQL** - Reliable database system
-- **Redis** - In-memory data structure store
-- **Prometheus & Grafana** - Monitoring and observability
-
----
-
-## 🎉 **Ready to Deploy?**
-
-**🚀 One Command Deployment:**
+#### **Database Issues:**
 ```bash
-sudo ./deploy.sh
+# Check PostgreSQL
+docker exec $(docker ps -q -f name=postgres) pg_isready -U student_user
+
+# Check Redis
+docker exec $(docker ps -q -f name=redis) redis-cli ping
+
+# Test database connection
+docker exec $(docker ps -q -f name=postgres) psql -U student_user -d student_db -c "SELECT 1;"
 ```
-
-**🌐 Live Production Access:**
-- **🐳 Docker Compose**: [http://18.206.89.183:8011](http://18.206.89.183:8011) (Development/Testing)
-- **☸️ Kubernetes**: [http://18.206.89.183:30012](http://18.206.89.183:30012) (Production/GitOps)
-- **🔄 ArgoCD UI**: [http://18.206.89.183:30080](http://18.206.89.183:30080) (GitOps Management)
-- **📈 Grafana**: [http://18.206.89.183:3000](http://18.206.89.183:3000) (Monitoring)
-- **📊 Prometheus**: [http://18.206.89.183:9090](http://18.206.89.183:9090) (Metrics)
-- **🗄️ Adminer**: [http://18.206.89.183:8080](http://18.206.89.183:8080) (Database Admin)
-
-**📊 All Services Status**: ✅ **LIVE AND OPERATIONAL**
-
-**📋 For complete details, see [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)**
 
 ---
 
-*Built with ❤️ using modern cloud-native technologies*
+## 📈 **Performance & Monitoring**
+
+### **Resource Thresholds:**
+- **CPU Usage**: >80% triggers warning
+- **Memory Usage**: >85% triggers warning
+- **Disk Usage**: >90% triggers warning
+- **Service Health**: <100% triggers investigation
+
+### **Response Time Metrics:**
+- **Health Endpoint**: <2 seconds
+- **API Endpoints**: <5 seconds
+- **Database Queries**: <1 second
+
+### **Monitoring Integration:**
+- **Prometheus Metrics**: Available at `/metrics` endpoints
+- **Grafana Dashboards**: Pre-configured monitoring dashboards
+- **Health Check Endpoints**: Real-time health status
+
+---
+
+## 🚀 **Automation & CI/CD**
+
+### **Deployment Workflow:**
+1. **Deploy**: `sudo ./deploy.sh`
+2. **Monitor**: `sudo ./health-check.sh`
+3. **Cleanup**: `sudo ./cleanup.sh` (when needed)
+
+### **Monitoring Workflow:**
+1. **Initial Check**: Run health check after deployment
+2. **Regular Monitoring**: Automated hourly checks
+3. **Issue Resolution**: Use troubleshooting commands
+4. **Verification**: Re-run health check after fixes
+
+### **Scheduled Health Checks:**
+```bash
+# Add to crontab for hourly health checks
+0 * * * * /path/to/health-check.sh >> /var/log/nativeseries-health.log 2>&1
+
+# Add to crontab for daily health reports
+0 9 * * * /path/to/health-check.sh | mail -s "NativeSeries Daily Health Report" admin@example.com
+```
+
+---
+
+## 🔒 **Security Considerations**
+
+### **Access Control:**
+- Health check script requires sudo privileges
+- Sensitive information is not logged
+- Network tests use safe endpoints
+
+### **Data Privacy:**
+- No personal data is collected
+- Only system health metrics are gathered
+- Logs can be safely shared for troubleshooting
+
+---
+
+## 🎉 **Benefits**
+
+1. **🚀 One-Command Deployment**: Everything in one script
+2. **🔧 All Fixes Included**: No need for separate fix scripts
+3. **📊 Comprehensive Monitoring**: Real-time deployment tracking
+4. **🛠️ Error Handling**: Robust error handling and debugging
+5. **🌐 Dual Deployment**: Both Docker Compose and Kubernetes
+6. **🔄 GitOps Ready**: ArgoCD integration included
+7. **📋 Complete Documentation**: All information in one place
+8. **🏥 Health Monitoring**: Comprehensive health checks
+9. **🔧 Troubleshooting**: Built-in diagnostic commands
+10. **📈 Performance**: Optimized for production use
+
+---
+
+## 🎯 **Next Steps**
+
+1. **Deploy**: Run `sudo ./deploy.sh`
+2. **Monitor**: Run `sudo ./health-check.sh`
+3. **Access**: Use the provided URLs to access your application
+4. **Customize**: Modify configurations as needed
+5. **Scale**: Use Kubernetes for production scaling
+6. **Monitor**: Set up automated health monitoring
+
+**🎉 Your NativeSeries application is ready for production use!**
+
+---
+
+**📝 NativeSeries Platform**: August 2, 2025  
+**📊 Status**: Complete deployment and monitoring solution  
+**🎯 Result**: Production-ready application with comprehensive health monitoring
