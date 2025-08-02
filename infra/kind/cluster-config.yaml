@@ -7,5 +7,15 @@ nodes:
   - containerPort: 30012
     hostPort: 30012
     protocol: TCP
-- role: worker
-- role: worker
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false

@@ -262,37 +262,45 @@ cleanup_existing() {
     print_status "Cleanup completed"
 }
 
-# Function to setup Docker Compose
-setup_docker_compose() {
-    print_step "Setting up Docker Compose environment..."
-    
-    # Stop any running containers
-    if [ ! -z "$DOCKER_COMPOSE_CMD" ]; then
-        print_status "Stopping existing Docker Compose services..."
-        $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
-    fi
-    
-    # Build and start services
-    print_status "Building and starting Docker Compose services..."
-    $DOCKER_COMPOSE_CMD up -d --build
-    
-    # Wait for services to be healthy
-    print_status "Waiting for services to be healthy..."
-    sleep 30
-    
-    # Check service status
-    print_status "Checking service status..."
-    $DOCKER_COMPOSE_CMD ps
-    
-    print_status "Docker Compose setup completed"
-}
+
 
 # Function to create kind cluster
 create_kind_cluster() {
     print_step "Creating Kind cluster..."
     
+    # Check if running in a containerized environment
+    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+        print_warning "Detected containerized environment. Kind cluster creation may fail."
+        print_status "Attempting to create cluster with relaxed settings..."
+    fi
+    
     # Create new kind cluster
-    kind create cluster --name nativeseries --config infra/kind/cluster-config.yaml
+    if ! kind create cluster --name nativeseries --config infra/kind/cluster-config.yaml; then
+        print_error "Kind cluster creation failed."
+        print_warning "This is expected in containerized environments (like Docker containers)."
+        print_status ""
+        print_status "🔧 ALTERNATIVE DEPLOYMENT OPTIONS:"
+        print_status ""
+        print_status "1. 📦 Run on a Virtual Machine or Bare Metal:"
+        print_status "   - Deploy this on a VM or physical server"
+        print_status "   - The script will work perfectly in those environments"
+        print_status ""
+        print_status "2. 🐳 Use Docker Compose (if available):"
+        print_status "   - You can manually deploy individual components using Docker"
+        print_status "   - Check the app/ directory for Dockerfile"
+        print_status ""
+        print_status "3. ☁️ Use a Cloud Kubernetes Service:"
+        print_status "   - Deploy to EKS, GKE, AKS, or other managed Kubernetes"
+        print_status "   - Use the manifests in infra/k8s/ directory"
+        print_status ""
+        print_status "4. 🏠 Local Kubernetes:"
+        print_status "   - Use minikube, k3s, or microk8s instead of Kind"
+        print_status "   - These may work better in containerized environments"
+        print_status ""
+        print_status "📋 The application is ready for deployment, but requires a proper Kubernetes environment."
+        print_status "All necessary manifests and configurations are available in the infra/ directory."
+        return 1
+    fi
     
     # Wait for cluster to be ready
     print_status "Waiting for cluster to be ready..."
@@ -513,7 +521,6 @@ main() {
     install_helm
     install_argocd_cli
     install_additional_tools
-    check_docker_compose
     
     # Check disk space before deployment
     check_disk_space
@@ -521,11 +528,12 @@ main() {
     # Cleanup existing resources
     cleanup_existing
     
-    # Setup Docker Compose environment
-    setup_docker_compose
-    
     # Create Kind cluster
-    create_kind_cluster
+    if ! create_kind_cluster; then
+        print_error "Deployment cannot continue without a Kubernetes cluster."
+        print_status "Please use one of the alternative deployment methods mentioned above."
+        exit 1
+    fi
     
     # Build and load Docker image
     build_and_load_image
