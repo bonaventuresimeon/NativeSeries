@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "student-tracker.fullname" . }}
+  name: {{ include "simple-app.fullname" . }}
   labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
+    {{- include "simple-app.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -11,5 +11,8 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if eq .Values.service.type "NodePort" }}
+      nodePort: {{ .Values.service.nodePort }}
+      {{- end }}
   selector:
-    {{- include "student-tracker.selectorLabels" . | nindent 4 }}
+    {{- include "simple-app.selectorLabels" . | nindent 4 }}
