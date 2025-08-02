@@ -33,7 +33,19 @@ NativeSeries is a complete, production-ready student management platform featuri
 
 ## 🚀 **Deployment Scripts**
 
-### **1. Complete Deployment (`deploy.sh`)**
+### **1. Simplified Deployment (`deploy-simple.sh`) - RECOMMENDED**
+- **Purpose**: Quick development and testing deployment
+- **Features**: 
+  - Automatic tool installation (Docker, Docker Compose)
+  - Docker Compose deployment (port 8011)
+  - Health verification and monitoring
+  - Disk space management
+  - **Perfect for**: Development, testing, quick demos
+  - **Time**: ~5 minutes
+  - **Requirements**: 4GB+ RAM, 10GB+ disk space
+  - **Author**: Bonaventure Simeon
+
+### **2. Complete Deployment (`deploy.sh`)**
 - **Purpose**: One-command deployment with all fixes included
 - **Features**: 
   - Automatic tool installation (Docker, kubectl, Kind, Helm, ArgoCD)
@@ -42,6 +54,9 @@ NativeSeries is a complete, production-ready student management platform featuri
   - ArgoCD GitOps setup (port 30080)
   - Health verification and monitoring
   - All fixes: Port conflicts, deployment timeouts, naming consistency
+  - **Perfect for**: Production, GitOps, learning Kubernetes
+  - **Time**: ~10-15 minutes
+  - **Requirements**: 8GB+ RAM, 20GB+ disk space
 
 ### **2. Health Monitoring (`health-check.sh`)**
 - **Purpose**: Comprehensive health monitoring for entire infrastructure

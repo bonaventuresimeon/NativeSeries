@@ -16,8 +16,17 @@ NativeSeries is a comprehensive student management application built with FastAP
 
 ## 🌟 **Quick Start - One Command Deployment**
 
+### **Option 1: Simplified Deployment (Recommended for Development)**
 ```bash
-# Clone and deploy in one command
+# Clone and deploy with Docker Compose only
+git clone <your-repository-url>
+cd NativeSeries
+sudo ./deploy-simple.sh
+```
+
+### **Option 2: Full Deployment (Kubernetes + ArgoCD)**
+```bash
+# Clone and deploy with full Kubernetes stack
 git clone <your-repository-url>
 cd NativeSeries
 sudo ./deploy.sh
@@ -25,8 +34,8 @@ sudo ./deploy.sh
 
 **🎉 Your NativeSeries application will be live at:**
 - **🐳 Docker Compose**: http://18.206.89.183:8011 (Development/Testing)
-- **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
-- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
+- **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps) - Full deployment only
+- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management) - Full deployment only
 
 📖 **📋 For a complete overview, see [NATIVESERIES_COMPREHENSIVE_SUMMARY.md](NATIVESERIES_COMPREHENSIVE_SUMMARY.md)**
 
@@ -51,7 +60,22 @@ sudo ./deploy.sh
 
 ## 🚀 **Deployment Options**
 
-### 🎯 **Complete Deployment (Single Script)**
+### 🎯 **Simplified Deployment (Recommended)**
+
+```bash
+# Quick deployment with Docker Compose only
+sudo ./deploy-simple.sh
+```
+
+**✅ What this does:**
+- Installs Docker and Docker Compose
+- Deploys Docker Compose stack (port 8011)
+- Verifies all services are healthy
+- **Perfect for**: Development, testing, quick demos
+- **Time**: ~5 minutes
+- **Requirements**: 4GB+ RAM, 10GB+ disk space
+
+### 🎯 **Complete Deployment (Kubernetes + ArgoCD)**
 
 ```bash
 # Complete automated deployment with all tools and fixes
@@ -66,6 +90,9 @@ sudo ./deploy.sh
 - Sets up port forwarding for ArgoCD UI
 - Verifies all services are healthy
 - **Includes all fixes**: Port conflicts, deployment timeouts, naming consistency
+- **Perfect for**: Production, GitOps, learning Kubernetes
+- **Time**: ~10-15 minutes
+- **Requirements**: 8GB+ RAM, 20GB+ disk space
 
 ### 🏥 **Health Monitoring**
 
