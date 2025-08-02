@@ -1,31 +1,78 @@
 import os
-import hvac
-import motor.motor_asyncio
+import asyncpg
+from typing import Optional
 
-# Get Vault details from environment
-vault_addr = os.getenv("VAULT_ADDR")
-role_id = os.getenv("VAULT_ROLE_ID")
-secret_id = os.getenv("VAULT_SECRET_ID")
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/studenttracker")
 
-if not all([vault_addr, role_id, secret_id]):
-    raise EnvironmentError("Missing one or more Vault environment variables (VAULT_ADDR, VAULT_ROLE_ID, VAULT_SECRET_ID)")
+# Global database connection pool
+db_pool: Optional[asyncpg.Pool] = None
 
-# Connect to Vault and login with AppRole
-try:
-    vault_client = hvac.Client(url=vault_addr)
-    login_response = vault_client.auth.approle.login(role_id=role_id, secret_id=secret_id)
-    vault_client.token = login_response['auth']['client_token']
-except Exception as e:
-    raise RuntimeError(f"Vault login failed: {e}")
+async def get_db_pool() -> asyncpg.Pool:
+    """Get or create database connection pool."""
+    global db_pool
+    if db_pool is None:
+        db_pool = await asyncpg.create_pool(
+            DATABASE_URL,
+            min_size=1,
+            max_size=10,
+            command_timeout=60
+        )
+    return db_pool
 
-# Read MongoDB URI from Vault
-try:
-    read_response = vault_client.secrets.kv.v2.read_secret_version(path="student01")
-    MONGO_URI = read_response["data"]["data"]["MONGO_URI"]
-except Exception as e:
-    raise RuntimeError(f"Error reading MongoDB URI from Vault: {e}")
+async def init_database():
+    """Initialize database tables."""
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        # Create students table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS students (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        
+        # Create progress table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS student_progress (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+                week VARCHAR(50) NOT NULL,
+                status BOOLEAN DEFAULT FALSE,
+                notes TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                UNIQUE(student_id, week)
+            )
+        """)
+        
+        # Create courses table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS courses (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        
+        # Create student_courses table
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS student_courses (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+                course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+                enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                UNIQUE(student_id, course_id)
+            )
+        """)
 
-# Connect to MongoDB
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
-database = client["student_project_tracker"]
-student_collection = database.get_collection("students")
+async def close_database():
+    """Close database connection pool."""
+    global db_pool
+    if db_pool:
+        await db_pool.close()
+        db_pool = None
