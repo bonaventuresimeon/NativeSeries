@@ -355,8 +355,8 @@ deploy_application() {
 setup_port_forwarding() {
     print_step "Setting up port forwarding..."
     
-    # Port forward ArgoCD (in background)
-    kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+    # Port forward ArgoCD (in background) - expose on port 30080 for external access
+    kubectl port-forward svc/argocd-server -n argocd 30080:443 &
     ARGOCD_PID=$!
     
     # Wait a moment for port forward to be ready
@@ -377,7 +377,7 @@ setup_port_forwarding() {
         echo "   🐳 Docker Compose Application: http://18.206.89.183:8011"
         echo "   ☸️ Kubernetes Application: http://18.206.89.183:8012"
         echo "   🌐 Nginx Proxy: http://18.206.89.183:80"
-        echo "   🔄 ArgoCD UI: https://localhost:8080"
+        echo "   🔄 ArgoCD UI: http://18.206.89.183:30080"
         echo "   ArgoCD Username: admin"
         echo "   ArgoCD Password: $ARGOCD_PASSWORD"
         echo "   📈 Grafana: http://18.206.89.183:3000 (admin/admin123)"
@@ -446,7 +446,8 @@ main() {
     trap cleanup EXIT
     
     print_status "Press Ctrl+C to stop the port forward and exit"
-    print_status "The application will continue running on 18.206.89.183:8011"
+    print_status "The application will continue running on 18.206.89.183:8011 and 18.206.89.183:8012"
+    print_status "ArgoCD UI is available at http://18.206.89.183:30080"
     
     # Keep the script running to maintain port forward
     wait

@@ -27,6 +27,8 @@ sudo ./deploy.sh
 - **🐳 Docker Compose**: http://18.206.89.183:8011 (Development/Testing)
 - **☸️ Kubernetes**: http://18.206.89.183:8012 (Production/GitOps)
 
+📖 **📋 For a complete overview, see [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)**
+
 ---
 
 ## 🌐 **Production Access Points**
@@ -35,6 +37,7 @@ sudo ./deploy.sh
 |---------|----------------|--------|---------|-------------|
 | 🐳 **Docker Compose App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | ✅ **LIVE** | Development/Testing | - |
 | ☸️ **Kubernetes App** | [http://18.206.89.183:8012](http://18.206.89.183:8012) | ✅ **LIVE** | Production/GitOps | - |
+| 🔄 **ArgoCD UI** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | ✅ **LIVE** | GitOps Management | admin/(auto-generated) |
 | 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | ✅ **LIVE** | Interactive Swagger UI | - |
 | 🩺 **Health Check** | [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health) | ✅ **LIVE** | System Health Status | - |
 | 📊 **Metrics** | [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics) | ✅ **LIVE** | Prometheus Metrics | - |
@@ -201,6 +204,8 @@ sequenceDiagram
 
 ## 🚀 **Deployment Options**
 
+📖 **📋 For detailed deployment information, see [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)**
+
 ### 🎯 **Option 1: Complete Deployment (Recommended)**
 
 ```bash
@@ -209,11 +214,11 @@ sudo ./deploy.sh
 ```
 
 **✅ What this does:**
-- Installs all required tools (Docker, kubectl, Kind, Helm)
-- Starts Docker daemon
-- Deploys all services with Docker Compose
-- Creates Kubernetes cluster (optional)
-- Installs ArgoCD for GitOps
+- Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
+- Deploys Docker Compose stack (port 8011)
+- Creates Kubernetes cluster (port 8012)
+- Installs ArgoCD for GitOps (port 30080)
+- Sets up port forwarding for ArgoCD UI
 - Verifies all services are healthy
 
 ### 🐳 **Option 2: Docker Compose Only**
@@ -680,7 +685,7 @@ graph TD
 
 ### 📚 **Documentation**
 
-- **Success Summary**: `DEPLOYMENT_SUCCESS.md`
+- **📋 Comprehensive Summary**: [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)
 - **Application Docs**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
 
 ### 📊 **Monitoring & Status**
@@ -722,9 +727,17 @@ This project is licensed under the MIT License - see the [License.md](License.md
 sudo ./deploy.sh
 ```
 
-**🌐 Live Demo**: [http://18.206.89.183:8011](http://18.206.89.183:8011)
+**🌐 Live Production Access:**
+- **🐳 Docker Compose**: [http://18.206.89.183:8011](http://18.206.89.183:8011) (Development/Testing)
+- **☸️ Kubernetes**: [http://18.206.89.183:8012](http://18.206.89.183:8012) (Production/GitOps)
+- **🔄 ArgoCD UI**: [http://18.206.89.183:30080](http://18.206.89.183:30080) (GitOps Management)
+- **📈 Grafana**: [http://18.206.89.183:3000](http://18.206.89.183:3000) (Monitoring)
+- **📊 Prometheus**: [http://18.206.89.183:9090](http://18.206.89.183:9090) (Metrics)
+- **🗄️ Adminer**: [http://18.206.89.183:8080](http://18.206.89.183:8080) (Database Admin)
 
 **📊 All Services Status**: ✅ **LIVE AND OPERATIONAL**
+
+**📋 For complete details, see [COMPREHENSIVE_SUMMARY.md](COMPREHENSIVE_SUMMARY.md)**
 
 ---
 
