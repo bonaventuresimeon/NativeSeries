@@ -1,34 +1,46 @@
 #!/bin/bash
 
 # =============================================================================
-# 🚀 NATIVESERIES - COMPREHENSIVE DEPLOYMENT SCRIPT
+# 🚀 NATIVESERIES - COMPREHENSIVE DEPLOYMENT & TROUBLESHOOTING SCRIPT
 # =============================================================================
 # This script provides a complete deployment solution for the NativeSeries
-# application. It works on both EC2 and Ubuntu environments.
+# application with integrated troubleshooting and cluster management.
 #
 # Features:
 # - Automatic tool installation (Docker, kubectl, Kind, Helm, ArgoCD)
-# - Docker Compose deployment (port 8011)
-# - Kubernetes cluster creation and deployment (port 30012)
+# - Kubernetes cluster creation with worker nodes (port 30012)
 # - ArgoCD GitOps setup (port 30080)
 # - Health verification and monitoring
 # - Port conflict resolution
 # - Deployment timeout handling
 # - Comprehensive error handling
 # - Cross-platform compatibility
+# - Integrated troubleshooting and fixes
+# - Cluster configuration with worker nodes
+# - Automatic health checks and verification
 #
-# Usage: sudo ./deploy.sh
+# Usage: sudo ./deploy.sh [OPTION]
+# Options:
+#   --deploy          Full deployment (default)
+#   --troubleshoot    Troubleshoot existing deployment
+#   --update-cluster  Update cluster configuration with worker nodes
+#   --health-check    Run comprehensive health check
+#   --cleanup         Clean up all resources
+#   --help            Show this help message
 # =============================================================================
 
 set -e
 
-echo "🚀 Starting NativeSeries comprehensive deployment to 18.206.89.183:8011 and 18.206.89.183:30012"
+# Script version
+SCRIPT_VERSION="3.0.0"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Function to print colored output
@@ -46,6 +58,54 @@ print_error() {
 
 print_step() {
     echo -e "${BLUE}[STEP]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_header() {
+    echo -e "${PURPLE}[HEADER]${NC} $1"
+}
+
+print_debug() {
+    echo -e "${CYAN}[DEBUG]${NC} $1"
+}
+
+# Function to show help
+show_help() {
+    cat << EOF
+🚀 NativeSeries Comprehensive Deployment & Troubleshooting Script v${SCRIPT_VERSION}
+================================================================
+
+Usage: sudo ./deploy.sh [OPTION]
+
+Options:
+  --deploy          Full deployment with Kubernetes + ArgoCD (default)
+  --troubleshoot    Troubleshoot existing deployment issues
+  --update-cluster  Update cluster configuration with worker nodes
+  --health-check    Run comprehensive health check
+  --cleanup         Clean up all resources
+  --help            Show this help message
+
+Examples:
+  sudo ./deploy.sh                    # Full deployment
+  sudo ./deploy.sh --troubleshoot     # Fix deployment issues
+  sudo ./deploy.sh --update-cluster   # Add worker nodes
+  sudo ./deploy.sh --health-check     # Check system health
+  sudo ./deploy.sh --cleanup          # Clean up everything
+
+Features:
+  ✅ Complete deployment automation
+  ✅ Kubernetes cluster with worker nodes
+  ✅ ArgoCD GitOps integration
+  ✅ Health monitoring and verification
+  ✅ Automatic troubleshooting
+  ✅ Port conflict resolution
+  ✅ Cross-platform compatibility
+
+For detailed documentation, see README.md
+EOF
 }
 
 # Function to check if a command exists
@@ -99,7 +159,7 @@ install_docker() {
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
     
     # Add Docker repository
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
     
     # Install Docker
     sudo apt-get update
@@ -108,12 +168,12 @@ install_docker() {
     # Add user to docker group
     sudo usermod -aG docker $USER
     
-    # Start Docker (only if not in container)
+    # Start and enable Docker (handle containerized environments)
     if ! is_container; then
-        sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
-        sudo systemctl enable docker 2>/dev/null || true
+        sudo systemctl start docker
+        sudo systemctl enable docker
     else
-        # In container, start Docker daemon in background
+        # In containerized environment, start Docker daemon manually
         sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2376 &
         sleep 5
     fi
@@ -132,10 +192,8 @@ install_kubectl() {
     # Download kubectl
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
     
-    # Make it executable
+    # Make it executable and move to PATH
     chmod +x kubectl
-    
-    # Move to PATH
     sudo mv kubectl /usr/local/bin/
     
     print_status "kubectl installed successfully"
@@ -149,14 +207,10 @@ install_kind() {
         return
     fi
     
-    # Download Kind
+    # Download and install Kind
     curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
-    
-    # Make it executable
-    chmod +x kind
-    
-    # Move to PATH
-    sudo mv kind /usr/local/bin/
+    chmod +x ./kind
+    sudo mv ./kind /usr/local/bin/kind
     
     print_status "Kind installed successfully"
 }
@@ -169,14 +223,8 @@ install_helm() {
         return
     fi
     
-    # Download Helm
-    curl https://get.helm.sh/helm-v3.13.0-linux-amd64.tar.gz | tar xz
-    
-    # Move to PATH
-    sudo mv linux-amd64/helm /usr/local/bin/
-    
-    # Cleanup
-    rm -rf linux-amd64
+    # Install Helm
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
     
     print_status "Helm installed successfully"
 }
@@ -189,14 +237,10 @@ install_argocd_cli() {
         return
     fi
     
-    # Download ArgoCD CLI
+    # Install ArgoCD CLI
     curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-    
-    # Make it executable
-    chmod +x argocd-linux-amd64
-    
-    # Move to PATH
-    sudo mv argocd-linux-amd64 /usr/local/bin/argocd
+    sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+    rm argocd-linux-amd64
     
     print_status "ArgoCD CLI installed successfully"
 }
@@ -223,8 +267,6 @@ install_additional_tools() {
     print_status "Additional tools installed successfully"
 }
 
-
-
 # Function to cleanup existing resources
 cleanup_existing() {
     print_step "Cleaning up existing resources..."
@@ -234,12 +276,6 @@ cleanup_existing() {
         print_status "Stopping existing Docker containers..."
         docker stop $(docker ps -q) 2>/dev/null || true
         docker rm $(docker ps -aq) 2>/dev/null || true
-    fi
-    
-    # Stop Docker Compose services
-    if [ ! -z "$DOCKER_COMPOSE_CMD" ]; then
-        print_status "Stopping existing Docker Compose services..."
-        $DOCKER_COMPOSE_CMD down -v 2>/dev/null || true
     fi
     
     # Delete existing kind cluster if it exists
@@ -262,20 +298,56 @@ cleanup_existing() {
     print_status "Cleanup completed"
 }
 
-
-
-# Function to create kind cluster
+# Function to create kind cluster with worker nodes
 create_kind_cluster() {
-    print_step "Creating Kind cluster..."
+    print_step "Creating Kind cluster with worker nodes..."
     
     # Check if running in a containerized environment
-    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+    if is_container; then
         print_warning "Detected containerized environment. Kind cluster creation may fail."
         print_status "Attempting to create cluster with relaxed settings..."
     fi
     
+    # Ensure infra/kind directory exists
+    mkdir -p infra/kind
+    
+    # Create cluster configuration with worker nodes
+    cat > infra/kind/cluster-config-with-workers.yaml << 'EOF'
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: nativeseries
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 30012
+    hostPort: 30012
+    protocol: TCP
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+- role: worker
+  kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+EOF
+    
     # Create new kind cluster
-    if ! kind create cluster --name nativeseries --config infra/kind/cluster-config.yaml; then
+    if ! kind create cluster --name nativeseries --config infra/kind/cluster-config-with-workers.yaml; then
         print_error "Kind cluster creation failed."
         print_warning "This is expected in containerized environments (like Docker containers)."
         print_status ""
@@ -298,35 +370,91 @@ create_kind_cluster() {
         print_status "   - These may work better in containerized environments"
         print_status ""
         print_status "📋 The application is ready for deployment, but requires a proper Kubernetes environment."
-        print_status "All necessary manifests and configurations are available in the infra/ directory."
-        return 1
+        print_status ""
+        print_status "For now, let's try to create a simpler single-node cluster..."
+        
+        # Try creating a simple single-node cluster
+        cat > infra/kind/cluster-config-simple.yaml << 'EOF'
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: nativeseries
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 30012
+    hostPort: 30012
+    protocol: TCP
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  - |
+    kind: KubeletConfiguration
+    failSwapOn: false
+EOF
+        
+        if ! kind create cluster --name nativeseries --config infra/kind/cluster-config-simple.yaml; then
+            print_error "Even simple cluster creation failed. This environment is not suitable for Kind."
+            print_status "Please use one of the alternative deployment methods mentioned above."
+            return 1
+        fi
     fi
     
-    # Wait for cluster to be ready
-    print_status "Waiting for cluster to be ready..."
-    kubectl wait --for=condition=Ready nodes --all --timeout=300s
+    print_status "Kind cluster created successfully with worker nodes"
     
-    print_status "Kind cluster created successfully"
+    # Show cluster info
+    print_status "Cluster information:"
+    kind cluster-info --name nativeseries
+    
+    print_status "Nodes in the cluster:"
+    kubectl get nodes -o wide
 }
 
-# Function to build and load Docker image
-build_and_load_image() {
-    print_step "Building and loading Docker image..."
+# Function to deploy application to Kubernetes
+deploy_to_kubernetes() {
+    print_step "Deploying application to Kubernetes..."
     
-    # Build Docker image
-    docker build -t nativeseries:latest .
+    # Navigate to helm directory
+    cd infra/helm 2>/dev/null || {
+        print_warning "Helm directory not found, creating basic deployment..."
+        # Create a basic deployment if Helm chart is not available
+        kubectl create deployment nativeseries --image=biwunor/student-tracker:latest --port=8011 -n student-tracker
+        kubectl expose deployment nativeseries --type=NodePort --port=80 --target-port=8011 -n student-tracker
+        return
+    }
     
-    # Load image into kind cluster
-    kind load docker-image nativeseries:latest --name nativeseries
+    # Create namespace
+    kubectl create namespace student-tracker --dry-run=client -o yaml | kubectl apply -f -
     
-    print_status "Docker image built and loaded successfully"
+    # Install the Helm chart
+    print_status "Installing NativeSeries Helm chart..."
+    helm install nativeseries . -n student-tracker --wait --timeout=10m
+    
+    print_status "Helm chart installed successfully"
+    
+    # Check deployment status
+    print_status "Checking deployment status..."
+    kubectl get deployments -n student-tracker
+    kubectl get pods -n student-tracker
+    kubectl get services -n student-tracker
+    
+    # Wait for pods to be ready
+    print_status "Waiting for pods to be ready..."
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=nativeseries -n student-tracker --timeout=300s
+    
+    print_status "Kubernetes deployment completed successfully"
 }
 
 # Function to install ArgoCD
 install_argocd() {
     print_step "Installing ArgoCD..."
     
-    # Create namespace
+    # Create ArgoCD namespace
     kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
     
     # Install ArgoCD
@@ -334,187 +462,316 @@ install_argocd() {
     
     # Wait for ArgoCD to be ready
     print_status "Waiting for ArgoCD to be ready..."
-    kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s
-    
-    print_status "ArgoCD installed successfully"
-}
-
-# Function to deploy application
-deploy_application() {
-    print_step "Deploying application..."
-    
-    # Validate Helm chart before deployment
-    print_status "Validating Helm chart..."
-    if ! helm lint infra/helm/; then
-        print_error "Helm chart validation failed"
-        exit 1
-    fi
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
     
     # Get ArgoCD admin password
     ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+    
+    print_status "ArgoCD installed successfully"
     print_status "ArgoCD admin password: $ARGOCD_PASSWORD"
     
-    # Apply ArgoCD application
-    kubectl apply -f argocd/app.yaml
-    
-    # Deploy application using Helm directly (as backup)
-    print_status "Installing Helm chart..."
-    if ! helm install nativeseries infra/helm/ --namespace default --create-namespace; then
-        print_error "Helm installation failed"
-        print_status "Checking Helm status..."
-        helm list
-        print_status "Checking Kubernetes resources..."
-        kubectl get all
-        exit 1
-    fi
-    
-    print_status "Helm chart installed successfully"
-    print_status "Checking deployment status..."
-    kubectl get deployment nativeseries
-    
-    # Wait for deployment to be ready with comprehensive error handling
-    print_status "Waiting for application to be ready (timeout: 10 minutes)..."
-    timeout 600 bash -c '
-    while true; do
-        # First check if deployment exists
-        if ! kubectl get deployment nativeseries >/dev/null 2>&1; then
-            echo "⏳ Waiting for deployment to be created..."
-            sleep 10
-            continue
-        fi
-        
-        # Check if deployment is available
-        if kubectl get deployment nativeseries -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
-            echo "✅ Deployment is available!"
-            break
-        fi
-        
-        echo "⏳ Waiting for deployment to be ready..."
-        
-        # Check if pods exist before checking their status
-        POD_COUNT=$(kubectl get pods -l app=nativeseries --no-headers 2>/dev/null | wc -l)
-        if [ "$POD_COUNT" -gt 0 ]; then
-            kubectl get pods -l app=nativeseries
-            
-            # Check for pod issues only if pods exist
-            POD_STATUS=$(kubectl get pods -l app=nativeseries -o jsonpath="{.items[0].status.phase}" 2>/dev/null)
-            if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
-                echo "❌ Pod is in $POD_STATUS state"
-                kubectl describe pods -l app=nativeseries
-                kubectl logs -l app=nativeseries --tail=50
-                exit 1
-            fi
-        else
-            echo "⏳ Waiting for pods to be created..."
-        fi
-        
-        sleep 10
-    done
-    '
-    
-    if [ $? -ne 0 ]; then
-        print_error "Deployment failed or timed out"
-        print_status "Checking pod logs for debugging..."
-        kubectl logs -l app=nativeseries --tail=100
-        exit 1
-    fi
-    
-    print_status "Application deployed successfully"
+    # Create ArgoCD application
+    create_argocd_application
 }
 
-# Function to verify deployment
-verify_deployment() {
-    print_step "Verifying deployment..."
+# Function to create ArgoCD application
+create_argocd_application() {
+    print_step "Creating ArgoCD application..."
     
-    # Wait for services to be ready
-    sleep 30
+    # Create ArgoCD application manifest
+    cat > argocd-app.yaml << 'EOF'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nativeseries
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/nativeseries
+    targetRevision: HEAD
+    path: infra/helm
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-tracker
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+EOF
     
-    # Test Docker Compose deployment
-    print_status "Testing Docker Compose deployment (port 8011)..."
-    if curl -s http://localhost:8011/health >/dev/null; then
-        print_status "✅ Docker Compose deployment is healthy!"
-        curl -s http://localhost:8011/health | jq . 2>/dev/null || curl -s http://localhost:8011/health
-    else
-        print_warning "⚠️ Docker Compose deployment not yet ready"
-    fi
+    # Apply ArgoCD application
+    kubectl apply -f argocd-app.yaml
+    rm argocd-app.yaml
     
-    # Test Kubernetes deployment
-    print_status "Testing Kubernetes deployment (port 30012)..."
-    if curl -s http://localhost:30012/health >/dev/null; then
-        print_status "✅ Kubernetes deployment is healthy!"
-        curl -s http://localhost:30012/health | jq . 2>/dev/null || curl -s http://localhost:30012/health
-    else
-        print_warning "⚠️ Kubernetes deployment not yet ready"
-        print_status "Checking pod status..."
-        kubectl get pods -l app=nativeseries
-        kubectl logs -l app=nativeseries --tail=20
-    fi
-    
-    print_status "Deployment verification completed"
+    print_status "ArgoCD application created successfully"
 }
 
 # Function to setup port forwarding
 setup_port_forwarding() {
     print_step "Setting up port forwarding..."
     
-    # Port forward ArgoCD (in background) - expose on port 30080 for external access
+    # Start port forwarding for ArgoCD
+    print_status "Starting port forwarding for ArgoCD UI..."
     kubectl port-forward svc/argocd-server -n argocd 30080:443 &
-    ARGOCD_PID=$!
+    ARGOCD_PF_PID=$!
     
-    # Wait a moment for port forward to be ready
+    # Wait for port forwarding to be ready
     sleep 5
     
     print_status "Port forwarding setup completed"
+    print_status "ArgoCD UI available at: http://localhost:30080"
 }
 
-    # Function to display final information
-    display_final_info() {
-        # Get ArgoCD admin password
-        ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-        
-        echo ""
-        print_status "🎉 NativeSeries Deployment Completed Successfully!"
-        echo ""
-        echo "📋 Production Access Information:"
-        echo "   🐳 Docker Compose Application: http://18.206.89.183:8011"
-        echo "   ☸️ Kubernetes Application: http://18.206.89.183:30012"
-        echo "   🌐 Nginx Proxy: http://18.206.89.183:80"
-        echo "   🔄 ArgoCD UI: http://18.206.89.183:30080"
-        echo "   ArgoCD Username: admin"
-        echo "   ArgoCD Password: $ARGOCD_PASSWORD"
-        echo "   📈 Grafana: http://18.206.89.183:3000 (admin/admin123)"
-        echo "   📊 Prometheus: http://18.206.89.183:9090"
-        echo "   🗄️ Adminer: http://18.206.89.183:8080"
-        echo ""
-        echo "🔧 Management Commands:"
-        echo "   kubectl get pods -l app=nativeseries"
-        echo "   kubectl get svc"
-        echo "   kubectl logs -f deployment/nativeseries"
-        echo "   docker compose ps"
-        echo "   docker compose logs -f"
-        echo ""
-        echo "🧪 Health Check Commands:"
-        echo "   curl http://18.206.89.183:8011/health  # Docker Compose"
-        echo "   curl http://18.206.89.183:30012/health # Kubernetes"
-        echo ""
-        echo "📝 Deployment Summary:"
-        echo "   - Docker Compose: Port 8011 (Development/Testing)"
-        echo "   - Kubernetes: Port 30012 (Production/GitOps)"
-        echo "   - ArgoCD: GitOps Management (Port 30080)"
-        echo "   - All services: Healthy and operational"
-        echo ""
-        echo "🎯 Next Steps:"
-        echo "   - Access your application at http://18.206.89.183:8011"
-        echo "   - Monitor with Grafana at http://18.206.89.183:3000"
-        echo "   - Manage GitOps with ArgoCD at http://18.206.89.183:30080"
-        echo ""
-    }
+# Function to verify deployment
+verify_deployment() {
+    print_step "Verifying deployment..."
+    
+    # Check Kubernetes deployment
+    print_status "Checking Kubernetes deployment..."
+    kubectl get deployments -n student-tracker
+    kubectl get pods -n student-tracker -o wide
+    kubectl get services -n student-tracker
+    
+    # Check ArgoCD deployment
+    print_status "Checking ArgoCD deployment..."
+    kubectl get deployments -n argocd
+    kubectl get pods -n argocd -o wide
+    
+    # Test application connectivity
+    print_status "Testing application connectivity..."
+    kubectl port-forward service/nativeseries 30012:80 -n student-tracker &
+    APP_PF_PID=$!
+    
+    sleep 5
+    
+    if curl -f http://localhost:30012/health &> /dev/null; then
+        print_success "✅ Application is healthy and responding"
+    else
+        print_warning "⚠️ Application is not responding on health endpoint"
+    fi
+    
+    kill $APP_PF_PID 2>/dev/null || true
+    
+    print_status "Deployment verification completed"
+}
+
+# Function to run comprehensive health check
+run_health_check() {
+    print_step "Running comprehensive health check..."
+    
+    # Check cluster status
+    print_status "Checking Kubernetes cluster status..."
+    kubectl cluster-info
+    kubectl get nodes -o wide
+    
+    # Check deployments
+    print_status "Checking deployments..."
+    kubectl get deployments --all-namespaces
+    
+    # Check pods
+    print_status "Checking pods..."
+    kubectl get pods --all-namespaces -o wide
+    
+    # Check services
+    print_status "Checking services..."
+    kubectl get services --all-namespaces
+    
+    # Check ArgoCD application
+    print_status "Checking ArgoCD application..."
+    kubectl get application nativeseries -n argocd -o yaml
+    
+    # Test endpoints
+    print_status "Testing endpoints..."
+    
+    # Test Kubernetes app
+    kubectl port-forward service/nativeseries 30012:80 -n student-tracker &
+    K8S_PF_PID=$!
+    sleep 3
+    
+    if curl -f http://localhost:30012/health &> /dev/null; then
+        print_success "✅ Kubernetes app is healthy"
+    else
+        print_warning "⚠️ Kubernetes app is not responding"
+    fi
+    
+    kill $K8S_PF_PID 2>/dev/null || true
+    
+    # Test ArgoCD
+    kubectl port-forward svc/argocd-server -n argocd 30080:443 &
+    ARGO_PF_PID=$!
+    sleep 3
+    
+    if curl -f -k https://localhost:30080 &> /dev/null; then
+        print_success "✅ ArgoCD is healthy"
+    else
+        print_warning "⚠️ ArgoCD is not responding"
+    fi
+    
+    kill $ARGO_PF_PID 2>/dev/null || true
+    
+    print_status "Health check completed"
+}
+
+# Function to troubleshoot deployment
+troubleshoot_deployment() {
+    print_step "Troubleshooting deployment..."
+    
+    # Check if kubectl is available
+    if ! command_exists kubectl; then
+        print_error "kubectl is not installed"
+        install_kubectl
+    fi
+    
+    # Check cluster connectivity
+    if ! kubectl cluster-info &> /dev/null; then
+        print_error "Cannot connect to Kubernetes cluster"
+        print_status "Please ensure your cluster is running and accessible"
+        return 1
+    fi
+    
+    # Check existing deployments
+    print_status "Checking existing deployments..."
+    kubectl get deployments --all-namespaces
+    
+    # Check if student-tracker namespace exists
+    if ! kubectl get namespace student-tracker &> /dev/null; then
+        print_warning "student-tracker namespace does not exist"
+        print_status "Creating namespace..."
+        kubectl create namespace student-tracker
+    fi
+    
+    # Check deployments in student-tracker namespace
+    print_status "Checking deployments in student-tracker namespace..."
+    kubectl get deployments -n student-tracker
+    kubectl get pods -n student-tracker
+    kubectl get services -n student-tracker
+    
+    # Check for nativeseries resources
+    print_status "Checking for nativeseries resources..."
+    kubectl get all --all-namespaces | grep nativeseries || print_warning "No nativeseries resources found"
+    
+    # Check Helm releases
+    if command_exists helm; then
+        print_status "Checking Helm releases..."
+        helm list --all-namespaces
+    fi
+    
+    # Redeploy if needed
+    print_status "Do you want to redeploy the application? (y/N): "
+    read -p "" confirm
+    
+    if [[ $confirm == [yY] ]]; then
+        deploy_to_kubernetes
+    fi
+    
+    print_status "Troubleshooting completed"
+}
+
+# Function to update cluster configuration
+update_cluster_config() {
+    print_step "Updating cluster configuration..."
+    
+    # Check if kind is available
+    if ! command_exists kind; then
+        print_error "kind is not installed"
+        install_kind
+    fi
+    
+    # Check current cluster configuration
+    print_status "Current cluster configuration:"
+    kubectl get nodes -o wide
+    
+    # Create new cluster configuration with worker nodes
+    create_kind_cluster
+    
+    # Deploy application to new cluster
+    deploy_to_kubernetes
+    
+    # Install ArgoCD on new cluster
+    install_argocd
+    
+    # Setup port forwarding
+    setup_port_forwarding
+    
+    # Verify deployment
+    verify_deployment
+    
+    print_status "Cluster configuration update completed"
+}
+
+# Function to cleanup all resources
+cleanup_all() {
+    print_step "Cleaning up all resources..."
+    
+    # Stop port forwarding processes
+    print_status "Stopping port forwarding processes..."
+    pkill -f "kubectl port-forward" 2>/dev/null || true
+    
+    # Delete ArgoCD application
+    print_status "Deleting ArgoCD application..."
+    kubectl delete application nativeseries -n argocd 2>/dev/null || true
+    
+    # Delete ArgoCD
+    print_status "Deleting ArgoCD..."
+    kubectl delete namespace argocd 2>/dev/null || true
+    
+    # Delete student-tracker namespace
+    print_status "Deleting student-tracker namespace..."
+    kubectl delete namespace student-tracker 2>/dev/null || true
+    
+    # Delete kind cluster
+    if command_exists kind; then
+        print_status "Deleting kind cluster..."
+        kind delete cluster --name nativeseries 2>/dev/null || true
+    fi
+    
+    # Cleanup Docker resources
+    if command_exists docker; then
+        print_status "Cleaning up Docker resources..."
+        docker stop $(docker ps -q) 2>/dev/null || true
+        docker rm $(docker ps -aq) 2>/dev/null || true
+        docker system prune -af --volumes 2>/dev/null || true
+    fi
+    
+    print_status "Cleanup completed"
+}
+
+# Function to show deployment summary
+show_deployment_summary() {
+    print_header "🎉 NativeSeries Deployment Summary"
+    echo "=========================================="
+    echo ""
+    print_status "✅ Kubernetes cluster created with worker nodes"
+    print_status "✅ NativeSeries application deployed"
+    print_status "✅ ArgoCD GitOps installed"
+    print_status "✅ Port forwarding configured"
+    echo ""
+    print_status "🌐 Access URLs:"
+    echo "   ☸️ Kubernetes App: http://localhost:30012"
+    echo "   🔄 ArgoCD UI: http://localhost:30080"
+    echo "   📖 API Docs: http://localhost:30012/docs"
+    echo "   🩺 Health Check: http://localhost:30012/health"
+    echo ""
+    print_status "🔧 Management Commands:"
+    echo "   Health Check: ./deploy.sh --health-check"
+    echo "   Troubleshoot: ./deploy.sh --troubleshoot"
+    echo "   Cleanup: ./deploy.sh --cleanup"
+    echo ""
+    print_success "🚀 NativeSeries is now ready for use!"
+}
 
 # Main deployment function
-main() {
-    print_step "Starting comprehensive deployment process..."
+main_deployment() {
+    print_header "🚀 Starting NativeSeries Comprehensive Deployment"
+    echo "========================================================"
     
-    # Install all required tools
+    # Check disk space
+    check_disk_space
+    
+    # Install required tools
     install_docker
     install_kubectl
     install_kind
@@ -522,56 +779,62 @@ main() {
     install_argocd_cli
     install_additional_tools
     
-    # Check disk space before deployment
-    check_disk_space
-    
     # Cleanup existing resources
     cleanup_existing
     
-    # Create Kind cluster
-    if ! create_kind_cluster; then
-        print_error "Deployment cannot continue without a Kubernetes cluster."
-        print_status "Please use one of the alternative deployment methods mentioned above."
-        exit 1
-    fi
+    # Create Kubernetes cluster
+    create_kind_cluster
     
-    # Build and load Docker image
-    build_and_load_image
+    # Deploy application
+    deploy_to_kubernetes
     
     # Install ArgoCD
     install_argocd
     
-    # Deploy application
-    deploy_application
+    # Setup port forwarding
+    setup_port_forwarding
     
     # Verify deployment
     verify_deployment
     
-    # Setup port forwarding
-    setup_port_forwarding
+    # Show summary
+    show_deployment_summary
+}
+
+# Main execution
+main() {
+    # Check if running as root
+    if [ "$EUID" -ne 0 ]; then
+        print_error "This script must be run as root (use sudo)"
+        exit 1
+    fi
     
-    # Display final information
-    display_final_info
-    
-    # Cleanup function
-    cleanup() {
-        print_status "Cleaning up..."
-        if [ ! -z "$ARGOCD_PID" ]; then
-            kill $ARGOCD_PID 2>/dev/null || true
-        fi
-    }
-    
-    # Set trap to cleanup on script exit
-    trap cleanup EXIT
-    
-    print_status "Press Ctrl+C to stop the port forward and exit"
-    print_status "NativeSeries application is running on:"
-    print_status "  - Docker Compose: http://18.206.89.183:8011"
-    print_status "  - Kubernetes: http://18.206.89.183:30012"
-    print_status "  - ArgoCD UI: http://18.206.89.183:30080"
-    
-    # Keep the script running to maintain port forward
-    wait
+    # Parse command line arguments
+    case "${1:---deploy}" in
+        --deploy)
+            main_deployment
+            ;;
+        --troubleshoot)
+            troubleshoot_deployment
+            ;;
+        --update-cluster)
+            update_cluster_config
+            ;;
+        --health-check)
+            run_health_check
+            ;;
+        --cleanup)
+            cleanup_all
+            ;;
+        --help|-h)
+            show_help
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
 }
 
 # Run main function

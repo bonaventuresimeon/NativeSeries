@@ -93,6 +93,632 @@ sudo ./deploy-unified.sh --help
 
 ---
 
+## 🚀 **Deployment Flow Diagram**
+
+```mermaid
+flowchart TD
+    A[🚀 Start Deployment] --> B{Check Environment}
+    B -->|Containerized| C[⚠️ Show Alternatives]
+    B -->|VM/Bare Metal| D[✅ Proceed with Deployment]
+    
+    D --> E[📦 Install Tools]
+    E --> F[Docker]
+    E --> G[kubectl]
+    E --> H[Kind]
+    E --> I[Helm]
+    E --> J[ArgoCD CLI]
+    
+    F --> K[🧹 Cleanup Existing]
+    G --> K
+    H --> K
+    I --> K
+    J --> K
+    
+    K --> L[☸️ Create Cluster]
+    L --> M[Control Plane Node]
+    L --> N[Worker Node 1]
+    L --> O[Worker Node 2]
+    
+    M --> P[📦 Deploy Application]
+    N --> P
+    O --> P
+    
+    P --> Q[🔄 Install ArgoCD]
+    Q --> R[🔗 Setup Port Forwarding]
+    R --> S[✅ Verify Deployment]
+    S --> T[🎉 Deployment Complete]
+    
+    C --> U[📋 Alternative Options]
+    U --> V[1. VM/Bare Metal]
+    U --> W[2. Cloud Kubernetes]
+    U --> X[3. Local Kubernetes]
+    U --> Y[4. Manual Docker]
+    
+    style A fill:#e1f5fe
+    style T fill:#c8e6c9
+    style C fill:#fff3e0
+    style U fill:#f3e5f5
+```
+
+---
+
+## 🔧 **Troubleshooting Flow Diagram**
+
+```mermaid
+flowchart TD
+    A[🔧 Start Troubleshooting] --> B{Check kubectl}
+    B -->|Not Available| C[📦 Install kubectl]
+    B -->|Available| D[🔍 Check Cluster]
+    
+    C --> D
+    D -->|Cannot Connect| E[❌ Cluster Issue]
+    D -->|Connected| F[📊 Check Resources]
+    
+    E --> G[🔄 Recreate Cluster]
+    G --> H[✅ Cluster Ready]
+    
+    F --> I[📋 Check Namespaces]
+    I --> J{student-tracker exists?}
+    J -->|No| K[📦 Create Namespace]
+    J -->|Yes| L[🔍 Check Deployments]
+    
+    K --> L
+    L --> M{Deployment exists?}
+    M -->|No| N[📦 Redeploy Application]
+    M -->|Yes| O[🔍 Check Pods]
+    
+    N --> O
+    O --> P{Pods Running?}
+    P -->|No| Q[📋 Check Pod Logs]
+    P -->|Yes| R[🔍 Check Services]
+    
+    Q --> S[🔧 Fix Pod Issues]
+    S --> T[🔄 Restart Pods]
+    T --> R
+    
+    R --> U{Services OK?}
+    U -->|No| V[🔧 Fix Service Issues]
+    U -->|Yes| W[🔍 Check Endpoints]
+    
+    V --> W
+    W --> X{Endpoints OK?}
+    X -->|No| Y[🔧 Fix Endpoint Issues]
+    X -->|Yes| Z[✅ Troubleshooting Complete]
+    
+    Y --> Z
+    
+    style A fill:#e1f5fe
+    style Z fill:#c8e6c9
+    style E fill:#ffcdd2
+    style G fill:#fff3e0
+```
+
+---
+
+## 🏗️ **System Architecture**
+
+### 🎯 **High-Level Architecture**
+
+```mermaid
+graph TB
+    subgraph "🌐 Internet"
+        User[👤 End Users]
+        Admin[👨‍💼 Administrators]
+    end
+    
+    subgraph "🖥️ Production Server (18.206.89.183)"
+        subgraph "🌐 Load Balancer Layer"
+            LB[🌐 Load Balancer<br/>Port 80/443]
+        end
+        
+        subgraph "🐳 Docker Compose Stack"
+            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
+            
+            subgraph "🎓 Application Layer"
+                App[🎓 Student Tracker<br/>FastAPI<br/>Port 8011]
+                API[📖 API Documentation<br/>Swagger UI<br/>Port 8011/docs]
+            end
+            
+            subgraph "🗄️ Data Layer"
+                DB[(🗄️ PostgreSQL<br/>Port 5432<br/>Primary Database)]
+                Cache[(📦 Redis<br/>Port 6379<br/>Session Cache)]
+            end
+            
+            subgraph "📊 Monitoring Stack"
+                Prom[📈 Prometheus<br/>Port 9090<br/>Metrics Collection]
+                Graf[📊 Grafana<br/>Port 3000<br/>Dashboards]
+                Admin[🛠️ Adminer<br/>Port 8080<br/>DB Admin]
+            end
+        end
+        
+        subgraph "☸️ Kubernetes Cluster"
+            subgraph "🎯 Control Plane"
+                CP[☸️ Control Plane<br/>Node 1]
+            end
+            
+            subgraph "⚡ Worker Nodes"
+                W1[⚡ Worker Node 1]
+                W2[⚡ Worker Node 2]
+            end
+            
+            subgraph "🔄 GitOps Layer"
+                Argo[🔄 ArgoCD<br/>Port 30080<br/>GitOps Controller]
+                App2[🎓 NativeSeries<br/>Port 30012<br/>K8s Deployment]
+            end
+        end
+    end
+    
+    User --> LB
+    Admin --> LB
+    LB --> Nginx
+    LB --> Argo
+    
+    Nginx --> App
+    App --> API
+    App --> DB
+    App --> Cache
+    App --> Prom
+    Prom --> Graf
+    Admin --> DB
+    
+    Argo --> App2
+    App2 --> W1
+    App2 --> W2
+    
+    style User fill:#e1f5fe
+    style Admin fill:#e1f5fe
+    style App fill:#c8e6c9
+    style App2 fill:#c8e6c9
+    style DB fill:#fff3e0
+    style Cache fill:#f3e5f5
+    style Nginx fill:#e8f5e8
+    style Prom fill:#ffe0b2
+    style Graf fill:#fce4ec
+    style Admin fill:#e0f2f1
+    style Argo fill:#e8eaf6
+    style CP fill:#f3e5f5
+    style W1 fill:#e0f2f1
+    style W2 fill:#e0f2f1
+```
+
+### 🐳 **Container Architecture**
+
+```mermaid
+graph LR
+    subgraph "🐳 Docker Compose Services"
+        subgraph "🎓 Application Services"
+            ST[🎓 student-tracker<br/>Port 8011<br/>FastAPI App]
+            API[📖 API Docs<br/>Swagger UI<br/>Auto-generated]
+        end
+        
+        subgraph "🗄️ Data Services"
+            PG[🗄️ postgres<br/>Port 5432<br/>Primary Database]
+            RD[📦 redis<br/>Port 6379<br/>Session Cache]
+        end
+        
+        subgraph "🌐 Network Services"
+            NG[🌐 nginx<br/>Port 80<br/>Reverse Proxy<br/>Load Balancer]
+        end
+        
+        subgraph "📊 Monitoring Services"
+            PM[📈 prometheus<br/>Port 9090<br/>Metrics Collection<br/>Time Series DB]
+            GF[📊 grafana<br/>Port 3000<br/>Dashboards<br/>Visualization]
+            AD[🛠️ adminer<br/>Port 8080<br/>Database Admin<br/>Web Interface]
+        end
+    end
+    
+    subgraph "☸️ Kubernetes Services"
+        subgraph "🔄 GitOps"
+            AR[🔄 ArgoCD<br/>Port 30080<br/>GitOps Controller<br/>CD Pipeline]
+        end
+        
+        subgraph "🎯 Application"
+            NS[🎓 NativeSeries<br/>Port 30012<br/>K8s Deployment<br/>Scalable App]
+        end
+    end
+    
+    NG --> ST
+    ST --> API
+    ST --> PG
+    ST --> RD
+    ST --> PM
+    PM --> GF
+    AD --> PG
+    
+    AR --> NS
+    
+    style ST fill:#c8e6c9
+    style API fill:#c8e6c9
+    style PG fill:#fff3e0
+    style RD fill:#f3e5f5
+    style NG fill:#e8f5e8
+    style PM fill:#ffe0b2
+    style GF fill:#fce4ec
+    style AD fill:#e0f2f1
+    style AR fill:#e8eaf6
+    style NS fill:#c8e6c9
+```
+
+### 🔄 **GitOps Workflow**
+
+```mermaid
+graph LR
+    subgraph "📝 Development"
+        Dev[👨‍💻 Developer]
+        Code[💻 Code Changes]
+        Git[📚 Git Repository]
+    end
+    
+    subgraph "🔄 CI/CD Pipeline"
+        CI[⚙️ CI Pipeline]
+        Build[🔨 Build Image]
+        Push[📤 Push to Registry]
+    end
+    
+    subgraph "☸️ Kubernetes Cluster"
+        Argo[🔄 ArgoCD]
+        App[🎓 NativeSeries App]
+        DB[(🗄️ Database)]
+        Cache[(📦 Cache)]
+    end
+    
+    subgraph "📊 Monitoring"
+        Prom[📈 Prometheus]
+        Graf[📊 Grafana]
+        Alert[🚨 Alerts]
+    end
+    
+    Dev --> Code
+    Code --> Git
+    Git --> CI
+    CI --> Build
+    Build --> Push
+    Push --> Argo
+    Argo --> App
+    App --> DB
+    App --> Cache
+    App --> Prom
+    Prom --> Graf
+    Graf --> Alert
+    
+    style Dev fill:#e1f5fe
+    style Argo fill:#e8eaf6
+    style App fill:#c8e6c9
+    style DB fill:#fff3e0
+    style Cache fill:#f3e5f5
+    style Prom fill:#ffe0b2
+    style Graf fill:#fce4ec
+```
+
+### 📊 **Data Flow Architecture**
+
+```mermaid
+graph TB
+    subgraph "🌐 External Requests"
+        User[👤 User Request]
+        API[📖 API Request]
+        Health[🩺 Health Check]
+    end
+    
+    subgraph "🌐 Load Balancer"
+        LB[🌐 Nginx Load Balancer]
+    end
+    
+    subgraph "🎓 Application Layer"
+        FastAPI[🎓 FastAPI Application]
+        Auth[🔐 Authentication]
+        Cache[📦 Redis Cache]
+    end
+    
+    subgraph "🗄️ Data Layer"
+        DB[(🗄️ PostgreSQL)]
+        Backup[(💾 Database Backup)]
+    end
+    
+    subgraph "📊 Monitoring Layer"
+        Metrics[📈 Application Metrics]
+        Logs[📝 Application Logs]
+        Prom[📊 Prometheus]
+        Graf[📈 Grafana]
+    end
+    
+    User --> LB
+    API --> LB
+    Health --> LB
+    
+    LB --> FastAPI
+    FastAPI --> Auth
+    FastAPI --> Cache
+    FastAPI --> DB
+    FastAPI --> Metrics
+    FastAPI --> Logs
+    
+    Cache --> DB
+    DB --> Backup
+    
+    Metrics --> Prom
+    Logs --> Prom
+    Prom --> Graf
+    
+    style User fill:#e1f5fe
+    style FastAPI fill:#c8e6c9
+    style DB fill:#fff3e0
+    style Cache fill:#f3e5f5
+    style Prom fill:#ffe0b2
+    style Graf fill:#fce4ec
+```
+
+### 🔍 **Monitoring & Observability**
+
+```mermaid
+graph TB
+    subgraph "🎓 Application"
+        App[🎓 NativeSeries App]
+        Health[🩺 Health Endpoint]
+        Metrics[📊 Metrics Endpoint]
+    end
+    
+    subgraph "📈 Metrics Collection"
+        Prom[📈 Prometheus Server]
+        Scrape[🔍 Scraping Jobs]
+        Storage[(💾 Time Series DB)]
+    end
+    
+    subgraph "📊 Visualization"
+        Graf[📊 Grafana]
+        Dash[📋 Dashboards]
+        Alert[🚨 Alerting]
+    end
+    
+    subgraph "🔧 Infrastructure"
+        K8s[☸️ Kubernetes]
+        Nodes[🖥️ Cluster Nodes]
+        Pods[📦 Application Pods]
+    end
+    
+    subgraph "📝 Logging"
+        Logs[📝 Application Logs]
+        K8sLogs[☸️ K8s Logs]
+        SysLogs[🖥️ System Logs]
+    end
+    
+    App --> Health
+    App --> Metrics
+    Metrics --> Prom
+    Prom --> Scrape
+    Scrape --> Storage
+    Storage --> Graf
+    Graf --> Dash
+    Graf --> Alert
+    
+    K8s --> Nodes
+    Nodes --> Pods
+    Pods --> App
+    
+    App --> Logs
+    K8s --> K8sLogs
+    Nodes --> SysLogs
+    
+    style App fill:#c8e6c9
+    style Prom fill:#ffe0b2
+    style Graf fill:#fce4ec
+    style K8s fill:#e8eaf6
+    style Logs fill:#e0f2f1
+```
+
+### 🌐 **Network Topology**
+
+```mermaid
+graph TB
+    subgraph "🌐 Internet"
+        Internet[🌐 Internet Traffic]
+    end
+    
+    subgraph "🖥️ Production Server"
+        subgraph "🌐 Network Layer"
+            Firewall[🔥 Firewall<br/>Ports: 80, 443, 30012, 30080]
+            LoadBalancer[⚖️ Load Balancer<br/>Port 80/443]
+        end
+        
+        subgraph "🐳 Container Network"
+            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
+            App[🎓 FastAPI App<br/>Port 8011]
+            Argo[🔄 ArgoCD<br/>Port 30080]
+        end
+        
+        subgraph "🗄️ Database Network"
+            DB[(🗄️ PostgreSQL<br/>Port 5432)]
+            Cache[(📦 Redis<br/>Port 6379)]
+        end
+        
+        subgraph "📊 Monitoring Network"
+            Prom[📈 Prometheus<br/>Port 9090]
+            Graf[📊 Grafana<br/>Port 3000]
+            Admin[🛠️ Adminer<br/>Port 8080]
+        end
+    end
+    
+    Internet --> Firewall
+    Firewall --> LoadBalancer
+    LoadBalancer --> Nginx
+    LoadBalancer --> Argo
+    
+    Nginx --> App
+    App --> DB
+    App --> Cache
+    App --> Prom
+    Prom --> Graf
+    Admin --> DB
+    
+    style Internet fill:#e1f5fe
+    style Firewall fill:#ffcdd2
+    style LoadBalancer fill:#fff3e0
+    style App fill:#c8e6c9
+    style DB fill:#fff3e0
+    style Cache fill:#f3e5f5
+    style Prom fill:#ffe0b2
+    style Graf fill:#fce4ec
+```
+
+### 🔧 **Component Interaction**
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant LB as 🌐 Load Balancer
+    participant N as 🌐 Nginx
+    participant A as 🎓 FastAPI App
+    participant C as 📦 Redis Cache
+    participant D as 🗄️ PostgreSQL
+    participant P as 📈 Prometheus
+    participant G as 📊 Grafana
+    
+    U->>LB: HTTP Request
+    LB->>N: Forward Request
+    N->>A: Proxy to App
+    
+    A->>C: Check Cache
+    alt Cache Hit
+        C->>A: Return Cached Data
+    else Cache Miss
+        A->>D: Query Database
+        D->>A: Return Data
+        A->>C: Update Cache
+    end
+    
+    A->>A: Process Request
+    A->>P: Send Metrics
+    P->>G: Store Metrics
+    
+    A->>N: Return Response
+    N->>LB: Forward Response
+    LB->>U: HTTP Response
+    
+    Note over A,P: Continuous Monitoring
+    loop Every 15s
+        P->>A: Scrape Metrics
+        A->>P: Application Metrics
+        P->>G: Update Dashboards
+    end
+```
+
+### 🏗️ **Infrastructure Layers**
+
+```mermaid
+graph TB
+    subgraph "🎯 Application Layer"
+        FastAPI[🎓 FastAPI Application]
+        API[📖 API Documentation]
+        Health[🩺 Health Checks]
+    end
+    
+    subgraph "🔄 Orchestration Layer"
+        K8s[☸️ Kubernetes]
+        Argo[🔄 ArgoCD]
+        Helm[📦 Helm Charts]
+    end
+    
+    subgraph "🐳 Container Layer"
+        Docker[🐳 Docker Engine]
+        Images[📦 Container Images]
+        Registry[📚 Image Registry]
+    end
+    
+    subgraph "🖥️ Infrastructure Layer"
+        VM[🖥️ Virtual Machine]
+        Storage[💾 Storage]
+        Network[🌐 Network]
+    end
+    
+    subgraph "☁️ Cloud Layer"
+        Cloud[☁️ Cloud Provider]
+        Security[🔒 Security Groups]
+        LoadBalancer[⚖️ Load Balancer]
+    end
+    
+    FastAPI --> K8s
+    API --> K8s
+    Health --> K8s
+    
+    K8s --> Argo
+    K8s --> Helm
+    
+    Argo --> Docker
+    Helm --> Docker
+    
+    Docker --> Images
+    Images --> Registry
+    
+    Docker --> VM
+    VM --> Storage
+    VM --> Network
+    
+    VM --> Cloud
+    Network --> Security
+    Network --> LoadBalancer
+    
+    style FastAPI fill:#c8e6c9
+    style K8s fill:#e8eaf6
+    style Docker fill:#e3f2fd
+    style VM fill:#f3e5f5
+    style Cloud fill:#e0f2f1
+```
+
+### 📊 **Health Check Flow**
+
+```mermaid
+graph TD
+    A[🏥 Start Health Check] --> B[🔍 Check Docker]
+    B --> C{Docker Running?}
+    C -->|No| D[❌ Docker Issue]
+    C -->|Yes| E[✅ Docker OK]
+    
+    E --> F[🔍 Check Kubernetes]
+    F --> G{K8s Accessible?}
+    G -->|No| H[❌ K8s Issue]
+    G -->|Yes| I[✅ K8s OK]
+    
+    I --> J[🔍 Check ArgoCD]
+    J --> K{ArgoCD Running?}
+    K -->|No| L[❌ ArgoCD Issue]
+    K -->|Yes| M[✅ ArgoCD OK]
+    
+    M --> N[🔍 Check Network]
+    N --> O{Network OK?}
+    O -->|No| P[❌ Network Issue]
+    O -->|Yes| Q[✅ Network OK]
+    
+    Q --> R[🔍 Check Endpoints]
+    R --> S{Endpoints Responding?}
+    S -->|No| T[❌ Endpoint Issue]
+    S -->|Yes| U[✅ Endpoints OK]
+    
+    U --> V[🔍 Check Database]
+    V --> W{Database OK?}
+    W -->|No| X[❌ Database Issue]
+    W -->|Yes| Y[✅ Database OK]
+    
+    Y --> Z[🔍 Check Resources]
+    Z --> AA{Resources OK?}
+    AA -->|No| BB[❌ Resource Issue]
+    AA -->|Yes| CC[✅ Resources OK]
+    
+    CC --> DD[📊 Generate Report]
+    DD --> EE[🎉 Health Check Complete]
+    
+    style A fill:#e1f5fe
+    style EE fill:#c8e6c9
+    style D fill:#ffcdd2
+    style H fill:#ffcdd2
+    style L fill:#ffcdd2
+    style P fill:#ffcdd2
+    style T fill:#ffcdd2
+    style X fill:#ffcdd2
+    style BB fill:#ffcdd2
+```
+
+---
+
 ## 🌐 **Production Access Points**
 
 | Service | Production URL | Status | Purpose | Credentials |
@@ -105,7 +731,7 @@ sudo ./deploy-unified.sh --help
 | 🌐 **Nginx Proxy** | [http://18.206.89.183:80](http://18.206.89.183:80) | ✅ **LIVE** | Load Balancer | - |
 | 📈 **Grafana** | [http://18.206.89.183:3000](http://18.206.89.183:3000) | ✅ **LIVE** | Monitoring Dashboards | admin/admin123 |
 | 📊 **Prometheus** | [http://18.206.89.183:9090](http://18.206.89.183:9090) | ✅ **LIVE** | Metrics Collection | - |
-| 🗄️ **Database Admin** | [http://18.206.89.183:8080](http://18.206.89.183:8080) | ✅ **LIVE** | Adminer Interface | student_user/student_pass |
+| 🗄️ **Database Admin** | [http://18.206.89.183:8080](http://18.206.89.183:8080) | ✅ **LIVE** | Database Admin Interface | student_user/student_pass |
 
 ---
 
@@ -185,102 +811,6 @@ sudo ./deploy-unified.sh --cleanup
 - Removes Kubernetes cluster
 - Deletes ArgoCD and applications
 - Cleans temporary files and logs
-
----
-
-## 🏗️ **System Architecture**
-
-### 🎯 **High-Level Architecture**
-
-```mermaid
-graph TB
-    subgraph "🌐 Internet"
-        User[👤 End Users]
-    end
-    
-    subgraph "🖥️ Production Server (18.206.89.183)"
-        subgraph "🐳 Docker Compose Stack"
-            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
-            
-            subgraph "🎓 Application Layer"
-                App[🎓 Student Tracker<br/>FastAPI<br/>Port 8011]
-            end
-            
-            subgraph "🗄️ Data Layer"
-                DB[(🗄️ PostgreSQL<br/>Port 5432)]
-                Cache[(📦 Redis<br/>Port 6379)]
-            end
-            
-            subgraph "📊 Monitoring Stack"
-                Prom[📈 Prometheus<br/>Port 9090]
-                Graf[📊 Grafana<br/>Port 3000]
-                Admin[🛠️ Adminer<br/>Port 8080]
-            end
-        end
-        
-        subgraph "☸️ Kubernetes Cluster (Optional)"
-            K8s[☸️ Kind Cluster<br/>ArgoCD GitOps<br/>Port 30012]
-        end
-    end
-    
-    User --> Nginx
-    Nginx --> App
-    App --> DB
-    App --> Cache
-    App --> Prom
-    Prom --> Graf
-    Admin --> DB
-    
-    style User fill:#e1f5fe
-    style App fill:#c8e6c9
-    style DB fill:#fff3e0
-    style Cache fill:#f3e5f5
-    style Nginx fill:#e8f5e8
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-    style Admin fill:#e0f2f1
-```
-
-### 🐳 **Container Architecture**
-
-```mermaid
-graph LR
-    subgraph "🐳 Docker Compose Services"
-        subgraph "🎓 Application Services"
-            ST[🎓 student-tracker<br/>Port 8011<br/>FastAPI App]
-        end
-        
-        subgraph "🗄️ Data Services"
-            PG[🗄️ postgres<br/>Port 5432<br/>Database]
-            RD[📦 redis<br/>Port 6379<br/>Cache]
-        end
-        
-        subgraph "🌐 Network Services"
-            NG[🌐 nginx<br/>Port 80<br/>Reverse Proxy]
-        end
-        
-        subgraph "📊 Monitoring Services"
-            PM[📈 prometheus<br/>Port 9090<br/>Metrics]
-            GF[📊 grafana<br/>Port 3000<br/>Dashboards]
-            AD[🛠️ adminer<br/>Port 8080<br/>DB Admin]
-        end
-    end
-    
-    NG --> ST
-    ST --> PG
-    ST --> RD
-    ST --> PM
-    PM --> GF
-    AD --> PG
-    
-    style ST fill:#c8e6c9
-    style PG fill:#fff3e0
-    style RD fill:#f3e5f5
-    style NG fill:#e8f5e8
-    style PM fill:#ffe0b2
-    style GF fill:#fce4ec
-    style AD fill:#e0f2f1
-```
 
 ---
 
@@ -571,7 +1101,6 @@ You'll know the fix was successful when:
 
 - **📖 Comprehensive Documentation**: [COMPREHENSIVE_DOCUMENTATION.md](COMPREHENSIVE_DOCUMENTATION.md)
 - **🏥 Health Check Guide**: [HEALTH_CHECK_GUIDE.md](HEALTH_CHECK_GUIDE.md)
-- **🔧 Troubleshooting Guide**: [TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)
 - **📋 Deployment Summary**: [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md)
 
 ---
