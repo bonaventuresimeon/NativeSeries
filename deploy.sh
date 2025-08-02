@@ -58,6 +58,29 @@ is_container() {
     [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null
 }
 
+# Function to check disk space
+check_disk_space() {
+    print_step "Checking disk space..."
+    
+    # Get available disk space
+    local available_space=$(df -h / | awk 'NR==2 {print $4}' | sed 's/G//')
+    local total_space=$(df -h / | awk 'NR==2 {print $2}' | sed 's/G//')
+    local used_percent=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+    
+    print_status "Disk space: ${available_space}G available out of ${total_space}G total (${used_percent}% used)"
+    
+    # Check if we have enough space (at least 5GB available)
+    if [ "$available_space" -lt 5 ]; then
+        print_warning "Low disk space detected (${available_space}G available)"
+        print_status "Cleaning up Docker system to free space..."
+        sudo docker system prune -af --volumes 2>/dev/null || true
+        print_status "Disk space after cleanup:"
+        df -h | grep -E "(Filesystem|/dev/)"
+    else
+        print_status "Sufficient disk space available"
+    fi
+}
+
 # Function to install Docker
 install_docker() {
     print_step "Installing Docker..."
@@ -255,11 +278,15 @@ cleanup_existing() {
         kind delete cluster --name nativeseries
     fi
     
-    # Remove Docker images
+    # Clean up Docker system and reclaim space
     if command_exists docker; then
-        print_status "Removing old Docker images..."
+        print_status "Cleaning up Docker system and reclaiming space..."
         docker rmi nativeseries:latest 2>/dev/null || true
-        docker system prune -f
+        docker system prune -af --volumes 2>/dev/null || true
+        
+        # Check disk space after cleanup
+        print_status "Checking disk space after cleanup..."
+        df -h | grep -E "(Filesystem|/dev/)"
     fi
     
     print_status "Cleanup completed"
@@ -483,6 +510,9 @@ main() {
     install_argocd_cli
     install_additional_tools
     check_docker_compose
+    
+    # Check disk space before deployment
+    check_disk_space
     
     # Cleanup existing resources
     cleanup_existing

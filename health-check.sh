@@ -363,6 +363,18 @@ check_resources() {
     print_status "Disk usage:"
     df -h | grep -E "(Filesystem|/dev/)"
     
+    # Check disk space warnings
+    local disk_usage=$(df -h / | awk 'NR==2 {print $5}' | sed 's/%//')
+    if [ "$disk_usage" -gt 80 ]; then
+        print_warning "⚠️ High disk usage detected: ${disk_usage}%"
+        print_status "Consider cleaning up Docker system: sudo docker system prune -af"
+    elif [ "$disk_usage" -gt 90 ]; then
+        print_error "❌ Critical disk usage: ${disk_usage}%"
+        print_status "Immediate cleanup required: sudo docker system prune -af --volumes"
+    else
+        print_status "✅ Disk usage is healthy: ${disk_usage}%"
+    fi
+    
     # Check memory usage
     print_status "Memory usage:"
     free -h
@@ -375,6 +387,10 @@ check_resources() {
     if command_exists docker; then
         print_status "Docker resource usage:"
         docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+        
+        # Check Docker disk usage
+        print_status "Docker disk usage:"
+        docker system df
     fi
     
     # Check Kubernetes resource usage
