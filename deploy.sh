@@ -365,32 +365,35 @@ setup_port_forwarding() {
     print_status "Port forwarding setup completed"
 }
 
-# Function to display final information
-display_final_info() {
-    # Get ArgoCD admin password
-    ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-    
-    echo ""
-    print_status "🎉 Deployment completed successfully!"
-    echo ""
-    echo "📋 Access Information:"
-    echo "   Application URL: http://18.206.89.183:8011"
-    echo "   Docker Compose: http://18.206.89.183:80"
-    echo "   ArgoCD UI: https://localhost:8080"
-    echo "   ArgoCD Username: admin"
-    echo "   ArgoCD Password: $ARGOCD_PASSWORD"
-    echo "   Grafana: http://18.206.89.183:3000 (admin/admin123)"
-    echo "   Prometheus: http://18.206.89.183:9090"
-    echo "   Adminer: http://18.206.89.183:8080"
-    echo ""
-    echo "🔧 Useful Commands:"
-    echo "   kubectl get pods"
-    echo "   kubectl get svc"
-    echo "   kubectl logs -f deployment/simple-app"
-    echo "   docker compose ps"
-    echo "   docker compose logs -f"
-    echo ""
-}
+    # Function to display final information
+    display_final_info() {
+        # Get ArgoCD admin password
+        ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+        
+        echo ""
+        print_status "🎉 Deployment completed successfully!"
+        echo ""
+        echo "📋 Access Information:"
+        echo "   🐳 Docker Compose Application: http://18.206.89.183:8011"
+        echo "   ☸️ Kubernetes Application: http://18.206.89.183:8012"
+        echo "   🌐 Nginx Proxy: http://18.206.89.183:80"
+        echo "   🔄 ArgoCD UI: https://localhost:8080"
+        echo "   ArgoCD Username: admin"
+        echo "   ArgoCD Password: $ARGOCD_PASSWORD"
+        echo "   📈 Grafana: http://18.206.89.183:3000 (admin/admin123)"
+        echo "   📊 Prometheus: http://18.206.89.183:9090"
+        echo "   🗄️ Adminer: http://18.206.89.183:8080"
+        echo ""
+        echo "🔧 Useful Commands:"
+        echo "   kubectl get pods"
+        echo "   kubectl get svc"
+        echo "   kubectl logs -f deployment/simple-app"
+        echo "   docker compose ps"
+        echo "   docker compose logs -f"
+        echo ""
+        echo "📝 Note: You have both Docker Compose (port 8011) and Kubernetes (port 8012) deployments running!"
+        echo ""
+    }
 
 # Main deployment function
 main() {
