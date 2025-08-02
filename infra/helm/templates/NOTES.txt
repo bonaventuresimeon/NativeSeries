@@ -1,0 +1,45 @@
+🎉 NativeSeries has been deployed successfully!
+
+📋 Release Information:
+   Name:      {{ .Release.Name }}
+   Namespace: {{ .Values.namespace.name }}
+   Version:   {{ .Chart.Version }}
+
+🔗 Access Information:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+   Ingress URL: http://{{ $host.host }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+   NodePort URL: http://<node-ip>:{{ .Values.service.nodePort }}
+{{- else if contains "LoadBalancer" .Values.service.type }}
+   LoadBalancer: Get the external IP with:
+   kubectl get svc {{ include "nativeseries.fullname" . }} -n {{ .Values.namespace.name }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+   ClusterIP: Access via port-forward:
+   kubectl port-forward svc/{{ include "nativeseries.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }} -n {{ .Values.namespace.name }}
+{{- end }}
+
+📊 Monitoring:
+   Health Check: /health
+   API Docs:     /docs
+   Metrics:      /metrics
+
+🔧 Useful Commands:
+   View pods:    kubectl get pods -n {{ .Values.namespace.name }}
+   View logs:    kubectl logs -f deployment/{{ include "nativeseries.fullname" . }} -n {{ .Values.namespace.name }}
+   Describe:     kubectl describe deployment {{ include "nativeseries.fullname" . }} -n {{ .Values.namespace.name }}
+
+{{- if .Values.hpa.enabled }}
+📈 Auto-scaling:
+   HPA is enabled with {{ .Values.hpa.minReplicas }}-{{ .Values.hpa.maxReplicas }} replicas
+   Check status: kubectl get hpa {{ include "nativeseries.fullname" . }} -n {{ .Values.namespace.name }}
+{{- end }}
+
+{{- if .Values.vault.enabled }}
+🔐 Security:
+   Vault secrets are configured and mounted
+   Secret name: vault-secrets
+{{- end }}
+
+Happy deploying! 🚀

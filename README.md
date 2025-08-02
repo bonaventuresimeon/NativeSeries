@@ -28,7 +28,7 @@ sudo ./deploy.sh
 - **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
 - **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
 
-📖 **📋 For a complete overview, see [NATIVESERIES_COMPREHENSIVE_SUMMARY.md](NATIVESERIES_COMPREHENSIVE_SUMMARY.md)**
+📖 **📋 For complete documentation, see [COMPREHENSIVE_DOCUMENTATION.md](COMPREHENSIVE_DOCUMENTATION.md)**
 
 ---
 

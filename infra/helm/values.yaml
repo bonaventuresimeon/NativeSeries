@@ -1,18 +1,27 @@
 replicaCount: 2
 
 image:
-  repository: ghcr.io/bonaventuresimeon/nativeseries
+  repository: biwunor/student-tracker
   tag: latest
   pullPolicy: Always
 
 service:
   type: NodePort
-  port: 8000
-  targetPort: 8000
+  port: 80
+  targetPort: 8011
   nodePort: 30012
 
 ingress:
-  enabled: false
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: ec2-3-80-98-218.eu-west-1.compute.amazonaws.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
 
 resources:
   limits:
@@ -22,15 +31,24 @@ resources:
     cpu: 250m
     memory: 256Mi
 
+# Namespace configuration
+namespace:
+  create: true
+  name: "student-tracker"
+
+# Vault secrets configuration
+vault:
+  enabled: true
+  secrets:
+    VAULT_ADDR: "http://44.204.193.107:8200"
+    VAULT_ROLE_ID: "f7af58b1-5c22-7c2d-c659-0425d9ce94b2"  
+    VAULT_SECRET_ID: "d5f736da-785b-8f5c-9258-48d5d7c43c06"
+
 env:
   - name: HOST
     value: "0.0.0.0"
   - name: PORT
-    value: "8000"
-  - name: DATABASE_URL
-    value: "sqlite:///./student_tracker.db"
-  - name: REDIS_URL
-    value: "redis://localhost:6379"
+    value: "8011"
 
 # Health checks
 livenessProbe:
