@@ -1,0 +1,103 @@
+# Production environment values
+replicaCount: 3
+
+image:
+  repository: ghcr.io/bonaventuresimeon/student-tracker
+  tag: main-735141de428ecefd64e422c258caf35407b0755c
+  pullPolicy: IfNotPresent
+
+# Application configuration
+app:
+  port: 8000
+
+# Resource limits for production
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+# Production environment variables
+env:
+  - name: DATABASE_URL
+    value: "postgresql://prod_user:prod_pass@postgres-prod:5432/studentdb_prod"
+  - name: APP_ENV
+    value: "production"
+  - name: DEBUG
+    value: "false"
+
+# Service configuration for production
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 30011  # Maps to 8011 on the host IP
+
+# Ingress for production
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Commented out for IP-based access
+  hosts:
+    - host: 18.208.149.195
+      paths:
+        - path: /
+          pathType: Prefix
+  # TLS disabled for IP-based access
+  # tls:
+  #   - secretName: student-tracker-tls
+  #     hosts:
+  #       - 18.208.149.195
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# ConfigMap for production
+configMap:
+  enabled: true
+  data:
+    app_name: "Student Tracker API"
+    log_level: "INFO"
+
+# Secret configuration for production
+secret:
+  enabled: false
+  data:
+    # Production secret data - replace with actual values
+    # DATABASE_PASSWORD: "your-secure-production-password"
+    # API_KEY: "your-production-api-key"
+    # JWT_SECRET: "your-production-jwt-secret"
+
+# Health checks for production
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Enhanced security context for production
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001

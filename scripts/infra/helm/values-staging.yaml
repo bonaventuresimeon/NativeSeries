@@ -1,0 +1,98 @@
+# Staging environment values
+replicaCount: 2
+
+image:
+  repository: ghcr.io/bonaventuresimeon/student-tracker
+  tag: main-0fc2c10e27e14d46e70a510243c18f8bbf31ebcc
+  pullPolicy: IfNotPresent
+
+# Application configuration
+app:
+  port: 8000
+
+# Resource limits for staging
+resources:
+  limits:
+    cpu: 750m
+    memory: 768Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Staging environment variables
+env:
+  - name: DATABASE_URL
+    value: "postgresql://staging_user:staging_pass@postgres-staging:5432/studentdb_staging"
+  - name: APP_ENV
+    value: "staging"
+  - name: DEBUG
+    value: "false"
+
+# Service configuration for staging
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 30011
+
+# Ingress for staging
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  hosts:
+    - host: staging.18.208.149.195
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Enable autoscaling in staging
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget for staging
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# ConfigMap for staging
+configMap:
+  enabled: true
+  data:
+    app_name: "Student Tracker API (Staging)"
+    log_level: "INFO"
+
+# Secret configuration for staging
+secret:
+  enabled: false
+  data:
+    # Staging secret data - replace with actual values
+    # DATABASE_PASSWORD: "staging-password"
+    # API_KEY: "staging-api-key"
+    # JWT_SECRET: "staging-jwt-secret"
+
+# Health checks for staging
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Security context for staging
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
