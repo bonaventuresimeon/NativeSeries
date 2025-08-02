@@ -1,619 +1,590 @@
-# 🚀 Student Tracker - Complete Application Platform
+# 🎓 Student Tracker - Complete Student Management Platform
 
-## 👨‍💻 **Author**
+<div align="center">
 
-**Bonaventure Simeon**  
-📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
-📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+![Student Tracker](https://img.shields.io/badge/Student-Tracker-blue?style=for-the-badge&logo=graduation-cap)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![ArgoCD](https://img.shields.io/badge/ArgoCD-326CE5?style=for-the-badge&logo=argocd&logoColor=white)
+![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
+
+**A comprehensive student management application with GitOps automation**
+
+[![Production Status](https://img.shields.io/badge/Production-Ready-green?style=for-the-badge)](http://18.206.89.183:8011)
+[![ArgoCD Status](https://img.shields.io/badge/ArgoCD-Active-blue?style=for-the-badge)](http://18.206.89.183:30080)
+
+</div>
 
 ---
 
-## 🎯 **Overview**
+## 📋 Table of Contents
 
-Student Tracker is a comprehensive student management application built with FastAPI, featuring Docker for containerization, Kubernetes for orchestration, and ArgoCD for GitOps automation. This platform provides complete deployment automation, health monitoring, and infrastructure management.
-
-**🌐 Production URL**: [http://18.206.89.183:8011](http://18.206.89.183:8011)  
-**📖 API Documentation**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+- [🎯 Overview](#-overview)
+- [🏗️ Architecture](#️-architecture)
+- [🚀 Quick Start](#-quick-start)
+- [📦 Installation](#-installation)
+- [🔧 Deployment](#-deployment)
+- [📊 Monitoring](#-monitoring)
+- [🔒 Security](#-security)
+- [📚 API Documentation](#-api-documentation)
+- [🛠️ Development](#️-development)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
 ---
 
-## 🚀 **Quick Start - One Command Deployment**
+## 🎯 Overview
 
-### **🚀 Helm & ArgoCD Deployment (Recommended)**
+Student Tracker is a modern, cloud-native student management platform built with **FastAPI**, deployed on **Kubernetes** using **Helm**, and managed through **ArgoCD** for GitOps automation. The application provides comprehensive student tracking, progress monitoring, and administrative capabilities.
+
+### 🌟 Key Features
+
+- **📚 Student Management**: Complete CRUD operations for student records
+- **📈 Progress Tracking**: Weekly progress monitoring and analytics
+- **🔐 Secure Authentication**: Vault-integrated secret management
+- **📊 Real-time Monitoring**: Prometheus metrics and health checks
+- **🚀 Auto-scaling**: Horizontal Pod Autoscaler for performance
+- **🔄 GitOps**: Automated deployment with ArgoCD
+- **🔒 Security**: Non-root containers, read-only filesystems
+
+### 🌐 Production Access
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Student Tracker App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | Main application |
+| **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | Interactive API docs |
+| **ArgoCD UI (HTTP)** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | GitOps management |
+| **ArgoCD UI (HTTPS)** | [https://18.206.89.183:30443](https://18.206.89.183:30443) | Secure GitOps access |
+
+---
+
+## 🏗️ Architecture
+
+### System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A[Web Browser] --> B[Load Balancer]
+        A --> C[Mobile App]
+    end
+    
+    subgraph "Kubernetes Cluster"
+        subgraph "Ingress Layer"
+            B --> D[NodePort Service :8011]
+        end
+        
+        subgraph "Application Layer"
+            D --> E[Student Tracker Pod]
+            E --> F[FastAPI Application]
+        end
+        
+        subgraph "Data Layer"
+            F --> G[MongoDB]
+            F --> H[Redis Cache]
+            F --> I[Vault Secrets]
+        end
+        
+        subgraph "Monitoring"
+            E --> J[Prometheus]
+            J --> K[Grafana]
+        end
+        
+        subgraph "GitOps"
+            L[GitHub Repository] --> M[ArgoCD]
+            M --> E
+        end
+    end
+    
+    subgraph "CI/CD Pipeline"
+        N[GitHub Actions] --> O[Docker Build]
+        O --> P[Image Registry]
+        P --> M
+    end
+```
+
+### Component Architecture
+
+```mermaid
+graph LR
+    subgraph "Frontend"
+        A[HTML Templates]
+        B[JavaScript]
+    end
+    
+    subgraph "Backend"
+        C[FastAPI App]
+        D[CRUD Operations]
+        E[Database Layer]
+    end
+    
+    subgraph "Infrastructure"
+        F[Kubernetes]
+        G[Helm Charts]
+        H[ArgoCD]
+    end
+    
+    subgraph "Data Stores"
+        I[MongoDB]
+        J[Redis]
+        K[Vault]
+    end
+    
+    A --> C
+    B --> C
+    C --> D
+    D --> E
+    E --> I
+    E --> J
+    E --> K
+    F --> G
+    G --> H
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Kubernetes Cluster** (minikube, kind, or cloud provider)
+- **kubectl** configured
+- **Helm** v3.12.0+
+- **Docker** (for local development)
+- **Git**
+
+### One-Command Deployment
+
 ```bash
-# Clone and deploy with Helm and ArgoCD
+# Clone the repository
 git clone https://github.com/bonaventuresimeon/NativeSeries.git
 cd NativeSeries
+
+# Make deployment script executable
 chmod +x scripts/deploy.sh
+
+# Run deployment (interactive menu)
 ./scripts/deploy.sh
 ```
 
-**🎉 Your Student Tracker application will be live at:**
-- **🌐 Application**: http://18.206.89.183:8011 (Production)
-- **🔄 ArgoCD UI**: http://18.206.89.183:30080 (GitOps Management)
-- **🔒 ArgoCD HTTPS**: https://18.206.89.183:30443 (Secure Access)
+**🎉 Your application will be live in minutes!**
 
 ---
 
-## 📁 **Project Structure**
+## 📦 Installation
 
-```
-NativeSeries/
-├── app/                    # Application source code
-│   ├── main.py            # FastAPI application entry point
-│   ├── models.py          # Database models
-│   ├── database.py        # Database configuration
-│   ├── crud.py           # CRUD operations
-│   └── routes/           # API routes
-├── helm-chart/            # Helm chart for Kubernetes deployment
-│   ├── templates/         # Kubernetes manifests
-│   ├── Chart.yaml         # Chart metadata
-│   └── values.yaml        # Configuration values
-├── argocd/               # ArgoCD application manifests
-├── scripts/              # Deployment and utility scripts
-├── templates/            # HTML templates
-├── .github/workflows/    # CI/CD pipelines
-├── Dockerfile            # Container image definition
-├── requirements.txt      # Python dependencies
-└── README.md            # Project documentation
-```
-
----
-
-## 🛠️ **Deployment Options**
-
-The deployment script provides comprehensive deployment and management capabilities:
+### Step 1: Clone Repository
 
 ```bash
-# Full deployment with ArgoCD and application (default)
-./scripts/deploy.sh
-
-# Choose from the following options:
-# 1. Install ArgoCD and deploy application
-# 2. Deploy application only (ArgoCD already installed)
-# 3. Build and push Docker image only
-# 4. Validate configuration only
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
 ```
 
-### **🔧 What the Deployment Script Does:**
+### Step 2: Install Prerequisites
 
-#### **Option 1: Full Deployment**
-- ✅ Installs ArgoCD server
-- ✅ Builds and pushes Docker image
-- ✅ Deploys Helm chart with dependencies
-- ✅ Sets up ArgoCD application for GitOps
-- ✅ Verifies deployment health
-
-#### **Option 2: Application Only**
-- ✅ Builds and pushes Docker image
-- ✅ Deploys Helm chart with dependencies
-- ✅ Sets up ArgoCD application for GitOps
-- ✅ Verifies deployment health
-
-#### **Option 3: Image Only**
-- ✅ Builds and pushes Docker image
-- ✅ Updates image tags in configuration
-
----
-
-## 🏗️ **Architecture**
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   GitHub Repo   │    │   GitHub Actions│    │   Container     │
-│                 │    │                 │    │   Registry      │
-│  ┌───────────┐  │    │  ┌───────────┐  │    │                 │
-│  │   Code    │──┼───▶│   Build    │──┼───▶│   Image         │
-│  │   Push    │  │    │   & Test   │  │    │                 │
-│  └───────────┘  │    └───────────┘  │    └─────────────────┘
-└─────────────────┘    └─────────────────┘              │
-                                                        │
-┌─────────────────┐    ┌─────────────────┐              │
-│   ArgoCD        │    │   Kubernetes    │              │
-│   Server        │    │   Cluster       │              │
-│                 │    │                 │              │
-│  ┌───────────┐  │    │  ┌───────────┐  │              │
-│  │   GitOps  │◀─┼────┼─▶│   Helm    │◀─┼──────────────┘
-│  │   Sync    │  │    │  │   Chart   │  │
-│  └───────────┘  │    │  └───────────┘  │
-└─────────────────┘    └─────────────────┘
-```
-
----
-
-## 📋 **Prerequisites**
-
-### **Required Tools**
-- `kubectl` (v1.24+)
-- `helm` (v3.12+)
-- `argocd` CLI
-- `docker`
-- `git`
-
-### **Kubernetes Cluster**
-- A running Kubernetes cluster (v1.24+)
-- Ingress controller (nginx-ingress recommended)
-- Cert-manager (for SSL certificates)
-- Prometheus Operator (for monitoring)
-
-### **Infrastructure Requirements**
-- Minimum 4 CPU cores
-- Minimum 8GB RAM
-- Minimum 50GB storage
-- Network access to container registries
-
----
-
-## 🔧 **Installation**
-
-### **1. Install Prerequisites**
-
+#### Install kubectl
 ```bash
-# Install kubectl
+# Linux
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-# Install Helm
+# macOS
+brew install kubectl
+
+# Windows
+choco install kubernetes-cli
+```
+
+#### Install Helm
+```bash
+# Linux/macOS
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Install ArgoCD CLI
-curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-rm argocd-linux-amd64
+# Windows
+choco install kubernetes-helm
 ```
 
-### **2. Setup Kubernetes Cluster**
-
+#### Install Docker
 ```bash
-# Verify cluster connectivity
-kubectl cluster-info
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install docker.io
+sudo systemctl start docker
+sudo usermod -aG docker $USER
 
-# Install nginx-ingress
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+# macOS
+brew install --cask docker
 
-# Install cert-manager
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.13.0/cert-manager.yaml
-
-# Install Prometheus Operator
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm install prometheus prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace
+# Windows
+# Download from https://www.docker.com/products/docker-desktop
 ```
 
-### **3. Install ArgoCD**
+### Step 3: Set Up Kubernetes Cluster
 
+#### Option A: Minikube (Local Development)
 ```bash
-# Create namespace
-kubectl create namespace argocd
+# Install minikube
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
-# Install ArgoCD
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# Start cluster
+minikube start --driver=docker
 
-# Wait for ArgoCD to be ready
-kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+# Enable addons
+minikube addons enable ingress
+minikube addons enable metrics-server
+```
 
-# Get admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+#### Option B: Kind (Local Development)
+```bash
+# Install kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
 
-# Port forward ArgoCD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443
+# Create cluster
+kind create cluster --name student-tracker
+```
+
+#### Option C: Cloud Provider (Production)
+```bash
+# AWS EKS
+eksctl create cluster --name student-tracker --region us-west-2
+
+# Google GKE
+gcloud container clusters create student-tracker --zone us-central1-a
+
+# Azure AKS
+az aks create --resource-group myResourceGroup --name student-tracker --node-count 3
 ```
 
 ---
 
-## ⚙️ **Configuration**
+## 🔧 Deployment
 
-### **1. Update Helm Values**
+### Automated Deployment (Recommended)
 
-Edit `helm-chart/values.yaml` to configure your application:
-
-```yaml
-app:
-  name: student-tracker
-  image:
-    repository: student-tracker
-    tag: latest
-  replicas: 2
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
-
-service:
-  type: NodePort
-  port: 80
-  targetPort: 8000
-  nodePort: 8011
-
-ingress:
-  enabled: true
-  hosts:
-    - host: 18.206.89.183
-      paths:
-        - path: /
-          pathType: Prefix
-
-postgresql:
-  enabled: true
-  auth:
-    postgresPassword: "your-secure-password"
-    database: studenttracker
-
-redis:
-  enabled: true
-  auth:
-    password: "your-redis-password"
-```
-
-### **2. Environment Variables**
-
-Create a Kubernetes secret for sensitive data:
+The deployment script provides an interactive menu with multiple options:
 
 ```bash
-kubectl create secret generic app-secrets \
-  --from-literal=SECRET_KEY=your-secret-key \
-  --from-literal=API_KEY=your-api-key \
-  -n student-tracker
-```
-
----
-
-## 🚀 **Deployment**
-
-### **1. Automated Deployment (Recommended)**
-
-The deployment is automated through GitHub Actions. Simply push to the main branch:
-
-```bash
-git add .
-git commit -m "Update application"
-git push origin main
-```
-
-### **2. Manual Deployment**
-
-Use the provided deployment script:
-
-```bash
-# Make script executable
-chmod +x scripts/deploy.sh
-
-# Run deployment
 ./scripts/deploy.sh
 ```
 
-### **3. Helm Deployment**
+#### Deployment Options:
 
-Deploy manually with Helm:
+1. **🚀 Full Deployment** - Install ArgoCD and deploy application
+2. **📱 Application Only** - Deploy application (ArgoCD already installed)
+3. **🐳 Image Only** - Build and push Docker image
+4. **✅ Validate Only** - Validate configuration without deployment
+
+### Manual Deployment Steps
+
+#### Step 1: Install ArgoCD
+
+```bash
+# Add ArgoCD repository
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+# Install ArgoCD
+helm install argocd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  --set server.extraArgs="{--insecure}" \
+  --set server.ingress.enabled=true
+```
+
+#### Step 2: Build and Push Docker Image
+
+```bash
+# Build image
+docker build -t student-tracker:latest .
+
+# Tag for registry
+docker tag student-tracker:latest ghcr.io/bonaventuresimeon/student-tracker:latest
+
+# Push to registry
+docker push ghcr.io/bonaventuresimeon/student-tracker:latest
+```
+
+#### Step 3: Deploy Helm Chart
 
 ```bash
 # Add Bitnami repository
 helm repo add bitnami https://charts.bitnami.com/bitnami
 helm repo update
 
-# Update dependencies
-cd helm-chart
-helm dependency update
-cd ..
-
-# Install chart
-helm upgrade --install student-tracker helm-chart \
+# Install application
+helm install student-tracker ./helm-chart \
   --namespace student-tracker \
   --create-namespace \
-  --wait \
-  --timeout 10m
+  --set app.image.repository=ghcr.io/bonaventuresimeon/student-tracker \
+  --set app.image.tag=latest
 ```
 
-### **4. ArgoCD Deployment**
+#### Step 4: Configure ArgoCD Application
 
 ```bash
 # Apply ArgoCD application
 kubectl apply -f argocd/application.yaml
 
-# Sync application
-argocd app sync student-tracker --prune
+# Verify deployment
+kubectl get applications -n argocd
+```
+
+### Verification Commands
+
+```bash
+# Check pods
+kubectl get pods -n student-tracker
+
+# Check services
+kubectl get svc -n student-tracker
+
+# Check ArgoCD
+kubectl get pods -n argocd
+
+# Get ArgoCD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
 ---
 
-## 📊 **Monitoring**
+## 📊 Monitoring
 
-### **1. Application Metrics**
+### Health Checks
 
-The application exposes metrics at `/metrics` endpoint. Prometheus automatically scrapes these metrics.
-
-### **2. ArgoCD Monitoring**
-
-Access ArgoCD UI at `http://18.206.89.183:30080`:
-- Username: `admin`
-- Password: Get from secret `argocd-initial-admin-secret`
-
-**Alternative Access:**
-- HTTPS: `https://18.206.89.183:30443`
-- Local port-forward: `kubectl port-forward svc/argocd-server -n argocd 8080:443`
-
-### **3. Kubernetes Monitoring**
+The application provides comprehensive health monitoring:
 
 ```bash
-# Check application status
-kubectl get all -n student-tracker
+# Application health
+curl http://18.206.89.183:8011/health
 
-# Check ArgoCD application status
-argocd app get student-tracker
+# Metrics endpoint
+curl http://18.206.89.183:8011/metrics
 
-# Check logs
+# Readiness check
+curl http://18.206.89.183:8011/ready
+```
+
+### Prometheus Metrics
+
+The application exposes Prometheus-compatible metrics:
+
+- **Request Count**: Total HTTP requests
+- **Response Time**: Average response times
+- **Error Rate**: Error percentage
+- **Uptime**: Application uptime
+- **Memory Usage**: Container memory consumption
+- **CPU Usage**: Container CPU utilization
+
+### Logging
+
+```bash
+# View application logs
 kubectl logs -f deployment/student-tracker -n student-tracker
 
-# Check ingress
-kubectl get ingress -n student-tracker
-```
-
-### **4. Prometheus Monitoring**
-
-Access Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`.
-
----
-
-## 🔧 **Troubleshooting**
-
-### **Common Issues**
-
-1. **Image Pull Errors**
-   ```bash
-   # Check image pull secrets
-   kubectl get secrets -n student-tracker
-   
-   # Create image pull secret if needed
-   kubectl create secret docker-registry regcred \
-     --docker-server=your-registry.com \
-     --docker-username=your-username \
-     --docker-password=your-password \
-     -n student-tracker
-   ```
-
-2. **Database Connection Issues**
-   ```bash
-   # Check PostgreSQL status
-   kubectl get pods -n student-tracker -l app=postgresql
-   
-   # Check database logs
-   kubectl logs -f deployment/postgresql -n student-tracker
-   ```
-
-3. **ArgoCD Sync Issues**
-   ```bash
-   # Check ArgoCD application status
-   argocd app get student-tracker
-   
-   # Force sync
-   argocd app sync student-tracker --prune --force
-   
-   # Check ArgoCD logs
-   kubectl logs -f deployment/argocd-server -n argocd
-   ```
-
-4. **Ingress Issues**
-   ```bash
-   # Check ingress controller
-   kubectl get pods -n ingress-nginx
-   
-   # Check ingress status
-   kubectl describe ingress student-tracker -n student-tracker
-   ```
-
-### **Debug Commands**
-
-```bash
-# Get detailed application info
-kubectl describe deployment student-tracker -n student-tracker
-
-# Check events
-kubectl get events -n student-tracker --sort-by='.lastTimestamp'
-
-# Check resource usage
-kubectl top pods -n student-tracker
-
-# Check network policies
-kubectl get networkpolicies -n student-tracker
+# View ArgoCD logs
+kubectl logs -f deployment/argocd-server -n argocd
 ```
 
 ---
 
-## 🔒 **Security**
+## 🔒 Security
 
-### **1. Network Security**
+### Security Features
+
+- **🔐 Non-root Containers**: All containers run as non-root user
+- **📁 Read-only Filesystems**: Immutable container filesystems
+- **🚫 Privilege Escalation**: Disabled privilege escalation
+- **🛡️ Security Contexts**: Kubernetes security contexts applied
+- **🔑 Vault Integration**: Secure secret management
+- **🌐 Network Policies**: Restricted network access
+
+### Security Best Practices
 
 ```yaml
-# Network policy example
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: student-tracker-network-policy
-  namespace: student-tracker
-spec:
-  podSelector:
-    matchLabels:
-      app: student-tracker
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ingress-nginx
-    ports:
-    - protocol: TCP
-      port: 8000
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
+# Security context example
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
 ```
 
-### **2. RBAC Configuration**
-
-```yaml
-# Service account with minimal permissions
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: student-tracker-sa
-  namespace: student-tracker
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: student-tracker-role
-  namespace: student-tracker
-rules:
-- apiGroups: [""]
-  resources: ["configmaps", "secrets"]
-  verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: student-tracker-rolebinding
-  namespace: student-tracker
-subjects:
-- kind: ServiceAccount
-  name: student-tracker-sa
-  namespace: student-tracker
-roleRef:
-  kind: Role
-  name: student-tracker-role
-  apiGroup: rbac.authorization.k8s.io
-```
-
-### **3. Security Best Practices**
-
-- Use non-root containers
-- Implement resource limits
-- Use secrets for sensitive data
-- Enable network policies
-- Regular security updates
-- Monitor for vulnerabilities
-
 ---
 
-## 🔄 **Maintenance**
+## 📚 API Documentation
 
-### **1. Updates**
+### Interactive API Documentation
+
+Access the complete API documentation at: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+
+### Key Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Main application interface |
+| `/health` | GET | Health check endpoint |
+| `/metrics` | GET | Prometheus metrics |
+| `/docs` | GET | Interactive API documentation |
+| `/students` | GET | List all students |
+| `/students/{id}` | GET | Get student by ID |
+| `/students` | POST | Create new student |
+| `/students/{id}` | PUT | Update student |
+| `/students/{id}` | DELETE | Delete student |
+
+### Example API Usage
 
 ```bash
-# Update Helm chart
-helm upgrade student-tracker helm-chart --namespace student-tracker
+# Get all students
+curl http://18.206.89.183:8011/students
 
-# Update ArgoCD application
-kubectl apply -f argocd/application.yaml
-argocd app sync student-tracker
+# Create a student
+curl -X POST http://18.206.89.183:8011/students \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+
+# Get health status
+curl http://18.206.89.183:8011/health
 ```
 
-### **2. Backup**
+---
+
+## 🛠️ Development
+
+### Local Development Setup
 
 ```bash
-# Backup PostgreSQL
-kubectl exec -it deployment/postgresql -n student-tracker -- pg_dump -U postgres studenttracker > backup.sql
+# Clone repository
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
 
-# Backup Kubernetes resources
-kubectl get all -n student-tracker -o yaml > backup.yaml
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/macOS
+# or
+venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### **3. Scaling**
+### Project Structure
 
-```bash
-# Scale application
-kubectl scale deployment student-tracker --replicas=5 -n student-tracker
+```
+NativeSeries/
+├── 📁 app/                    # Application source code
+│   ├── 🐍 main.py            # FastAPI application entry point
+│   ├── 🗃️ models.py          # Database models
+│   ├── 🔌 database.py        # Database configuration
+│   ├── 🔄 crud.py           # CRUD operations
+│   └── 🛣️ routes/           # API routes
+├── 📁 helm-chart/            # Helm chart for Kubernetes deployment
+│   ├── 📁 templates/         # Kubernetes manifests
+│   ├── 📄 Chart.yaml         # Chart metadata
+│   └── ⚙️ values.yaml        # Configuration values
+├── 📁 argocd/               # ArgoCD application manifests
+├── 📁 scripts/              # Deployment and utility scripts
+├── 📁 templates/            # HTML templates
+├── 📁 .github/workflows/    # CI/CD pipelines
+├── 🐳 Dockerfile            # Container image definition
+├── 📋 requirements.txt      # Python dependencies
+└── 📖 README.md            # Project documentation
+```
 
-# Or update values.yaml and redeploy
+### Development Workflow
+
+```mermaid
+graph LR
+    A[Local Development] --> B[Git Commit]
+    B --> C[GitHub Push]
+    C --> D[GitHub Actions]
+    D --> E[Build Image]
+    E --> F[Push to Registry]
+    F --> G[ArgoCD Sync]
+    G --> H[Deploy to Kubernetes]
 ```
 
 ---
 
-## 📚 **API Documentation**
+## 🤝 Contributing
 
-### **Available Endpoints**
+### Contributing Guidelines
 
-- **🌐 Web Interface**: http://18.206.89.183:8011
-- **📖 API Documentation**: http://18.206.89.183:8011/docs
-- **🔍 ReDoc Documentation**: http://18.206.89.183:8011/redoc
-- **🏥 Health Check**: http://18.206.89.183:8011/health
-- **📊 Metrics**: http://18.206.89.183:8011/metrics
-- **🔄 ArgoCD UI**: http://18.206.89.183:30080
-- **🔒 ArgoCD HTTPS**: https://18.206.89.183:30443
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
 
-### **Key Features**
+### Development Standards
 
-- **Student Management** - Complete CRUD operations for student records
-- **Course Management** - Multi-course enrollment system  
-- **Progress Tracking** - Weekly progress monitoring and analytics
-- **Assignment System** - Assignment creation, submission, and grading
-- **Modern UI** - Responsive web interface
-- **REST API** - Full RESTful API with OpenAPI documentation
-- **Monitoring** - Health checks and metrics for production deployment
+- **Code Style**: Follow PEP 8 for Python code
+- **Testing**: Write tests for new features
+- **Documentation**: Update documentation for changes
+- **Security**: Follow security best practices
 
 ---
 
-## 🤝 **Contributing**
+## 📄 License
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 📄 **License**
+## 👨‍💻 Author
 
-This project is licensed under the MIT License - see the [License.md](License.md) file for details.
-
----
-
-## 🙏 **Acknowledgments**
-
-- FastAPI community for the excellent framework
-- Kubernetes community for container orchestration
-- ArgoCD team for GitOps capabilities
-- Docker community for containerization
-- All contributors and supporters
+**Bonaventure Simeon**  
+📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)  
+🌐 GitHub: [@bonaventuresimeon](https://github.com/bonaventuresimeon)
 
 ---
 
-**🚀 Happy Deploying!**
+## 🆘 Support
 
-For issues and questions:
-1. Check the troubleshooting section
-2. Review ArgoCD and Helm documentation
-3. Check GitHub Issues
-4. Contact the development team
+### Getting Help
+
+- **📖 Documentation**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+- **🐛 Issues**: [GitHub Issues](https://github.com/bonaventuresimeon/NativeSeries/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/bonaventuresimeon/NativeSeries/discussions)
+- **📧 Email**: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)
+
+### Troubleshooting
+
+#### Common Issues
+
+1. **ArgoCD not accessible**
+   ```bash
+   kubectl port-forward svc/argocd-server 8080:443 -n argocd
+   ```
+
+2. **Application not starting**
+   ```bash
+   kubectl logs deployment/student-tracker -n student-tracker
+   ```
+
+3. **Database connection issues**
+   ```bash
+   kubectl exec -it deployment/student-tracker -n student-tracker -- env | grep VAULT
+   ```
 
 ---
 
-## 📞 **Support**
+<div align="center">
 
-If issues persist after following this guide:
+**Made with ❤️ by Bonaventure Simeon**
 
-1. Check the logs: `kubectl logs -l app.kubernetes.io/name=student-tracker -n student-tracker`
-2. Check pod events: `kubectl describe pods -n student-tracker`
-3. Check service events: `kubectl describe service student-tracker -n student-tracker`
-4. Run the comprehensive health check: `./scripts/deploy.sh`
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/bonaventuresimeon)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/bonaventuresimeon)
+[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:contact@bonaventure.org.ng)
 
----
-
-## 🎉 **Success Indicators**
-
-You'll know the deployment was successful when:
-
-- ✅ `kubectl get nodes` shows your cluster nodes
-- ✅ `kubectl get deployments -n student-tracker` shows student-tracker deployment
-- ✅ `kubectl get pods -n student-tracker` shows running pods
-- ✅ `curl http://18.206.89.183:8011/health` returns a successful response
-- ✅ Application is accessible at http://18.206.89.183:8011
+</div>
