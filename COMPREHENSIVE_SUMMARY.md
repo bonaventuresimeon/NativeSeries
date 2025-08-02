@@ -29,7 +29,7 @@ The Student Tracker is a production-ready, cloud-native application demonstratin
 | Service | Production URL | Status | Purpose | Credentials |
 |---------|----------------|--------|---------|-------------|
 | 🐳 **Docker Compose App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | ✅ **LIVE** | Development/Testing | - |
-| ☸️ **Kubernetes App** | [http://18.206.89.183:8012](http://18.206.89.183:8012) | ✅ **LIVE** | Production/GitOps | - |
+| ☸️ **Kubernetes App** | [http://18.206.89.183:30012](http://18.206.89.183:30012) | ✅ **LIVE** | Production/GitOps | - |
 | 🔄 **ArgoCD UI** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | ✅ **LIVE** | GitOps Management | admin/(auto-generated) |
 | 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | ✅ **LIVE** | Interactive Swagger UI | - |
 | 🩺 **Health Check** | [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health) | ✅ **LIVE** | System Health Status | - |
@@ -97,7 +97,7 @@ The following scripts were removed as they were redundant or no longer needed:
 | Service | Port | Purpose | Status |
 |---------|------|---------|--------|
 | 🐳 **Docker Compose** | 8011 | Development/Testing | ✅ Active |
-| ☸️ **Kubernetes** | 8012 | Production/GitOps | ✅ Active |
+| ☸️ **Kubernetes** | 30012 | Production/GitOps | ✅ Active |
 | 🔄 **ArgoCD UI** | 30080 | GitOps Management | ✅ Active |
 | 🌐 **Nginx Proxy** | 80 | Reverse proxy | ✅ Active |
 | 📈 **Grafana** | 3000 | Monitoring | ✅ Active |
@@ -124,7 +124,7 @@ kubectl get pods
 
 # Test applications
 curl http://18.206.89.183:8011/health  # Docker Compose
-curl http://18.206.89.183:8012/health  # Kubernetes
+curl http://18.206.89.183:30012/health  # Kubernetes
 ```
 
 ---
@@ -168,7 +168,7 @@ curl http://18.206.89.183:8012/health  # Kubernetes
 
 **🌐 Access your application at:**
 - **Development**: http://18.206.89.183:8011
-- **Production**: http://18.206.89.183:8012
+- **Production**: http://18.206.89.183:30012
 - **GitOps**: http://18.206.89.183:30080
 
 ---

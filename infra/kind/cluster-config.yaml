@@ -4,8 +4,8 @@ name: simple-cluster
 nodes:
 - role: control-plane
   extraPortMappings:
-  - containerPort: 8012
-    hostPort: 8012
+  - containerPort: 30012
+    hostPort: 30012
     protocol: TCP
 - role: worker
 - role: worker
