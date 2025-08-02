@@ -20,7 +20,7 @@ A production-ready, cloud-native student tracking application demonstrating mode
 # Clone and deploy in one command
 git clone <your-repository-url>
 cd student-tracker
-sudo ./deploy-simple.sh
+sudo ./deploy.sh
 ```
 
 **🎉 Your application will be live at: http://18.206.89.183:8011**
@@ -198,11 +198,11 @@ sequenceDiagram
 
 ## 🚀 **Deployment Options**
 
-### 🎯 **Option 1: One-Command Deployment (Recommended)**
+### 🎯 **Option 1: Complete Deployment (Recommended)**
 
 ```bash
-# Complete automated deployment
-sudo ./deploy-simple.sh
+# Complete automated deployment with all tools
+sudo ./deploy.sh
 ```
 
 **✅ What this does:**
@@ -217,15 +217,27 @@ sudo ./deploy-simple.sh
 
 ```bash
 # Quick Docker Compose deployment
-docker compose up -d --build
+sudo ./docker-compose.sh
 ```
 
-### ☸️ **Option 3: Kubernetes with ArgoCD**
+**✅ What this does:**
+- Quick Docker Compose deployment
+- Health verification
+- Service status display
+- Perfect for development and simple production
+
+### 🧹 **Option 3: Cleanup**
 
 ```bash
-# Full GitOps deployment
-./deploy-container.sh
+# Complete cleanup of all resources
+sudo ./cleanup.sh
 ```
+
+**✅ What this does:**
+- Stops and removes all Docker containers
+- Cleans up Docker images and volumes
+- Removes Kubernetes cluster
+- Cleans temporary files and logs
 
 ---
 
@@ -314,13 +326,12 @@ Student-Tracker/
 ├── 🔄 argocd/                       # GitOps Configuration
 │   └── app.yaml                     # ArgoCD application definition
 │
-├── 🚀 deploy-*.sh                   # Deployment Scripts
-│   ├── deploy-simple.sh             # One-command deployment
-│   ├── deploy-container.sh          # Container-friendly deployment
+├── 🚀 Scripts                       # Deployment Scripts
+│   ├── deploy.sh                    # Complete deployment script
+│   ├── docker-compose.sh            # Docker Compose deployment
 │   └── cleanup.sh                   # Cleanup script
 │
 ├── 📖 docs/                         # Documentation
-│   ├── SIMPLE_DEPLOYMENT.md         # Deployment guide
 │   └── DEPLOYMENT_SUCCESS.md        # Success summary
 │
 ├── 🎨 templates/                    # Web UI Templates
@@ -666,7 +677,6 @@ graph TD
 
 ### 📚 **Documentation**
 
-- **Deployment Guide**: `SIMPLE_DEPLOYMENT.md`
 - **Success Summary**: `DEPLOYMENT_SUCCESS.md`
 - **Application Docs**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
 
@@ -706,7 +716,7 @@ This project is licensed under the MIT License - see the [License.md](License.md
 
 **🚀 One Command Deployment:**
 ```bash
-sudo ./deploy-simple.sh
+sudo ./deploy.sh
 ```
 
 **🌐 Live Demo**: [http://18.206.89.183:8011](http://18.206.89.183:8011)
