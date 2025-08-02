@@ -365,6 +365,13 @@ install_argocd() {
 deploy_application() {
     print_step "Deploying application..."
     
+    # Validate Helm chart before deployment
+    print_status "Validating Helm chart..."
+    if ! helm lint infra/helm/; then
+        print_error "Helm chart validation failed"
+        exit 1
+    fi
+    
     # Get ArgoCD admin password
     ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
     print_status "ArgoCD admin password: $ARGOCD_PASSWORD"
@@ -373,27 +380,54 @@ deploy_application() {
     kubectl apply -f argocd/app.yaml
     
     # Deploy application using Helm directly (as backup)
-    helm install nativeseries infra/helm/ --namespace default --create-namespace
+    print_status "Installing Helm chart..."
+    if ! helm install nativeseries infra/helm/ --namespace default --create-namespace; then
+        print_error "Helm installation failed"
+        print_status "Checking Helm status..."
+        helm list
+        print_status "Checking Kubernetes resources..."
+        kubectl get all
+        exit 1
+    fi
+    
+    print_status "Helm chart installed successfully"
+    print_status "Checking deployment status..."
+    kubectl get deployment nativeseries
     
     # Wait for deployment to be ready with comprehensive error handling
     print_status "Waiting for application to be ready (timeout: 10 minutes)..."
     timeout 600 bash -c '
     while true; do
+        # First check if deployment exists
+        if ! kubectl get deployment nativeseries >/dev/null 2>&1; then
+            echo "⏳ Waiting for deployment to be created..."
+            sleep 10
+            continue
+        fi
+        
+        # Check if deployment is available
         if kubectl get deployment nativeseries -o jsonpath="{.status.conditions[?(@.type==\"Available\")].status}" | grep -q "True"; then
             echo "✅ Deployment is available!"
             break
         fi
         
         echo "⏳ Waiting for deployment to be ready..."
-        kubectl get pods -l app=nativeseries
         
-        # Check for pod issues
-        POD_STATUS=$(kubectl get pods -l app=nativeseries -o jsonpath="{.items[0].status.phase}")
-        if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
-            echo "❌ Pod is in $POD_STATUS state"
-            kubectl describe pods -l app=nativeseries
-            kubectl logs -l app=nativeseries --tail=50
-            exit 1
+        # Check if pods exist before checking their status
+        POD_COUNT=$(kubectl get pods -l app=nativeseries --no-headers 2>/dev/null | wc -l)
+        if [ "$POD_COUNT" -gt 0 ]; then
+            kubectl get pods -l app=nativeseries
+            
+            # Check for pod issues only if pods exist
+            POD_STATUS=$(kubectl get pods -l app=nativeseries -o jsonpath="{.items[0].status.phase}" 2>/dev/null)
+            if [ "$POD_STATUS" = "Failed" ] || [ "$POD_STATUS" = "Error" ]; then
+                echo "❌ Pod is in $POD_STATUS state"
+                kubectl describe pods -l app=nativeseries
+                kubectl logs -l app=nativeseries --tail=50
+                exit 1
+            fi
+        else
+            echo "⏳ Waiting for pods to be created..."
         fi
         
         sleep 10

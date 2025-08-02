@@ -113,19 +113,25 @@ Error: INSTALLATION FAILED: cannot load values.yaml: error converting YAML to JS
 ## 🚀 **Current Script Status**
 
 ### **Core Scripts:**
-1. **`deploy.sh`** ✅ **READY** (16KB, 536 lines)
+1. **`deploy-simple.sh`** ✅ **NEW - RECOMMENDED** (8KB, 300+ lines)
+   - Simplified deployment for development and testing
+   - Docker Compose only with health monitoring
+   - Perfect for quick setup and demos
+   - Author: Bonaventure Simeon
+
+2. **`deploy.sh`** ✅ **READY** (16KB, 536 lines)
    - Complete deployment with all fixes
    - Automatic tool installation
    - Docker Compose + Kubernetes + ArgoCD
    - Health verification
 
-2. **`health-check.sh`** ✅ **READY** (17KB, 543 lines)
+3. **`health-check.sh`** ✅ **READY** (17KB, 543 lines)
    - Comprehensive health monitoring
    - 8 health check categories
    - Real-time reporting
    - Troubleshooting integration
 
-3. **`cleanup.sh`** ✅ **READY** (5.1KB, 188 lines)
+4. **`cleanup.sh`** ✅ **READY** (5.1KB, 188 lines)
    - Complete resource cleanup
    - Docker and Kubernetes cleanup
    - Temporary file removal
@@ -155,6 +161,12 @@ Error: INSTALLATION FAILED: cannot load values.yaml: error converting YAML to JS
 ---
 
 ## 🎯 **Deployment Commands**
+
+### **Simplified Deployment (Recommended):**
+```bash
+# Quick deployment with Docker Compose only
+sudo ./deploy-simple.sh
+```
 
 ### **Complete Deployment:**
 ```bash
