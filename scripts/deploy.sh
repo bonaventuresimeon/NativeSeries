@@ -2,6 +2,21 @@
 
 set -e
 
+# Get the directory where this script is located and change to project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Change to project root directory to ensure relative paths work
+cd "$PROJECT_ROOT"
+
+# Verify we're in the right directory by checking for key files
+if [ ! -f "app/main.py" ] || [ ! -f "helm-chart/Chart.yaml" ] || [ ! -f "argocd/application.yaml" ]; then
+    echo "ERROR: This script must be run from the project root directory or the script must be in the scripts/ subdirectory"
+    echo "Current directory: $(pwd)"
+    echo "Looking for: app/main.py, helm-chart/Chart.yaml, argocd/application.yaml"
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -47,6 +62,7 @@ command_exists() {
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
+    print_info "Working directory: $(pwd)"
     
     # Check kubectl
     if ! command_exists kubectl; then
@@ -135,6 +151,12 @@ check_cluster() {
 validate_helm_chart() {
     print_status "Validating Helm chart..."
     
+    # Verify helm chart directory exists
+    if [ ! -d "$HELM_CHART_PATH" ]; then
+        print_error "Helm chart directory not found: $HELM_CHART_PATH"
+        return 1
+    fi
+    
     # Add Bitnami repository with error handling
     if ! helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null; then
         print_info "Bitnami repository already exists, skipping..."
@@ -192,6 +214,12 @@ validate_argocd_app() {
 # Function to build Docker image (if Docker is available)
 build_docker_image() {
     print_status "Checking Docker availability..."
+    
+    # Verify Dockerfile exists
+    if [ ! -f "Dockerfile" ]; then
+        print_error "Dockerfile not found in project root"
+        return 1
+    fi
     
     if command_exists docker && docker info >/dev/null 2>&1; then
         print_status "Building Docker image..."
@@ -479,6 +507,8 @@ run_comprehensive_validation() {
     for file in "${required_files[@]}"; do
         if [ ! -f "$file" ]; then
             print_error "Required file not found: $file"
+            print_info "Current directory: $(pwd)"
+            print_info "Available files in app/: $(ls -la app/ 2>/dev/null || echo 'app/ directory not found')"
             return 1
         fi
     done
@@ -506,7 +536,7 @@ run_comprehensive_validation() {
     
     # Validate Helm chart
     print_status "Validating Helm chart..."
-    if (cd helm-chart && helm lint . && cd ..); then
+    if validate_helm_chart; then
         print_status "✅ Helm chart validation passed"
     else
         print_error "❌ Helm chart validation failed"
