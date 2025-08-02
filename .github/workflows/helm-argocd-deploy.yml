@@ -154,7 +154,7 @@ jobs:
           echo "3. Monitor deployment: argocd app get student-tracker"
           echo ""
           echo "🌐 Your application will be available at:"
-          echo "   - Student Tracker: http://18.206.89.183:8011"
+                      echo "   - Student Tracker: http://18.206.89.183:30011"
           echo "   - ArgoCD UI: http://18.206.89.183:30080"
 
   security-scan:

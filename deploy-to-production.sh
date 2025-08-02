@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 # Configuration
 APP_NAME="student-tracker"
 PRODUCTION_HOST="18.206.89.183"
-PRODUCTION_PORT="8011"
+PRODUCTION_PORT="30011"
 PRODUCTION_URL="http://${PRODUCTION_HOST}:${PRODUCTION_PORT}"
 
 # Function to print colored output
