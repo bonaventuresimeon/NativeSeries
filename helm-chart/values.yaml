@@ -27,9 +27,9 @@ app:
       value: "redis://redis:6379/0"
     - name: ENVIRONMENT
       value: "production"
-  envFrom:
-    - secretRef:
-        name: app-secrets
+  # envFrom:
+  #   - secretRef:
+  #       name: app-secrets
 
 # Service configuration
 service:

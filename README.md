@@ -30,7 +30,8 @@ chmod +x scripts/deploy.sh
 
 **🎉 Your Student Tracker application will be live at:**
 - **🌐 Application**: http://18.206.89.183:8011 (Production)
-- **🔄 ArgoCD**: http://localhost:8080 (GitOps Management)
+- **🔄 ArgoCD UI**: http://18.206.89.183:30080 (GitOps Management)
+- **🔒 ArgoCD HTTPS**: https://18.206.89.183:30443 (Secure Access)
 
 ---
 
@@ -325,9 +326,13 @@ The application exposes metrics at `/metrics` endpoint. Prometheus automatically
 
 ### **2. ArgoCD Monitoring**
 
-Access ArgoCD UI at `http://localhost:8080`:
+Access ArgoCD UI at `http://18.206.89.183:30080`:
 - Username: `admin`
 - Password: Get from secret `argocd-initial-admin-secret`
+
+**Alternative Access:**
+- HTTPS: `https://18.206.89.183:30443`
+- Local port-forward: `kubectl port-forward svc/argocd-server -n argocd 8080:443`
 
 ### **3. Kubernetes Monitoring**
 
@@ -541,6 +546,8 @@ kubectl scale deployment student-tracker --replicas=5 -n student-tracker
 - **🔍 ReDoc Documentation**: http://18.206.89.183:8011/redoc
 - **🏥 Health Check**: http://18.206.89.183:8011/health
 - **📊 Metrics**: http://18.206.89.183:8011/metrics
+- **🔄 ArgoCD UI**: http://18.206.89.183:30080
+- **🔒 ArgoCD HTTPS**: https://18.206.89.183:30443
 
 ### **Key Features**
 

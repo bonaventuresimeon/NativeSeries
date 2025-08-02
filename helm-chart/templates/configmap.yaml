@@ -8,10 +8,10 @@ data:
   app.conf: |
     [app]
     name = {{ .Values.app.name }}
-    environment = {{ .Values.app.env | first | default "production" }}
+    environment = production
     
     [database]
-    url = postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/myapp
+    url = postgresql://postgres:$(POSTGRES_PASSWORD)@postgresql:5432/studenttracker
     
     [redis]
     url = redis://redis:6379/0

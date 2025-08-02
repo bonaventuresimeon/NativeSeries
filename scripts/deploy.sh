@@ -142,7 +142,36 @@ install_argocd() {
     print_status "Waiting for ArgoCD to be ready..."
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n $ARGOCD_NAMESPACE
     
-    print_status "ArgoCD installed successfully."
+    # Create external service for ArgoCD
+    print_status "Creating ArgoCD external service..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-external
+  namespace: $ARGOCD_NAMESPACE
+  labels:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: 30080
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 8080
+      nodePort: 30443
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+EOF
+    
+    print_status "ArgoCD installed successfully with external access."
 }
 
 # Function to get ArgoCD admin password
@@ -199,7 +228,15 @@ show_status() {
         
         echo ""
         echo "Application URLs:"
-        kubectl get ingress -n $NAMESPACE -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo "No ingress found"
+        echo "  - Student Tracker App: http://18.206.89.183:8011"
+        echo "  - API Documentation: http://18.206.89.183:8011/docs"
+        echo "  - Health Check: http://18.206.89.183:8011/health"
+        echo ""
+        echo "ArgoCD Access:"
+        echo "  - ArgoCD UI: http://18.206.89.183:30080"
+        echo "  - ArgoCD HTTPS: https://18.206.89.183:30443"
+        echo "  - Username: admin"
+        echo "  - Password: (see above)"
     else
         echo "No Kubernetes cluster available for status check."
     fi
@@ -212,8 +249,11 @@ show_next_steps() {
     echo "1. Set up a Kubernetes cluster (minikube, kind, or cloud provider)"
     echo "2. Build and push your Docker image to a registry"
     echo "3. Update the image repository in helm-chart/values.yaml"
-    echo "4. Update the domain in helm-chart/values.yaml"
-    echo "5. Run the deployment script again with a connected cluster"
+    echo "4. Run the deployment script again with a connected cluster"
+    echo ""
+    echo "Once deployed, you can access:"
+    echo "  - Student Tracker App: http://18.206.89.183:8011"
+    echo "  - ArgoCD UI: http://18.206.89.183:30080"
     echo ""
     echo "For detailed instructions, see HELM_ARGOCD_DEPLOYMENT.md"
 }
