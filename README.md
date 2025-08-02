@@ -10,7 +10,7 @@
 
 **A comprehensive student management application with GitOps automation**
 
-[![Production Status](https://img.shields.io/badge/Production-Ready-green?style=for-the-badge)](http://18.206.89.183:8011)
+[![Production Status](https://img.shields.io/badge/Production-Ready-green?style=for-the-badge)](http://18.206.89.183:30011)
 [![ArgoCD Status](https://img.shields.io/badge/ArgoCD-Active-blue?style=for-the-badge)](http://18.206.89.183:30080)
 
 </div>
@@ -51,8 +51,8 @@ Student Tracker is a modern, cloud-native student management platform built with
 
 | Service | URL | Description |
 |---------|-----|-------------|
-| **Student Tracker App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | Main application |
-| **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | Interactive API docs |
+| **Student Tracker App** | [http://18.206.89.183:30011](http://18.206.89.183:30011) | Main application |
+| **API Documentation** | [http://18.206.89.183:30011/docs](http://18.206.89.183:30011/docs) | Interactive API docs |
 | **ArgoCD UI (HTTP)** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | GitOps management |
 | **ArgoCD UI (HTTPS)** | [https://18.206.89.183:30443](https://18.206.89.183:30443) | Secure GitOps access |
 
@@ -71,7 +71,7 @@ graph TB
     
     subgraph "Kubernetes Cluster"
         subgraph "Ingress Layer"
-            B --> D[NodePort Service :8011]
+            B --> D[NodePort Service :30011]
         end
         
         subgraph "Application Layer"
@@ -358,13 +358,13 @@ The application provides comprehensive health monitoring:
 
 ```bash
 # Application health
-curl http://18.206.89.183:8011/health
+curl http://18.206.89.183:30011/health
 
 # Metrics endpoint
-curl http://18.206.89.183:8011/metrics
+curl http://18.206.89.183:30011/metrics
 
 # Readiness check
-curl http://18.206.89.183:8011/ready
+curl http://18.206.89.183:30011/ready
 ```
 
 ### Prometheus Metrics
@@ -422,7 +422,7 @@ securityContext:
 
 ### Interactive API Documentation
 
-Access the complete API documentation at: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+Access the complete API documentation at: [http://18.206.89.183:30011/docs](http://18.206.89.183:30011/docs)
 
 ### Key Endpoints
 
@@ -442,15 +442,15 @@ Access the complete API documentation at: [http://18.206.89.183:8011/docs](http:
 
 ```bash
 # Get all students
-curl http://18.206.89.183:8011/students
+curl http://18.206.89.183:30011/students
 
 # Create a student
-curl -X POST http://18.206.89.183:8011/students \
+curl -X POST http://18.206.89.183:30011/students \
   -H "Content-Type: application/json" \
   -d '{"name": "John Doe", "email": "john@example.com"}'
 
 # Get health status
-curl http://18.206.89.183:8011/health
+curl http://18.206.89.183:30011/health
 ```
 
 ---
@@ -553,7 +553,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Getting Help
 
-- **📖 Documentation**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+- **📖 Documentation**: [http://18.206.89.183:30011/docs](http://18.206.89.183:30011/docs)
 - **🐛 Issues**: [GitHub Issues](https://github.com/bonaventuresimeon/NativeSeries/issues)
 - **💬 Discussions**: [GitHub Discussions](https://github.com/bonaventuresimeon/NativeSeries/discussions)
 - **📧 Email**: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)

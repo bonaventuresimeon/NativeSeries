@@ -28,9 +28,9 @@
 
 <!-- If this affects deployed services, list the access URLs -->
 
-- 🌐 **Application**: http://18.206.89.183:8011
-- 📖 **API Docs**: http://18.206.89.183:8011/docs
-- 🩺 **Health Check**: http://18.206.89.183:8011/health
+- 🌐 **Application**: http://18.206.89.183:30011
+- 📖 **API Docs**: http://18.206.89.183:30011/docs
+- 🩺 **Health Check**: http://18.206.89.183:30011/health
 - 🎯 **ArgoCD**: http://30.80.98.218:30080
 
 ## 🚀 **How to Test**
@@ -43,7 +43,7 @@
 pytest app/ -v
 
 # Health check
-curl http://localhost:8011/health
+curl http://localhost:30011/health
 ```
 
 ## 📋 **Files Changed**
