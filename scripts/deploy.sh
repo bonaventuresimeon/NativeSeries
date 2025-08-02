@@ -9,8 +9,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-APP_NAME="my-app"
-NAMESPACE="my-app"
+APP_NAME="student-tracker"
+NAMESPACE="student-tracker"
 ARGOCD_NAMESPACE="argocd"
 HELM_CHART_PATH="./helm-chart"
 ARGOCD_APP_PATH="./argocd"
@@ -115,7 +115,7 @@ build_docker_image() {
         
         # Get the current git commit SHA
         IMAGE_TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
-        IMAGE_NAME="your-registry/$APP_NAME:$IMAGE_TAG"
+        IMAGE_NAME="$APP_NAME:$IMAGE_TAG"
         
         # Build Docker image
         docker build -t $IMAGE_NAME .

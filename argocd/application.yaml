@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: my-app
+  name: student-tracker
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-username/my-app.git
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries.git
     targetRevision: HEAD
     path: helm-chart
     helm:
@@ -18,10 +18,10 @@ spec:
         - name: app.image.tag
           value: latest
         - name: app.image.repository
-          value: your-registry/my-app
+          value: student-tracker
   destination:
     server: https://kubernetes.default.svc
-    namespace: my-app
+    namespace: student-tracker
   syncPolicy:
     automated:
       prune: true

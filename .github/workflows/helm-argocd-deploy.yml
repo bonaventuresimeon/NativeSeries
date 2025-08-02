@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: student-tracker
 
 jobs:
   test:
@@ -63,7 +63,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -109,13 +109,13 @@ jobs:
           cd helm-chart
           helm lint .
 
-      - name: Deploy to ArgoCD
-        run: |
-          # Update ArgoCD application with new image tag
-          kubectl patch application my-app -n argocd --type='merge' -p='{"spec":{"source":{"helm":{"parameters":[{"name":"app.image.tag","value":"${{ github.sha }}"}]}}}}'
-          
-          # Sync ArgoCD application
-          kubectl patch application my-app -n argocd --type='merge' -p='{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+             - name: Deploy to ArgoCD
+         run: |
+           # Update ArgoCD application with new image tag
+           kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"source":{"helm":{"parameters":[{"name":"app.image.tag","value":"${{ github.sha }}"}]}}}}'
+           
+           # Sync ArgoCD application
+           kubectl patch application student-tracker -n argocd --type='merge' -p='{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
 
   security-scan:
     runs-on: ubuntu-latest
