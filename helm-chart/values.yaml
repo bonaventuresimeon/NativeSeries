@@ -68,7 +68,7 @@ securityContext:
   runAsUser: 1000
   fsGroup: 1000
 
-# Service monitor for Prometheus
+# Service monitor for Prometheus (requires Prometheus Operator)
 serviceMonitor:
-  enabled: true
+  enabled: false
   interval: 30s

@@ -6,6 +6,7 @@ set -e
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
@@ -26,6 +27,10 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
 # Function to check if command exists
@@ -174,6 +179,19 @@ EOF
     print_status "ArgoCD installed successfully with external access."
 }
 
+# Function to install Prometheus Operator CRDs
+install_prometheus_crds() {
+    print_status "Installing Prometheus Operator CRDs..."
+    
+    # Install ServiceMonitor CRD
+    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+    
+    # Wait for CRD to be ready
+    kubectl wait --for condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com
+    
+    print_status "Prometheus Operator CRDs installed successfully."
+}
+
 # Function to get ArgoCD admin password
 get_argocd_password() {
     print_status "Getting ArgoCD admin password..."
@@ -189,10 +207,22 @@ deploy_helm_chart() {
     # Create namespace
     kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
     
+    # Check if ServiceMonitor CRD exists
+    if kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
+        print_status "ServiceMonitor CRD found. Enabling monitoring..."
+        SERVICE_MONITOR_ENABLED="true"
+    else
+        print_warning "ServiceMonitor CRD not found. Disabling monitoring to avoid errors."
+        print_info "To enable monitoring, install Prometheus Operator first:"
+        print_info "  kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml"
+        SERVICE_MONITOR_ENABLED="false"
+    fi
+    
     # Install/upgrade Helm chart
     helm upgrade --install $APP_NAME $HELM_CHART_PATH \
         --namespace $NAMESPACE \
         --create-namespace \
+        --set serviceMonitor.enabled=$SERVICE_MONITOR_ENABLED \
         --wait \
         --timeout 10m
     
@@ -272,7 +302,8 @@ main() {
         echo "2. Deploy application only (ArgoCD already installed)"
         echo "3. Build and push Docker image only"
         echo "4. Validate configuration only"
-        read -p "Enter your choice (1-4): " choice
+        echo "5. Install Prometheus CRDs and deploy with monitoring"
+        read -p "Enter your choice (1-5): " choice
         
         case $choice in
             1)
@@ -295,6 +326,13 @@ main() {
             4)
                 validate_helm_chart
                 validate_argocd_app
+                ;;
+            5)
+                install_prometheus_crds
+                build_docker_image
+                deploy_helm_chart
+                deploy_argocd_app
+                show_status
                 ;;
             *)
                 print_error "Invalid choice. Exiting."
