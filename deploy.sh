@@ -1,5 +1,21 @@
 #!/bin/bash
 
+# =============================================================================
+# 🚀 STUDENT TRACKER - COMPREHENSIVE DEPLOYMENT SCRIPT
+# =============================================================================
+# This script provides a complete deployment solution for the Student Tracker
+# application. It works on both EC2 and Ubuntu environments.
+#
+# Features:
+# - Automatic tool installation (Docker, kubectl, Kind, Helm)
+# - Docker Compose deployment
+# - Optional Kubernetes with ArgoCD
+# - Health verification
+# - Cross-platform compatibility
+#
+# Usage: sudo ./deploy.sh
+# =============================================================================
+
 set -e
 
 echo "🚀 Starting comprehensive deployment to 18.206.89.183:8011"
@@ -212,14 +228,14 @@ setup_docker_compose() {
     print_step "Setting up Docker Compose environment..."
     
     # Stop any running containers
-    if command_exists docker-compose; then
+    if command_exists docker; then
         print_status "Stopping existing Docker Compose services..."
-        docker-compose down -v 2>/dev/null || true
+        docker compose down -v 2>/dev/null || true
     fi
     
     # Build and start services
     print_status "Building and starting Docker Compose services..."
-    docker-compose up -d --build
+    docker compose up -d --build
     
     # Wait for services to be healthy
     print_status "Waiting for services to be healthy..."
@@ -227,7 +243,7 @@ setup_docker_compose() {
     
     # Check service status
     print_status "Checking service status..."
-    docker-compose ps
+    docker compose ps
     
     print_status "Docker Compose setup completed"
 }
@@ -333,8 +349,8 @@ display_final_info() {
     echo "   kubectl get pods"
     echo "   kubectl get svc"
     echo "   kubectl logs -f deployment/simple-app"
-    echo "   docker-compose ps"
-    echo "   docker-compose logs -f"
+    echo "   docker compose ps"
+    echo "   docker compose logs -f"
     echo ""
 }
 
