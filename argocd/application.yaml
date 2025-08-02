@@ -1,29 +1,27 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: nativeseries
+  name: my-app
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-    argocd.argoproj.io/sync-options: Prune=true
-    argocd.argoproj.io/sync-options: SelfHeal=true
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/bonaventuresimeon/NativeSeries
+    repoURL: https://github.com/your-username/my-app.git
     targetRevision: HEAD
-    path: infra/helm
+    path: helm-chart
     helm:
       valueFiles:
         - values.yaml
       parameters:
-        - name: image.repository
-          value: ghcr.io/bonaventuresimeon/nativeseries
-        - name: image.tag
+        - name: app.image.tag
           value: latest
+        - name: app.image.repository
+          value: your-registry/my-app
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: my-app
   syncPolicy:
     automated:
       prune: true

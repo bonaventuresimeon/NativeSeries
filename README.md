@@ -1,4 +1,4 @@
-# 🚀 NativeSeries - Complete Application Platform
+# 🚀 My Application - Helm & ArgoCD Deployment
 
 ## 👨‍💻 **Author**
 
@@ -10,88 +10,80 @@
 
 ## 🎯 **Overview**
 
-NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management with integrated troubleshooting and cluster management capabilities.
+This is a modern application deployment platform using Helm charts and ArgoCD for GitOps automation. The platform provides complete deployment automation, health monitoring, and infrastructure management with integrated CI/CD pipelines and cluster management capabilities.
 
 ---
 
 ## 🌟 **Quick Start - One Command Deployment**
 
-### **🚀 Unified Deployment (Recommended)**
+### **🚀 Helm & ArgoCD Deployment (Recommended)**
 ```bash
-# Clone and deploy with unified script (includes all fixes and troubleshooting)
+# Clone and deploy with Helm and ArgoCD
 git clone <your-repository-url>
-cd NativeSeries
-sudo ./deploy-unified.sh
+cd my-app
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
 ```
 
-**🎉 Your NativeSeries application will be live at:**
-- **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
-- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
+**🎉 Your application will be live at:**
+- **☸️ Application**: http://your-domain.com (Production)
+- **🔄 ArgoCD**: http://localhost:8080 (GitOps Management)
+
+For detailed setup instructions, see [QUICK_START.md](QUICK_START.md).
 
 ---
 
-## 🛠️ **Unified Deployment Script Options**
+## 🛠️ **Deployment Options**
 
-The `deploy-unified.sh` script provides comprehensive deployment and management capabilities:
+The deployment script provides comprehensive deployment and management capabilities:
 
 ```bash
-# Full deployment with Kubernetes + ArgoCD (default)
-sudo ./deploy-unified.sh
+# Full deployment with ArgoCD and application (default)
+./scripts/deploy.sh
 
-# Troubleshoot existing deployment issues
-sudo ./deploy-unified.sh --troubleshoot
-
-# Update cluster configuration with worker nodes
-sudo ./deploy-unified.sh --update-cluster
-
-# Run comprehensive health check
-sudo ./deploy-unified.sh --health-check
-
-# Clean up all resources
-sudo ./deploy-unified.sh --cleanup
-
-# Show help
-sudo ./deploy-unified.sh --help
+# Choose from the following options:
+# 1. Install ArgoCD and deploy application
+# 2. Deploy application only (ArgoCD already installed)
+# 3. Build and push Docker image only
 ```
 
-### **🔧 What the Unified Script Does:**
+### **🔧 What the Deployment Script Does:**
 
-#### **Full Deployment (`--deploy`)**
-- ✅ Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
-- ✅ Creates Kubernetes cluster with worker nodes
-- ✅ Deploys NativeSeries application
-- ✅ Installs ArgoCD for GitOps
-- ✅ Sets up port forwarding
+#### **Option 1: Full Deployment**
+- ✅ Installs ArgoCD server
+- ✅ Builds and pushes Docker image
+- ✅ Deploys Helm chart with dependencies
+- ✅ Sets up ArgoCD application for GitOps
 - ✅ Verifies deployment health
-- ✅ Includes all fixes and optimizations
 
-#### **Troubleshooting (`--troubleshoot`)**
-- 🔍 Checks cluster connectivity
-- 🔍 Verifies existing deployments
-- 🔍 Identifies deployment issues
-- 🔍 Offers redeployment options
-- 🔍 Provides detailed diagnostics
+#### **Option 2: Application Only**
+- ✅ Builds and pushes Docker image
+- ✅ Deploys Helm chart with dependencies
+- ✅ Sets up ArgoCD application for GitOps
+- ✅ Verifies deployment health
 
-#### **Cluster Update (`--update-cluster`)**
-- 🔄 Creates new cluster configuration with worker nodes
-- 🔄 Recreates cluster with better resource distribution
-- 🔄 Redeploys application to new cluster
-- 🔄 Installs ArgoCD on new cluster
-
-#### **Health Check (`--health-check`)**
-- 🏥 Comprehensive system health verification
-- 🏥 Cluster status monitoring
-- 🏥 Application endpoint testing
-- 🏥 Resource usage analysis
-- 🏥 Detailed health report
-
-#### **Cleanup (`--cleanup`)**
-- 🧹 Removes all Kubernetes resources
-- 🧹 Deletes ArgoCD and applications
-- 🧹 Cleans up Docker resources
-- 🧹 Removes Kind cluster
+#### **Option 3: Image Only**
+- ✅ Builds and pushes Docker image
+- ✅ Updates image tags in configuration
 
 ---
+
+## 📁 **Project Structure**
+
+```
+my-app/
+├── app/                    # Application source code
+├── helm-chart/            # Helm chart for Kubernetes deployment
+│   ├── templates/         # Kubernetes manifests
+│   ├── Chart.yaml         # Chart metadata
+│   └── values.yaml        # Configuration values
+├── argocd/               # ArgoCD application manifests
+├── scripts/              # Deployment and utility scripts
+├── .github/workflows/    # CI/CD pipelines
+├── Dockerfile            # Container image definition
+├── requirements.txt      # Python dependencies
+└── README.md            # Project documentation
+```
 
 ## 🚀 **Deployment Flow Diagram**
 
@@ -1097,11 +1089,25 @@ You'll know the fix was successful when:
 
 ---
 
-## 📚 **Additional Documentation**
+## 📚 **Documentation**
 
+### **📖 Deployment Guides**
+- **[QUICK_START.md](QUICK_START.md)** - Get started in 10 minutes
+- **[HELM_ARGOCD_DEPLOYMENT.md](HELM_ARGOCD_DEPLOYMENT.md)** - Comprehensive deployment guide
+
+### **🔧 Configuration Files**
+- **`helm-chart/values.yaml`** - Application configuration
+- **`argocd/application.yaml`** - ArgoCD application definition
+- **`.github/workflows/helm-argocd-deploy.yml`** - CI/CD pipeline
+
+### **📋 Prerequisites**
+- Kubernetes cluster (v1.24+)
+- kubectl, helm, argocd CLI tools
+- Docker for building images
+- Container registry access
+
+### **📚 Additional Documentation**
 - **📖 Comprehensive Documentation**: [COMPREHENSIVE_DOCUMENTATION.md](COMPREHENSIVE_DOCUMENTATION.md)
-- **🏥 Health Check Guide**: [HEALTH_CHECK_GUIDE.md](HEALTH_CHECK_GUIDE.md)
-- **📋 Deployment Summary**: [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md)
 
 ---
 
