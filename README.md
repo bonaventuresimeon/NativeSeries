@@ -1,1134 +1,590 @@
-# 🚀 NativeSeries - Complete Application Platform
+# 🎓 Student Tracker - Complete Student Management Platform
 
-## 👨‍💻 **Author**
+<div align="center">
+
+![Student Tracker](https://img.shields.io/badge/Student-Tracker-blue?style=for-the-badge&logo=graduation-cap)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
+![ArgoCD](https://img.shields.io/badge/ArgoCD-326CE5?style=for-the-badge&logo=argocd&logoColor=white)
+![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)
+
+**A comprehensive student management application with GitOps automation**
+
+[![Production Status](https://img.shields.io/badge/Production-Ready-green?style=for-the-badge)](http://18.206.89.183:8011)
+[![ArgoCD Status](https://img.shields.io/badge/ArgoCD-Active-blue?style=for-the-badge)](http://18.206.89.183:30080)
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [🎯 Overview](#-overview)
+- [🏗️ Architecture](#️-architecture)
+- [🚀 Quick Start](#-quick-start)
+- [📦 Installation](#-installation)
+- [🔧 Deployment](#-deployment)
+- [📊 Monitoring](#-monitoring)
+- [🔒 Security](#-security)
+- [📚 API Documentation](#-api-documentation)
+- [🛠️ Development](#️-development)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+
+---
+
+## 🎯 Overview
+
+Student Tracker is a modern, cloud-native student management platform built with **FastAPI**, deployed on **Kubernetes** using **Helm**, and managed through **ArgoCD** for GitOps automation. The application provides comprehensive student tracking, progress monitoring, and administrative capabilities.
+
+### 🌟 Key Features
+
+- **📚 Student Management**: Complete CRUD operations for student records
+- **📈 Progress Tracking**: Weekly progress monitoring and analytics
+- **🔐 Secure Authentication**: Vault-integrated secret management
+- **📊 Real-time Monitoring**: Prometheus metrics and health checks
+- **🚀 Auto-scaling**: Horizontal Pod Autoscaler for performance
+- **🔄 GitOps**: Automated deployment with ArgoCD
+- **🔒 Security**: Non-root containers, read-only filesystems
+
+### 🌐 Production Access
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Student Tracker App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | Main application |
+| **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | Interactive API docs |
+| **ArgoCD UI (HTTP)** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | GitOps management |
+| **ArgoCD UI (HTTPS)** | [https://18.206.89.183:30443](https://18.206.89.183:30443) | Secure GitOps access |
+
+---
+
+## 🏗️ Architecture
+
+### System Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A[Web Browser] --> B[Load Balancer]
+        A --> C[Mobile App]
+    end
+    
+    subgraph "Kubernetes Cluster"
+        subgraph "Ingress Layer"
+            B --> D[NodePort Service :8011]
+        end
+        
+        subgraph "Application Layer"
+            D --> E[Student Tracker Pod]
+            E --> F[FastAPI Application]
+        end
+        
+        subgraph "Data Layer"
+            F --> G[MongoDB]
+            F --> H[Redis Cache]
+            F --> I[Vault Secrets]
+        end
+        
+        subgraph "Monitoring"
+            E --> J[Prometheus]
+            J --> K[Grafana]
+        end
+        
+        subgraph "GitOps"
+            L[GitHub Repository] --> M[ArgoCD]
+            M --> E
+        end
+    end
+    
+    subgraph "CI/CD Pipeline"
+        N[GitHub Actions] --> O[Docker Build]
+        O --> P[Image Registry]
+        P --> M
+    end
+```
+
+### Component Architecture
+
+```mermaid
+graph LR
+    subgraph "Frontend"
+        A[HTML Templates]
+        B[JavaScript]
+    end
+    
+    subgraph "Backend"
+        C[FastAPI App]
+        D[CRUD Operations]
+        E[Database Layer]
+    end
+    
+    subgraph "Infrastructure"
+        F[Kubernetes]
+        G[Helm Charts]
+        H[ArgoCD]
+    end
+    
+    subgraph "Data Stores"
+        I[MongoDB]
+        J[Redis]
+        K[Vault]
+    end
+    
+    A --> C
+    B --> C
+    C --> D
+    D --> E
+    E --> I
+    E --> J
+    E --> K
+    F --> G
+    G --> H
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Kubernetes Cluster** (minikube, kind, or cloud provider)
+- **kubectl** configured
+- **Helm** v3.12.0+
+- **Docker** (for local development)
+- **Git**
+
+### One-Command Deployment
+
+```bash
+# Clone the repository
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
+
+# Make deployment script executable
+chmod +x scripts/deploy.sh
+
+# Run deployment (interactive menu)
+./scripts/deploy.sh
+```
+
+**🎉 Your application will be live in minutes!**
+
+---
+
+## 📦 Installation
+
+### Step 1: Clone Repository
+
+```bash
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
+```
+
+### Step 2: Install Prerequisites
+
+#### Install kubectl
+```bash
+# Linux
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# macOS
+brew install kubectl
+
+# Windows
+choco install kubernetes-cli
+```
+
+#### Install Helm
+```bash
+# Linux/macOS
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Windows
+choco install kubernetes-helm
+```
+
+#### Install Docker
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install docker.io
+sudo systemctl start docker
+sudo usermod -aG docker $USER
+
+# macOS
+brew install --cask docker
+
+# Windows
+# Download from https://www.docker.com/products/docker-desktop
+```
+
+### Step 3: Set Up Kubernetes Cluster
+
+#### Option A: Minikube (Local Development)
+```bash
+# Install minikube
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+# Start cluster
+minikube start --driver=docker
+
+# Enable addons
+minikube addons enable ingress
+minikube addons enable metrics-server
+```
+
+#### Option B: Kind (Local Development)
+```bash
+# Install kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+# Create cluster
+kind create cluster --name student-tracker
+```
+
+#### Option C: Cloud Provider (Production)
+```bash
+# AWS EKS
+eksctl create cluster --name student-tracker --region us-west-2
+
+# Google GKE
+gcloud container clusters create student-tracker --zone us-central1-a
+
+# Azure AKS
+az aks create --resource-group myResourceGroup --name student-tracker --node-count 3
+```
+
+---
+
+## 🔧 Deployment
+
+### Automated Deployment (Recommended)
+
+The deployment script provides an interactive menu with multiple options:
+
+```bash
+./scripts/deploy.sh
+```
+
+#### Deployment Options:
+
+1. **🚀 Full Deployment** - Install ArgoCD and deploy application
+2. **📱 Application Only** - Deploy application (ArgoCD already installed)
+3. **🐳 Image Only** - Build and push Docker image
+4. **✅ Validate Only** - Validate configuration without deployment
+
+### Manual Deployment Steps
+
+#### Step 1: Install ArgoCD
+
+```bash
+# Add ArgoCD repository
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+# Install ArgoCD
+helm install argocd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  --set server.extraArgs="{--insecure}" \
+  --set server.ingress.enabled=true
+```
+
+#### Step 2: Build and Push Docker Image
+
+```bash
+# Build image
+docker build -t student-tracker:latest .
+
+# Tag for registry
+docker tag student-tracker:latest ghcr.io/bonaventuresimeon/student-tracker:latest
+
+# Push to registry
+docker push ghcr.io/bonaventuresimeon/student-tracker:latest
+```
+
+#### Step 3: Deploy Helm Chart
+
+```bash
+# Add Bitnami repository
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+# Install application
+helm install student-tracker ./helm-chart \
+  --namespace student-tracker \
+  --create-namespace \
+  --set app.image.repository=ghcr.io/bonaventuresimeon/student-tracker \
+  --set app.image.tag=latest
+```
+
+#### Step 4: Configure ArgoCD Application
+
+```bash
+# Apply ArgoCD application
+kubectl apply -f argocd/application.yaml
+
+# Verify deployment
+kubectl get applications -n argocd
+```
+
+### Verification Commands
+
+```bash
+# Check pods
+kubectl get pods -n student-tracker
+
+# Check services
+kubectl get svc -n student-tracker
+
+# Check ArgoCD
+kubectl get pods -n argocd
+
+# Get ArgoCD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
+
+---
+
+## 📊 Monitoring
+
+### Health Checks
+
+The application provides comprehensive health monitoring:
+
+```bash
+# Application health
+curl http://18.206.89.183:8011/health
+
+# Metrics endpoint
+curl http://18.206.89.183:8011/metrics
+
+# Readiness check
+curl http://18.206.89.183:8011/ready
+```
+
+### Prometheus Metrics
+
+The application exposes Prometheus-compatible metrics:
+
+- **Request Count**: Total HTTP requests
+- **Response Time**: Average response times
+- **Error Rate**: Error percentage
+- **Uptime**: Application uptime
+- **Memory Usage**: Container memory consumption
+- **CPU Usage**: Container CPU utilization
+
+### Logging
+
+```bash
+# View application logs
+kubectl logs -f deployment/student-tracker -n student-tracker
+
+# View ArgoCD logs
+kubectl logs -f deployment/argocd-server -n argocd
+```
+
+---
+
+## 🔒 Security
+
+### Security Features
+
+- **🔐 Non-root Containers**: All containers run as non-root user
+- **📁 Read-only Filesystems**: Immutable container filesystems
+- **🚫 Privilege Escalation**: Disabled privilege escalation
+- **🛡️ Security Contexts**: Kubernetes security contexts applied
+- **🔑 Vault Integration**: Secure secret management
+- **🌐 Network Policies**: Restricted network access
+
+### Security Best Practices
+
+```yaml
+# Security context example
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+```
+
+---
+
+## 📚 API Documentation
+
+### Interactive API Documentation
+
+Access the complete API documentation at: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+
+### Key Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Main application interface |
+| `/health` | GET | Health check endpoint |
+| `/metrics` | GET | Prometheus metrics |
+| `/docs` | GET | Interactive API documentation |
+| `/students` | GET | List all students |
+| `/students/{id}` | GET | Get student by ID |
+| `/students` | POST | Create new student |
+| `/students/{id}` | PUT | Update student |
+| `/students/{id}` | DELETE | Delete student |
+
+### Example API Usage
+
+```bash
+# Get all students
+curl http://18.206.89.183:8011/students
+
+# Create a student
+curl -X POST http://18.206.89.183:8011/students \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+
+# Get health status
+curl http://18.206.89.183:8011/health
+```
+
+---
+
+## 🛠️ Development
+
+### Local Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Linux/macOS
+# or
+venv\Scripts\activate  # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Project Structure
+
+```
+NativeSeries/
+├── 📁 app/                    # Application source code
+│   ├── 🐍 main.py            # FastAPI application entry point
+│   ├── 🗃️ models.py          # Database models
+│   ├── 🔌 database.py        # Database configuration
+│   ├── 🔄 crud.py           # CRUD operations
+│   └── 🛣️ routes/           # API routes
+├── 📁 helm-chart/            # Helm chart for Kubernetes deployment
+│   ├── 📁 templates/         # Kubernetes manifests
+│   ├── 📄 Chart.yaml         # Chart metadata
+│   └── ⚙️ values.yaml        # Configuration values
+├── 📁 argocd/               # ArgoCD application manifests
+├── 📁 scripts/              # Deployment and utility scripts
+├── 📁 templates/            # HTML templates
+├── 📁 .github/workflows/    # CI/CD pipelines
+├── 🐳 Dockerfile            # Container image definition
+├── 📋 requirements.txt      # Python dependencies
+└── 📖 README.md            # Project documentation
+```
+
+### Development Workflow
+
+```mermaid
+graph LR
+    A[Local Development] --> B[Git Commit]
+    B --> C[GitHub Push]
+    C --> D[GitHub Actions]
+    D --> E[Build Image]
+    E --> F[Push to Registry]
+    F --> G[ArgoCD Sync]
+    G --> H[Deploy to Kubernetes]
+```
+
+---
+
+## 🤝 Contributing
+
+### Contributing Guidelines
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Development Standards
+
+- **Code Style**: Follow PEP 8 for Python code
+- **Testing**: Write tests for new features
+- **Documentation**: Update documentation for changes
+- **Security**: Follow security best practices
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👨‍💻 Author
 
 **Bonaventure Simeon**  
 📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
-📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)
+📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)  
+🌐 GitHub: [@bonaventuresimeon](https://github.com/bonaventuresimeon)
 
 ---
 
-## 🎯 **Overview**
+## 🆘 Support
 
-NativeSeries is a comprehensive student management application built with FastAPI, featuring Docker Compose for development, Kubernetes for production, and ArgoCD for GitOps. This platform provides complete deployment automation, health monitoring, and infrastructure management with integrated troubleshooting and cluster management capabilities.
+### Getting Help
 
----
+- **📖 Documentation**: [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs)
+- **🐛 Issues**: [GitHub Issues](https://github.com/bonaventuresimeon/NativeSeries/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/bonaventuresimeon/NativeSeries/discussions)
+- **📧 Email**: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)
 
-## 🌟 **Quick Start - One Command Deployment**
+### Troubleshooting
 
-### **🚀 Unified Deployment (Recommended)**
-```bash
-# Clone and deploy with unified script (includes all fixes and troubleshooting)
-git clone <your-repository-url>
-cd NativeSeries
-sudo ./deploy-unified.sh
-```
+#### Common Issues
 
-**🎉 Your NativeSeries application will be live at:**
-- **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
-- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
+1. **ArgoCD not accessible**
+   ```bash
+   kubectl port-forward svc/argocd-server 8080:443 -n argocd
+   ```
 
----
+2. **Application not starting**
+   ```bash
+   kubectl logs deployment/student-tracker -n student-tracker
+   ```
 
-## 🛠️ **Unified Deployment Script Options**
-
-The `deploy-unified.sh` script provides comprehensive deployment and management capabilities:
-
-```bash
-# Full deployment with Kubernetes + ArgoCD (default)
-sudo ./deploy-unified.sh
-
-# Troubleshoot existing deployment issues
-sudo ./deploy-unified.sh --troubleshoot
-
-# Update cluster configuration with worker nodes
-sudo ./deploy-unified.sh --update-cluster
-
-# Run comprehensive health check
-sudo ./deploy-unified.sh --health-check
-
-# Clean up all resources
-sudo ./deploy-unified.sh --cleanup
-
-# Show help
-sudo ./deploy-unified.sh --help
-```
-
-### **🔧 What the Unified Script Does:**
-
-#### **Full Deployment (`--deploy`)**
-- ✅ Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
-- ✅ Creates Kubernetes cluster with worker nodes
-- ✅ Deploys NativeSeries application
-- ✅ Installs ArgoCD for GitOps
-- ✅ Sets up port forwarding
-- ✅ Verifies deployment health
-- ✅ Includes all fixes and optimizations
-
-#### **Troubleshooting (`--troubleshoot`)**
-- 🔍 Checks cluster connectivity
-- 🔍 Verifies existing deployments
-- 🔍 Identifies deployment issues
-- 🔍 Offers redeployment options
-- 🔍 Provides detailed diagnostics
-
-#### **Cluster Update (`--update-cluster`)**
-- 🔄 Creates new cluster configuration with worker nodes
-- 🔄 Recreates cluster with better resource distribution
-- 🔄 Redeploys application to new cluster
-- 🔄 Installs ArgoCD on new cluster
-
-#### **Health Check (`--health-check`)**
-- 🏥 Comprehensive system health verification
-- 🏥 Cluster status monitoring
-- 🏥 Application endpoint testing
-- 🏥 Resource usage analysis
-- 🏥 Detailed health report
-
-#### **Cleanup (`--cleanup`)**
-- 🧹 Removes all Kubernetes resources
-- 🧹 Deletes ArgoCD and applications
-- 🧹 Cleans up Docker resources
-- 🧹 Removes Kind cluster
+3. **Database connection issues**
+   ```bash
+   kubectl exec -it deployment/student-tracker -n student-tracker -- env | grep VAULT
+   ```
 
 ---
 
-## 🚀 **Deployment Flow Diagram**
+<div align="center">
 
-```mermaid
-flowchart TD
-    A[🚀 Start Deployment] --> B{Check Environment}
-    B -->|Containerized| C[⚠️ Show Alternatives]
-    B -->|VM/Bare Metal| D[✅ Proceed with Deployment]
-    
-    D --> E[📦 Install Tools]
-    E --> F[Docker]
-    E --> G[kubectl]
-    E --> H[Kind]
-    E --> I[Helm]
-    E --> J[ArgoCD CLI]
-    
-    F --> K[🧹 Cleanup Existing]
-    G --> K
-    H --> K
-    I --> K
-    J --> K
-    
-    K --> L[☸️ Create Cluster]
-    L --> M[Control Plane Node]
-    L --> N[Worker Node 1]
-    L --> O[Worker Node 2]
-    
-    M --> P[📦 Deploy Application]
-    N --> P
-    O --> P
-    
-    P --> Q[🔄 Install ArgoCD]
-    Q --> R[🔗 Setup Port Forwarding]
-    R --> S[✅ Verify Deployment]
-    S --> T[🎉 Deployment Complete]
-    
-    C --> U[📋 Alternative Options]
-    U --> V[1. VM/Bare Metal]
-    U --> W[2. Cloud Kubernetes]
-    U --> X[3. Local Kubernetes]
-    U --> Y[4. Manual Docker]
-    
-    style A fill:#e1f5fe
-    style T fill:#c8e6c9
-    style C fill:#fff3e0
-    style U fill:#f3e5f5
-```
+**Made with ❤️ by Bonaventure Simeon**
 
----
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/bonaventuresimeon)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/bonaventuresimeon)
+[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:contact@bonaventure.org.ng)
 
-## 🔧 **Troubleshooting Flow Diagram**
-
-```mermaid
-flowchart TD
-    A[🔧 Start Troubleshooting] --> B{Check kubectl}
-    B -->|Not Available| C[📦 Install kubectl]
-    B -->|Available| D[🔍 Check Cluster]
-    
-    C --> D
-    D -->|Cannot Connect| E[❌ Cluster Issue]
-    D -->|Connected| F[📊 Check Resources]
-    
-    E --> G[🔄 Recreate Cluster]
-    G --> H[✅ Cluster Ready]
-    
-    F --> I[📋 Check Namespaces]
-    I --> J{student-tracker exists?}
-    J -->|No| K[📦 Create Namespace]
-    J -->|Yes| L[🔍 Check Deployments]
-    
-    K --> L
-    L --> M{Deployment exists?}
-    M -->|No| N[📦 Redeploy Application]
-    M -->|Yes| O[🔍 Check Pods]
-    
-    N --> O
-    O --> P{Pods Running?}
-    P -->|No| Q[📋 Check Pod Logs]
-    P -->|Yes| R[🔍 Check Services]
-    
-    Q --> S[🔧 Fix Pod Issues]
-    S --> T[🔄 Restart Pods]
-    T --> R
-    
-    R --> U{Services OK?}
-    U -->|No| V[🔧 Fix Service Issues]
-    U -->|Yes| W[🔍 Check Endpoints]
-    
-    V --> W
-    W --> X{Endpoints OK?}
-    X -->|No| Y[🔧 Fix Endpoint Issues]
-    X -->|Yes| Z[✅ Troubleshooting Complete]
-    
-    Y --> Z
-    
-    style A fill:#e1f5fe
-    style Z fill:#c8e6c9
-    style E fill:#ffcdd2
-    style G fill:#fff3e0
-```
-
----
-
-## 🏗️ **System Architecture**
-
-### 🎯 **High-Level Architecture**
-
-```mermaid
-graph TB
-    subgraph "🌐 Internet"
-        User[👤 End Users]
-        Admin[👨‍💼 Administrators]
-    end
-    
-    subgraph "🖥️ Production Server (18.206.89.183)"
-        subgraph "🌐 Load Balancer Layer"
-            LB[🌐 Load Balancer<br/>Port 80/443]
-        end
-        
-        subgraph "🐳 Docker Compose Stack"
-            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
-            
-            subgraph "🎓 Application Layer"
-                App[🎓 Student Tracker<br/>FastAPI<br/>Port 8011]
-                API[📖 API Documentation<br/>Swagger UI<br/>Port 8011/docs]
-            end
-            
-            subgraph "🗄️ Data Layer"
-                DB[(🗄️ PostgreSQL<br/>Port 5432<br/>Primary Database)]
-                Cache[(📦 Redis<br/>Port 6379<br/>Session Cache)]
-            end
-            
-            subgraph "📊 Monitoring Stack"
-                Prom[📈 Prometheus<br/>Port 9090<br/>Metrics Collection]
-                Graf[📊 Grafana<br/>Port 3000<br/>Dashboards]
-                Admin[🛠️ Adminer<br/>Port 8080<br/>DB Admin]
-            end
-        end
-        
-        subgraph "☸️ Kubernetes Cluster"
-            subgraph "🎯 Control Plane"
-                CP[☸️ Control Plane<br/>Node 1]
-            end
-            
-            subgraph "⚡ Worker Nodes"
-                W1[⚡ Worker Node 1]
-                W2[⚡ Worker Node 2]
-            end
-            
-            subgraph "🔄 GitOps Layer"
-                Argo[🔄 ArgoCD<br/>Port 30080<br/>GitOps Controller]
-                App2[🎓 NativeSeries<br/>Port 30012<br/>K8s Deployment]
-            end
-        end
-    end
-    
-    User --> LB
-    Admin --> LB
-    LB --> Nginx
-    LB --> Argo
-    
-    Nginx --> App
-    App --> API
-    App --> DB
-    App --> Cache
-    App --> Prom
-    Prom --> Graf
-    Admin --> DB
-    
-    Argo --> App2
-    App2 --> W1
-    App2 --> W2
-    
-    style User fill:#e1f5fe
-    style Admin fill:#e1f5fe
-    style App fill:#c8e6c9
-    style App2 fill:#c8e6c9
-    style DB fill:#fff3e0
-    style Cache fill:#f3e5f5
-    style Nginx fill:#e8f5e8
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-    style Admin fill:#e0f2f1
-    style Argo fill:#e8eaf6
-    style CP fill:#f3e5f5
-    style W1 fill:#e0f2f1
-    style W2 fill:#e0f2f1
-```
-
-### 🐳 **Container Architecture**
-
-```mermaid
-graph LR
-    subgraph "🐳 Docker Compose Services"
-        subgraph "🎓 Application Services"
-            ST[🎓 student-tracker<br/>Port 8011<br/>FastAPI App]
-            API[📖 API Docs<br/>Swagger UI<br/>Auto-generated]
-        end
-        
-        subgraph "🗄️ Data Services"
-            PG[🗄️ postgres<br/>Port 5432<br/>Primary Database]
-            RD[📦 redis<br/>Port 6379<br/>Session Cache]
-        end
-        
-        subgraph "🌐 Network Services"
-            NG[🌐 nginx<br/>Port 80<br/>Reverse Proxy<br/>Load Balancer]
-        end
-        
-        subgraph "📊 Monitoring Services"
-            PM[📈 prometheus<br/>Port 9090<br/>Metrics Collection<br/>Time Series DB]
-            GF[📊 grafana<br/>Port 3000<br/>Dashboards<br/>Visualization]
-            AD[🛠️ adminer<br/>Port 8080<br/>Database Admin<br/>Web Interface]
-        end
-    end
-    
-    subgraph "☸️ Kubernetes Services"
-        subgraph "🔄 GitOps"
-            AR[🔄 ArgoCD<br/>Port 30080<br/>GitOps Controller<br/>CD Pipeline]
-        end
-        
-        subgraph "🎯 Application"
-            NS[🎓 NativeSeries<br/>Port 30012<br/>K8s Deployment<br/>Scalable App]
-        end
-    end
-    
-    NG --> ST
-    ST --> API
-    ST --> PG
-    ST --> RD
-    ST --> PM
-    PM --> GF
-    AD --> PG
-    
-    AR --> NS
-    
-    style ST fill:#c8e6c9
-    style API fill:#c8e6c9
-    style PG fill:#fff3e0
-    style RD fill:#f3e5f5
-    style NG fill:#e8f5e8
-    style PM fill:#ffe0b2
-    style GF fill:#fce4ec
-    style AD fill:#e0f2f1
-    style AR fill:#e8eaf6
-    style NS fill:#c8e6c9
-```
-
-### 🔄 **GitOps Workflow**
-
-```mermaid
-graph LR
-    subgraph "📝 Development"
-        Dev[👨‍💻 Developer]
-        Code[💻 Code Changes]
-        Git[📚 Git Repository]
-    end
-    
-    subgraph "🔄 CI/CD Pipeline"
-        CI[⚙️ CI Pipeline]
-        Build[🔨 Build Image]
-        Push[📤 Push to Registry]
-    end
-    
-    subgraph "☸️ Kubernetes Cluster"
-        Argo[🔄 ArgoCD]
-        App[🎓 NativeSeries App]
-        DB[(🗄️ Database)]
-        Cache[(📦 Cache)]
-    end
-    
-    subgraph "📊 Monitoring"
-        Prom[📈 Prometheus]
-        Graf[📊 Grafana]
-        Alert[🚨 Alerts]
-    end
-    
-    Dev --> Code
-    Code --> Git
-    Git --> CI
-    CI --> Build
-    Build --> Push
-    Push --> Argo
-    Argo --> App
-    App --> DB
-    App --> Cache
-    App --> Prom
-    Prom --> Graf
-    Graf --> Alert
-    
-    style Dev fill:#e1f5fe
-    style Argo fill:#e8eaf6
-    style App fill:#c8e6c9
-    style DB fill:#fff3e0
-    style Cache fill:#f3e5f5
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-```
-
-### 📊 **Data Flow Architecture**
-
-```mermaid
-graph TB
-    subgraph "🌐 External Requests"
-        User[👤 User Request]
-        API[📖 API Request]
-        Health[🩺 Health Check]
-    end
-    
-    subgraph "🌐 Load Balancer"
-        LB[🌐 Nginx Load Balancer]
-    end
-    
-    subgraph "🎓 Application Layer"
-        FastAPI[🎓 FastAPI Application]
-        Auth[🔐 Authentication]
-        Cache[📦 Redis Cache]
-    end
-    
-    subgraph "🗄️ Data Layer"
-        DB[(🗄️ PostgreSQL)]
-        Backup[(💾 Database Backup)]
-    end
-    
-    subgraph "📊 Monitoring Layer"
-        Metrics[📈 Application Metrics]
-        Logs[📝 Application Logs]
-        Prom[📊 Prometheus]
-        Graf[📈 Grafana]
-    end
-    
-    User --> LB
-    API --> LB
-    Health --> LB
-    
-    LB --> FastAPI
-    FastAPI --> Auth
-    FastAPI --> Cache
-    FastAPI --> DB
-    FastAPI --> Metrics
-    FastAPI --> Logs
-    
-    Cache --> DB
-    DB --> Backup
-    
-    Metrics --> Prom
-    Logs --> Prom
-    Prom --> Graf
-    
-    style User fill:#e1f5fe
-    style FastAPI fill:#c8e6c9
-    style DB fill:#fff3e0
-    style Cache fill:#f3e5f5
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-```
-
-### 🔍 **Monitoring & Observability**
-
-```mermaid
-graph TB
-    subgraph "🎓 Application"
-        App[🎓 NativeSeries App]
-        Health[🩺 Health Endpoint]
-        Metrics[📊 Metrics Endpoint]
-    end
-    
-    subgraph "📈 Metrics Collection"
-        Prom[📈 Prometheus Server]
-        Scrape[🔍 Scraping Jobs]
-        Storage[(💾 Time Series DB)]
-    end
-    
-    subgraph "📊 Visualization"
-        Graf[📊 Grafana]
-        Dash[📋 Dashboards]
-        Alert[🚨 Alerting]
-    end
-    
-    subgraph "🔧 Infrastructure"
-        K8s[☸️ Kubernetes]
-        Nodes[🖥️ Cluster Nodes]
-        Pods[📦 Application Pods]
-    end
-    
-    subgraph "📝 Logging"
-        Logs[📝 Application Logs]
-        K8sLogs[☸️ K8s Logs]
-        SysLogs[🖥️ System Logs]
-    end
-    
-    App --> Health
-    App --> Metrics
-    Metrics --> Prom
-    Prom --> Scrape
-    Scrape --> Storage
-    Storage --> Graf
-    Graf --> Dash
-    Graf --> Alert
-    
-    K8s --> Nodes
-    Nodes --> Pods
-    Pods --> App
-    
-    App --> Logs
-    K8s --> K8sLogs
-    Nodes --> SysLogs
-    
-    style App fill:#c8e6c9
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-    style K8s fill:#e8eaf6
-    style Logs fill:#e0f2f1
-```
-
-### 🌐 **Network Topology**
-
-```mermaid
-graph TB
-    subgraph "🌐 Internet"
-        Internet[🌐 Internet Traffic]
-    end
-    
-    subgraph "🖥️ Production Server"
-        subgraph "🌐 Network Layer"
-            Firewall[🔥 Firewall<br/>Ports: 80, 443, 30012, 30080]
-            LoadBalancer[⚖️ Load Balancer<br/>Port 80/443]
-        end
-        
-        subgraph "🐳 Container Network"
-            Nginx[🌐 Nginx<br/>Port 80<br/>Reverse Proxy]
-            App[🎓 FastAPI App<br/>Port 8011]
-            Argo[🔄 ArgoCD<br/>Port 30080]
-        end
-        
-        subgraph "🗄️ Database Network"
-            DB[(🗄️ PostgreSQL<br/>Port 5432)]
-            Cache[(📦 Redis<br/>Port 6379)]
-        end
-        
-        subgraph "📊 Monitoring Network"
-            Prom[📈 Prometheus<br/>Port 9090]
-            Graf[📊 Grafana<br/>Port 3000]
-            Admin[🛠️ Adminer<br/>Port 8080]
-        end
-    end
-    
-    Internet --> Firewall
-    Firewall --> LoadBalancer
-    LoadBalancer --> Nginx
-    LoadBalancer --> Argo
-    
-    Nginx --> App
-    App --> DB
-    App --> Cache
-    App --> Prom
-    Prom --> Graf
-    Admin --> DB
-    
-    style Internet fill:#e1f5fe
-    style Firewall fill:#ffcdd2
-    style LoadBalancer fill:#fff3e0
-    style App fill:#c8e6c9
-    style DB fill:#fff3e0
-    style Cache fill:#f3e5f5
-    style Prom fill:#ffe0b2
-    style Graf fill:#fce4ec
-```
-
-### 🔧 **Component Interaction**
-
-```mermaid
-sequenceDiagram
-    participant U as 👤 User
-    participant LB as 🌐 Load Balancer
-    participant N as 🌐 Nginx
-    participant A as 🎓 FastAPI App
-    participant C as 📦 Redis Cache
-    participant D as 🗄️ PostgreSQL
-    participant P as 📈 Prometheus
-    participant G as 📊 Grafana
-    
-    U->>LB: HTTP Request
-    LB->>N: Forward Request
-    N->>A: Proxy to App
-    
-    A->>C: Check Cache
-    alt Cache Hit
-        C->>A: Return Cached Data
-    else Cache Miss
-        A->>D: Query Database
-        D->>A: Return Data
-        A->>C: Update Cache
-    end
-    
-    A->>A: Process Request
-    A->>P: Send Metrics
-    P->>G: Store Metrics
-    
-    A->>N: Return Response
-    N->>LB: Forward Response
-    LB->>U: HTTP Response
-    
-    Note over A,P: Continuous Monitoring
-    loop Every 15s
-        P->>A: Scrape Metrics
-        A->>P: Application Metrics
-        P->>G: Update Dashboards
-    end
-```
-
-### 🏗️ **Infrastructure Layers**
-
-```mermaid
-graph TB
-    subgraph "🎯 Application Layer"
-        FastAPI[🎓 FastAPI Application]
-        API[📖 API Documentation]
-        Health[🩺 Health Checks]
-    end
-    
-    subgraph "🔄 Orchestration Layer"
-        K8s[☸️ Kubernetes]
-        Argo[🔄 ArgoCD]
-        Helm[📦 Helm Charts]
-    end
-    
-    subgraph "🐳 Container Layer"
-        Docker[🐳 Docker Engine]
-        Images[📦 Container Images]
-        Registry[📚 Image Registry]
-    end
-    
-    subgraph "🖥️ Infrastructure Layer"
-        VM[🖥️ Virtual Machine]
-        Storage[💾 Storage]
-        Network[🌐 Network]
-    end
-    
-    subgraph "☁️ Cloud Layer"
-        Cloud[☁️ Cloud Provider]
-        Security[🔒 Security Groups]
-        LoadBalancer[⚖️ Load Balancer]
-    end
-    
-    FastAPI --> K8s
-    API --> K8s
-    Health --> K8s
-    
-    K8s --> Argo
-    K8s --> Helm
-    
-    Argo --> Docker
-    Helm --> Docker
-    
-    Docker --> Images
-    Images --> Registry
-    
-    Docker --> VM
-    VM --> Storage
-    VM --> Network
-    
-    VM --> Cloud
-    Network --> Security
-    Network --> LoadBalancer
-    
-    style FastAPI fill:#c8e6c9
-    style K8s fill:#e8eaf6
-    style Docker fill:#e3f2fd
-    style VM fill:#f3e5f5
-    style Cloud fill:#e0f2f1
-```
-
-### 📊 **Health Check Flow**
-
-```mermaid
-graph TD
-    A[🏥 Start Health Check] --> B[🔍 Check Docker]
-    B --> C{Docker Running?}
-    C -->|No| D[❌ Docker Issue]
-    C -->|Yes| E[✅ Docker OK]
-    
-    E --> F[🔍 Check Kubernetes]
-    F --> G{K8s Accessible?}
-    G -->|No| H[❌ K8s Issue]
-    G -->|Yes| I[✅ K8s OK]
-    
-    I --> J[🔍 Check ArgoCD]
-    J --> K{ArgoCD Running?}
-    K -->|No| L[❌ ArgoCD Issue]
-    K -->|Yes| M[✅ ArgoCD OK]
-    
-    M --> N[🔍 Check Network]
-    N --> O{Network OK?}
-    O -->|No| P[❌ Network Issue]
-    O -->|Yes| Q[✅ Network OK]
-    
-    Q --> R[🔍 Check Endpoints]
-    R --> S{Endpoints Responding?}
-    S -->|No| T[❌ Endpoint Issue]
-    S -->|Yes| U[✅ Endpoints OK]
-    
-    U --> V[🔍 Check Database]
-    V --> W{Database OK?}
-    W -->|No| X[❌ Database Issue]
-    W -->|Yes| Y[✅ Database OK]
-    
-    Y --> Z[🔍 Check Resources]
-    Z --> AA{Resources OK?}
-    AA -->|No| BB[❌ Resource Issue]
-    AA -->|Yes| CC[✅ Resources OK]
-    
-    CC --> DD[📊 Generate Report]
-    DD --> EE[🎉 Health Check Complete]
-    
-    style A fill:#e1f5fe
-    style EE fill:#c8e6c9
-    style D fill:#ffcdd2
-    style H fill:#ffcdd2
-    style L fill:#ffcdd2
-    style P fill:#ffcdd2
-    style T fill:#ffcdd2
-    style X fill:#ffcdd2
-    style BB fill:#ffcdd2
-```
-
----
-
-## 🌐 **Production Access Points**
-
-| Service | Production URL | Status | Purpose | Credentials |
-|---------|----------------|--------|---------|-------------|
-| ☸️ **Kubernetes App** | [http://18.206.89.183:30012](http://18.206.89.183:30012) | ✅ **LIVE** | Production/GitOps | - |
-| 🔄 **ArgoCD UI** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | ✅ **LIVE** | GitOps Management | admin/(auto-generated) |
-| 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | ✅ **LIVE** | Interactive Swagger UI | - |
-| 🩺 **Health Check** | [http://18.206.89.183:8011/health](http://18.206.89.183:8011/health) | ✅ **LIVE** | System Health Status | - |
-| 📊 **Metrics** | [http://18.206.89.183:8011/metrics](http://18.206.89.183:8011/metrics) | ✅ **LIVE** | Prometheus Metrics | - |
-| 🌐 **Nginx Proxy** | [http://18.206.89.183:80](http://18.206.89.183:80) | ✅ **LIVE** | Load Balancer | - |
-| 📈 **Grafana** | [http://18.206.89.183:3000](http://18.206.89.183:3000) | ✅ **LIVE** | Monitoring Dashboards | admin/admin123 |
-| 📊 **Prometheus** | [http://18.206.89.183:9090](http://18.206.89.183:9090) | ✅ **LIVE** | Metrics Collection | - |
-| 🗄️ **Database Admin** | [http://18.206.89.183:8080](http://18.206.89.183:8080) | ✅ **LIVE** | Database Admin Interface | student_user/student_pass |
-
----
-
-## 🚀 **Deployment Options**
-
-### 🎯 **Complete Deployment (Kubernetes + ArgoCD)**
-
-```bash
-# Complete automated deployment with all tools and fixes
-sudo ./deploy-unified.sh
-```
-
-**✅ What this does:**
-- Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
-- Creates Kubernetes cluster with worker nodes (port 30012)
-- Installs ArgoCD for GitOps (port 30080)
-- Sets up port forwarding for ArgoCD UI
-- Verifies all services are healthy
-- **Includes all fixes**: Port conflicts, deployment timeouts, naming consistency
-- **Perfect for**: Production, GitOps, learning Kubernetes
-- **Time**: ~10-15 minutes
-- **Requirements**: 8GB+ RAM, 20GB+ disk space
-
-### 🏥 **Health Monitoring**
-
-```bash
-# Comprehensive health check
-sudo ./deploy-unified.sh --health-check
-```
-
-**✅ What this does:**
-- Verifies Kubernetes deployment status
-- Monitors ArgoCD application health
-- Tests network connectivity
-- Validates database connectivity
-- Monitors resource usage
-- Provides detailed health report
-
-### 🔧 **Troubleshooting**
-
-```bash
-# Troubleshoot deployment issues
-sudo ./deploy-unified.sh --troubleshoot
-```
-
-**✅ What this does:**
-- Diagnoses deployment problems
-- Checks cluster connectivity
-- Verifies resource status
-- Offers repair options
-- Provides detailed diagnostics
-
-### 🔄 **Cluster Management**
-
-```bash
-# Update cluster with worker nodes
-sudo ./deploy-unified.sh --update-cluster
-```
-
-**✅ What this does:**
-- Creates cluster with worker nodes
-- Improves resource distribution
-- Enhances reliability
-- Redeploys application
-- Updates ArgoCD configuration
-
-### 🧹 **Cleanup**
-
-```bash
-# Complete cleanup of all resources
-sudo ./deploy-unified.sh --cleanup
-```
-
-**✅ What this does:**
-- Stops and removes all Docker containers
-- Cleans up Docker images and volumes
-- Removes Kubernetes cluster
-- Deletes ArgoCD and applications
-- Cleans temporary files and logs
-
----
-
-## 🛠️ **Technology Stack**
-
-### 🎓 **Application Stack**
-
-| Component | Technology | Version | Purpose |
-|-----------|------------|---------|---------|
-| **Backend** | FastAPI | Latest | REST API Framework |
-| **Database** | PostgreSQL | 15+ | Primary Database |
-| **Cache** | Redis | 7+ | Session & Cache Store |
-| **Frontend** | HTML/CSS/JS | - | Web Interface |
-| **API Docs** | Swagger UI | Auto | Interactive Documentation |
-
-### 🐳 **Container & Orchestration**
-
-| Component | Technology | Version | Purpose |
-|-----------|------------|---------|---------|
-| **Containerization** | Docker | 25.0+ | Application Packaging |
-| **Orchestration** | Kubernetes | 1.33+ | Container Orchestration |
-| **Local K8s** | Kind | 0.20+ | Local Kubernetes Cluster |
-| **Package Manager** | Helm | 3.12+ | Kubernetes Package Manager |
-| **GitOps** | ArgoCD | 2.8+ | Continuous Deployment |
-
-### 📊 **Monitoring & Observability**
-
-| Component | Technology | Version | Purpose |
-|-----------|------------|---------|---------|
-| **Metrics** | Prometheus | 2.45+ | Metrics Collection |
-| **Visualization** | Grafana | 10.0+ | Dashboards & Alerts |
-| **Database Admin** | Adminer | 4.8+ | Database Management |
-| **Load Balancer** | Nginx | 1.25+ | Reverse Proxy |
-
----
-
-## 🔧 **Troubleshooting Guide**
-
-### 🚨 **Common Issues & Solutions**
-
-#### **1. Deployment Not Found Error**
-```bash
-Error from server (NotFound): deployments.apps "nativeseries" not found
-```
-
-**Solution:**
-```bash
-# Run troubleshooting
-sudo ./deploy-unified.sh --troubleshoot
-
-# Or redeploy completely
-sudo ./deploy-unified.sh --update-cluster
-```
-
-#### **2. Cluster Connectivity Issues**
-```bash
-Cannot connect to Kubernetes cluster
-```
-
-**Solution:**
-```bash
-# Check cluster status
-kubectl cluster-info
-
-# Recreate cluster if needed
-sudo ./deploy-unified.sh --update-cluster
-```
-
-#### **3. Application Not Responding**
-```bash
-Application endpoints not responding
-```
-
-**Solution:**
-```bash
-# Check application health
-sudo ./deploy-unified.sh --health-check
-
-# Check pod status
-kubectl get pods -n student-tracker
-
-# Check logs
-kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker
-```
-
-#### **4. Port Conflicts**
-```bash
-Port already in use
-```
-
-**Solution:**
-```bash
-# Clean up and redeploy
-sudo ./deploy-unified.sh --cleanup
-sudo ./deploy-unified.sh
-```
-
-### 🔍 **Manual Troubleshooting Commands**
-
-#### **Check Cluster Status**
-```bash
-# Check if kubectl is available
-which kubectl
-
-# Check cluster connectivity
-kubectl cluster-info
-
-# Check nodes
-kubectl get nodes -o wide
-
-# Check all resources
-kubectl get all --all-namespaces
-```
-
-#### **Check Deployment Status**
-```bash
-# Check namespaces
-kubectl get namespaces
-
-# Check if student-tracker namespace exists
-kubectl get namespace student-tracker
-
-# Check deployments in student-tracker namespace
-kubectl get deployments -n student-tracker
-
-# Check pods in student-tracker namespace
-kubectl get pods -n student-tracker
-
-# Check services in student-tracker namespace
-kubectl get services -n student-tracker
-```
-
-#### **Check Helm Releases**
-```bash
-# Check if Helm is installed
-which helm
-
-# List Helm releases
-helm list --all-namespaces
-
-# Check specific release
-helm status nativeseries -n student-tracker
-```
-
-#### **Check Application Logs**
-```bash
-# Check pod logs
-kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker
-
-# Check pod events
-kubectl describe pods -n student-tracker
-
-# Check service events
-kubectl describe service nativeseries -n student-tracker
-```
-
-### 🎯 **Expected Results After Fix**
-
-After running the fix scripts, you should see:
-
-1. **✅ Cluster with 3 nodes** (1 control-plane + 2 workers)
-2. **✅ NativeSeries deployment running** in student-tracker namespace
-3. **✅ Application accessible** on port 30012
-4. **✅ Health endpoints responding** at http://localhost:30012/health
-
-### 🔍 **Verification Commands**
-
-After fixing the deployment, verify with:
-
-```bash
-# Check cluster nodes
-kubectl get nodes -o wide
-
-# Check deployment status
-kubectl get deployments -n student-tracker
-
-# Check pod status
-kubectl get pods -n student-tracker -o wide
-
-# Check service endpoints
-kubectl get endpoints -n student-tracker
-
-# Test application health
-curl http://localhost:30012/health
-
-# Check application logs
-kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker
-```
-
----
-
-## 📋 **Cluster Configuration**
-
-### **Current Configuration (Single Node)**
-```yaml
-apiVersion: kind.x-k8s.io/v1alpha4
-kind: Cluster
-name: nativeseries
-nodes:
-- role: control-plane
-  extraPortMappings:
-  - containerPort: 30012
-    hostPort: 30012
-    protocol: TCP
-  - containerPort: 30080
-    hostPort: 30080
-    protocol: TCP
-```
-
-### **Updated Configuration (With Worker Nodes)**
-```yaml
-apiVersion: kind.x-k8s.io/v1alpha4
-kind: Cluster
-name: nativeseries
-nodes:
-- role: control-plane
-  extraPortMappings:
-  - containerPort: 30012
-    hostPort: 30012
-    protocol: TCP
-  - containerPort: 30080
-    hostPort: 30080
-    protocol: TCP
-  kubeadmConfigPatches:
-  - |
-    kind: InitConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        node-labels: "ingress-ready=true"
-  - |
-    kind: KubeletConfiguration
-    failSwapOn: false
-- role: worker
-  kubeadmConfigPatches:
-  - |
-    kind: KubeletConfiguration
-    failSwapOn: false
-- role: worker
-  kubeadmConfigPatches:
-  - |
-    kind: KubeletConfiguration
-    failSwapOn: false
-```
-
----
-
-## 🚀 **Quick Fix Commands**
-
-For immediate resolution, run these commands in sequence:
-
-```bash
-# 1. Update cluster configuration and recreate with worker nodes
-sudo ./deploy-unified.sh --update-cluster
-
-# 2. Or troubleshoot existing deployment
-sudo ./deploy-unified.sh --troubleshoot
-
-# 3. Verify the fix
-sudo ./deploy-unified.sh --health-check
-```
-
----
-
-## 📞 **Support**
-
-If issues persist after following this guide:
-
-1. Check the logs: `kubectl logs -l app.kubernetes.io/name=nativeseries -n student-tracker`
-2. Check pod events: `kubectl describe pods -n student-tracker`
-3. Check service events: `kubectl describe service nativeseries -n student-tracker`
-4. Run the comprehensive health check: `sudo ./deploy-unified.sh --health-check`
-
----
-
-## 🎉 **Success Indicators**
-
-You'll know the fix was successful when:
-
-- ✅ `kubectl get nodes` shows 3 nodes
-- ✅ `kubectl get deployments -n student-tracker` shows nativeseries deployment
-- ✅ `kubectl get pods -n student-tracker` shows running pods
-- ✅ `curl http://localhost:30012/health` returns a successful response
-- ✅ Health check script shows green status indicators
-
----
-
-## 📚 **Additional Documentation**
-
-- **📖 Comprehensive Documentation**: [COMPREHENSIVE_DOCUMENTATION.md](COMPREHENSIVE_DOCUMENTATION.md)
-- **🏥 Health Check Guide**: [HEALTH_CHECK_GUIDE.md](HEALTH_CHECK_GUIDE.md)
-- **📋 Deployment Summary**: [DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md)
-
----
-
-## 🤝 **Contributing**
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
----
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [License.md](License.md) file for details.
-
----
-
-## 🙏 **Acknowledgments**
-
-- FastAPI community for the excellent framework
-- Kubernetes community for container orchestration
-- ArgoCD team for GitOps capabilities
-- Docker community for containerization
-- All contributors and supporters
-
----
-
-**🚀 Happy Deploying!**
+</div>

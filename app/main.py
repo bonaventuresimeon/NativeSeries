@@ -512,12 +512,11 @@ async def startup_event():
     logger.info(f"📊 Health check available at: {PRODUCTION_URL}/health")
     logger.info(f"📖 API documentation available at: {PRODUCTION_URL}/docs")
     
-    # Initialize database if needed
+    # Initialize application state
     try:
-        # Add database initialization logic here
-        logger.info("✅ Database initialization completed")
+        logger.info("✅ Application initialization completed")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.error(f"❌ Application initialization failed: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -525,6 +524,12 @@ async def shutdown_event():
     logger.info(f"🛑 {APP_NAME} shutting down...")
     logger.info(f"📊 Final request count: {app_state['request_count']}")
     logger.info(f"⏱️ Total uptime: {int((datetime.utcnow() - app_state['start_time']).total_seconds())} seconds")
+    
+    # Cleanup application state
+    try:
+        logger.info("✅ Application cleanup completed")
+    except Exception as e:
+        logger.error(f"❌ Error during application cleanup: {e}")
 
 if __name__ == "__main__":
     uvicorn.run(

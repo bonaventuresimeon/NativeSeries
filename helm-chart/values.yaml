@@ -1,0 +1,74 @@
+# Application configuration
+app:
+  name: student-tracker
+  image:
+    repository: student-tracker
+    tag: latest
+    pullPolicy: IfNotPresent
+  env:
+    - name: ENVIRONMENT
+      value: "production"
+    - name: VAULT_ADDR
+      value: "http://localhost:8200"
+    - name: VAULT_ROLE_ID
+      value: "student-tracker-role"
+    - name: VAULT_SECRET_ID
+      value: "student-tracker-secret"
+
+# Service configuration
+service:
+  type: NodePort
+  port: 8000
+  nodePort: 8011
+
+# Ingress configuration (disabled for direct IP deployment)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: student-tracker.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# MongoDB configuration (external)
+mongodb:
+  enabled: false
+
+# Redis configuration (external)
+redis:
+  enabled: false
+
+# Vault configuration (external)
+vault:
+  enabled: false
+
+# Horizontal Pod Autoscaler
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Service monitor for Prometheus
+serviceMonitor:
+  enabled: true
+  interval: 30s

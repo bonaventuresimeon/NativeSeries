@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: student-tracker
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries.git
+    targetRevision: HEAD
+    path: helm-chart
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: app.image.tag
+          value: latest
+        - name: app.image.repository
+          value: student-tracker
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-tracker
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
