@@ -36,9 +36,15 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
+# Check if Docker daemon is running
+if ! sudo docker info &> /dev/null; then
+    print_error "Docker daemon is not running. Please start Docker first."
+    exit 1
+fi
+
 # Build the Docker image
 print_status "Building Docker image..."
-docker build -t ${APP_NAME}:latest .
+sudo docker build -t ${APP_NAME}:latest .
 
 # Check if the image was built successfully
 if [ $? -eq 0 ]; then
@@ -50,7 +56,7 @@ fi
 
 # Run the application container
 print_status "Starting application container..."
-docker run -d \
+sudo docker run -d \
     --name ${APP_NAME} \
     --restart unless-stopped \
     -p ${PRODUCTION_PORT}:8000 \
