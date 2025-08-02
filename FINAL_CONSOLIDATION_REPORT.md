@@ -113,33 +113,22 @@ Error: INSTALLATION FAILED: cannot load values.yaml: error converting YAML to JS
 ## 🚀 **Current Script Status**
 
 ### **Core Scripts:**
-1. **`deploy-simple.sh`** ✅ **NEW - RECOMMENDED** (8KB, 300+ lines)
-   - Simplified deployment for development and testing
-   - Docker Compose only with health monitoring
-   - Perfect for quick setup and demos
-   - Author: Bonaventure Simeon
-
-2. **`deploy.sh`** ✅ **READY** (16KB, 536 lines)
+1. **`deploy.sh`** ✅ **READY** (16KB, 536 lines)
    - Complete deployment with all fixes
    - Automatic tool installation
-   - Docker Compose + Kubernetes + ArgoCD
+   - Kubernetes + ArgoCD
    - Health verification
 
-3. **`health-check.sh`** ✅ **READY** (17KB, 543 lines)
+2. **`health-check.sh`** ✅ **READY** (17KB, 543 lines)
    - Comprehensive health monitoring
    - 8 health check categories
    - Real-time reporting
    - Troubleshooting integration
 
-4. **`cleanup.sh`** ✅ **READY** (5.1KB, 188 lines)
+3. **`cleanup.sh`** ✅ **READY** (5.1KB, 188 lines)
    - Complete resource cleanup
-   - Docker and Kubernetes cleanup
+   - Kubernetes cleanup
    - Temporary file removal
-
-### **Additional Scripts:**
-4. **`docker-compose.sh`** ✅ **AVAILABLE** (6.0KB, 208 lines)
-   - Docker Compose only deployment
-   - Quick development setup
 
 ---
 
@@ -147,7 +136,6 @@ Error: INSTALLATION FAILED: cannot load values.yaml: error converting YAML to JS
 
 | Service | URL | Purpose | Status |
 |---------|-----|---------|--------|
-| 🐳 **Docker Compose App** | http://18.206.89.183:8011 | Development/Testing | ✅ Live |
 | ☸️ **Kubernetes App** | http://18.206.89.183:30012 | Production/GitOps | ✅ Live |
 | 🔄 **ArgoCD UI** | http://18.206.89.183:30080 | GitOps Management | ✅ Live |
 | 📖 **API Documentation** | http://18.206.89.183:8011/docs | Interactive Swagger UI | ✅ Live |
@@ -161,12 +149,6 @@ Error: INSTALLATION FAILED: cannot load values.yaml: error converting YAML to JS
 ---
 
 ## 🎯 **Deployment Commands**
-
-### **Simplified Deployment (Recommended):**
-```bash
-# Quick deployment with Docker Compose only
-sudo ./deploy-simple.sh
-```
 
 ### **Complete Deployment:**
 ```bash

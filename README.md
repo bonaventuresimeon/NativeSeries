@@ -16,15 +16,7 @@ NativeSeries is a comprehensive student management application built with FastAP
 
 ## 🌟 **Quick Start - One Command Deployment**
 
-### **Option 1: Simplified Deployment (Recommended for Development)**
-```bash
-# Clone and deploy with Docker Compose only
-git clone <your-repository-url>
-cd NativeSeries
-sudo ./deploy-simple.sh
-```
-
-### **Option 2: Full Deployment (Kubernetes + ArgoCD)**
+### **Full Deployment (Kubernetes + ArgoCD)**
 ```bash
 # Clone and deploy with full Kubernetes stack
 git clone <your-repository-url>
@@ -33,9 +25,8 @@ sudo ./deploy.sh
 ```
 
 **🎉 Your NativeSeries application will be live at:**
-- **🐳 Docker Compose**: http://18.206.89.183:8011 (Development/Testing)
-- **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps) - Full deployment only
-- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management) - Full deployment only
+- **☸️ Kubernetes**: http://18.206.89.183:30012 (Production/GitOps)
+- **🔄 ArgoCD**: http://18.206.89.183:30080 (GitOps Management)
 
 📖 **📋 For a complete overview, see [NATIVESERIES_COMPREHENSIVE_SUMMARY.md](NATIVESERIES_COMPREHENSIVE_SUMMARY.md)**
 
@@ -45,7 +36,6 @@ sudo ./deploy.sh
 
 | Service | Production URL | Status | Purpose | Credentials |
 |---------|----------------|--------|---------|-------------|
-| 🐳 **Docker Compose App** | [http://18.206.89.183:8011](http://18.206.89.183:8011) | ✅ **LIVE** | Development/Testing | - |
 | ☸️ **Kubernetes App** | [http://18.206.89.183:30012](http://18.206.89.183:30012) | ✅ **LIVE** | Production/GitOps | - |
 | 🔄 **ArgoCD UI** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | ✅ **LIVE** | GitOps Management | admin/(auto-generated) |
 | 📖 **API Documentation** | [http://18.206.89.183:8011/docs](http://18.206.89.183:8011/docs) | ✅ **LIVE** | Interactive Swagger UI | - |
@@ -60,21 +50,6 @@ sudo ./deploy.sh
 
 ## 🚀 **Deployment Options**
 
-### 🎯 **Simplified Deployment (Recommended)**
-
-```bash
-# Quick deployment with Docker Compose only
-sudo ./deploy-simple.sh
-```
-
-**✅ What this does:**
-- Installs Docker and Docker Compose
-- Deploys Docker Compose stack (port 8011)
-- Verifies all services are healthy
-- **Perfect for**: Development, testing, quick demos
-- **Time**: ~5 minutes
-- **Requirements**: 4GB+ RAM, 10GB+ disk space
-
 ### 🎯 **Complete Deployment (Kubernetes + ArgoCD)**
 
 ```bash
@@ -84,7 +59,6 @@ sudo ./deploy.sh
 
 **✅ What this does:**
 - Installs all required tools (Docker, kubectl, Kind, Helm, ArgoCD)
-- Deploys Docker Compose stack (port 8011)
 - Creates Kubernetes cluster (port 30012)
 - Installs ArgoCD for GitOps (port 30080)
 - Sets up port forwarding for ArgoCD UI
@@ -102,7 +76,6 @@ sudo ./health-check.sh
 ```
 
 **✅ What this does:**
-- Checks Docker Compose service health
 - Verifies Kubernetes deployment status
 - Monitors ArgoCD application health
 - Tests network connectivity
@@ -318,7 +291,6 @@ NativeSeries/
 │
 ├── 🎨 templates/                    # Web UI Templates
 ├── 📋 requirements.txt              # Python dependencies
-├── 🐳 docker-compose.yml            # Production stack definition
 ├── 🌐 nginx.conf                    # Nginx configuration
 ├── 📊 prometheus.yml                # Prometheus configuration
 └── 📖 README.md                     # This comprehensive guide

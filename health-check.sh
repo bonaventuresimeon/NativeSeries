@@ -77,9 +77,9 @@ check_service() {
     fi
 }
 
-# Function to check Docker Compose services
-check_docker_compose() {
-    print_section "🐳 Docker Compose Health Check"
+# Function to check Docker daemon
+check_docker() {
+    print_section "🐳 Docker Health Check"
     
     if ! command_exists docker; then
         print_error "Docker is not installed"
@@ -91,50 +91,10 @@ check_docker_compose() {
         return 1
     fi
     
-    print_status "Checking Docker Compose services..."
+    print_status "✅ Docker daemon is running"
+    print_status "Docker version: $(docker --version)"
     
-    # Check if docker-compose.yml exists
-    if [ ! -f "docker-compose.yml" ]; then
-        print_error "docker-compose.yml not found"
-        return 1
-    fi
-    
-    # Get service status
-    if command_exists docker-compose; then
-        DOCKER_COMPOSE_CMD="docker-compose"
-    elif docker compose version >/dev/null 2>&1; then
-        DOCKER_COMPOSE_CMD="docker compose"
-    else
-        print_error "Docker Compose not available"
-        return 1
-    fi
-    
-    print_status "Docker Compose services status:"
-    $DOCKER_COMPOSE_CMD ps
-    
-    # Check each service
-    print_status "Checking individual services..."
-    
-    # Check if services are running
-    local services=("student-tracker" "postgres" "redis" "nginx" "prometheus" "grafana" "adminer")
-    local healthy_count=0
-    
-    for service in "${services[@]}"; do
-        if $DOCKER_COMPOSE_CMD ps | grep -q "$service.*Up"; then
-            print_status "✅ $service is running"
-            ((healthy_count++))
-        else
-            print_error "❌ $service is not running"
-        fi
-    done
-    
-    print_metric "Docker Compose Health: $healthy_count/${#services[@]} services healthy"
-    
-    # Check service logs for errors
-    print_status "Checking recent logs for errors..."
-    $DOCKER_COMPOSE_CMD logs --tail=20 | grep -i "error\|failed\|exception" || print_status "No recent errors found"
-    
-    return $((healthy_count == ${#services[@]} ? 0 : 1))
+    return 0
 }
 
 # Function to check Kubernetes deployment
@@ -488,7 +448,7 @@ run_health_checks() {
     local overall_health=0
     
     # Run all health checks
-    check_docker_compose && ((overall_health++))
+    check_docker && ((overall_health++))
     check_kubernetes && ((overall_health++))
     check_argocd && ((overall_health++))
     check_network && ((overall_health++))

@@ -50,20 +50,12 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Function to cleanup Docker Compose
-cleanup_docker_compose() {
-    print_step "Cleaning up Docker Compose services..."
+# Function to cleanup Docker networks
+cleanup_docker_networks() {
+    print_step "Cleaning up Docker networks..."
     
     if command_exists docker; then
-        print_status "Stopping Docker Compose services..."
-        # Try both docker-compose and docker compose
-        if command_exists docker-compose; then
-            docker-compose down -v 2>/dev/null || true
-        elif docker compose version >/dev/null 2>&1; then
-            docker compose down -v 2>/dev/null || true
-        fi
-        
-        print_status "Removing Docker Compose networks..."
+        print_status "Removing Docker networks..."
         docker network prune -f 2>/dev/null || true
     else
         print_warning "Docker not found"
@@ -127,8 +119,8 @@ cleanup_temp_files() {
     rm -f linux-amd64/helm 2>/dev/null || true
     rm -rf linux-amd64 2>/dev/null || true
     
-    print_status "Removing Docker Compose logs..."
-    rm -f docker-compose.log 2>/dev/null || true
+    print_status "Removing temporary logs..."
+    rm -f *.log 2>/dev/null || true
 }
 
 # Function to cleanup logs
@@ -163,8 +155,8 @@ display_cleanup_summary() {
 main() {
     print_step "Starting comprehensive cleanup process..."
     
-    # Cleanup Docker Compose
-    cleanup_docker_compose
+    # Cleanup Docker networks
+    cleanup_docker_networks
     
     # Cleanup Docker system
     cleanup_docker_system

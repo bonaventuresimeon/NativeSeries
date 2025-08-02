@@ -33,23 +33,10 @@ NativeSeries is a complete, production-ready student management platform featuri
 
 ## 🚀 **Deployment Scripts**
 
-### **1. Simplified Deployment (`deploy-simple.sh`) - RECOMMENDED**
-- **Purpose**: Quick development and testing deployment
-- **Features**: 
-  - Automatic tool installation (Docker, Docker Compose)
-  - Docker Compose deployment (port 8011)
-  - Health verification and monitoring
-  - Disk space management
-  - **Perfect for**: Development, testing, quick demos
-  - **Time**: ~5 minutes
-  - **Requirements**: 4GB+ RAM, 10GB+ disk space
-  - **Author**: Bonaventure Simeon
-
-### **2. Complete Deployment (`deploy.sh`)**
+### **1. Complete Deployment (`deploy.sh`)**
 - **Purpose**: One-command deployment with all fixes included
 - **Features**: 
   - Automatic tool installation (Docker, kubectl, Kind, Helm, ArgoCD)
-  - Docker Compose deployment (port 8011)
   - Kubernetes cluster creation (port 30012)
   - ArgoCD GitOps setup (port 30080)
   - Health verification and monitoring
@@ -81,35 +68,31 @@ NativeSeries is a complete, production-ready student management platform featuri
 
 ### **Health Check Categories:**
 
-1. **🐳 Docker Compose Health**
-   - 7 services monitored (student-tracker, postgres, redis, nginx, prometheus, grafana, adminer)
-   - Service status, logs, error detection
-
-2. **☸️ Kubernetes Health**
+1. **☸️ Kubernetes Health**
    - Cluster status, nodes, deployment, pods, services
    - NativeSeries deployment readiness
 
-3. **🔄 ArgoCD Health**
+2. **🔄 ArgoCD Health**
    - Namespace, server deployment, application status
    - GitOps synchronization status
 
-4. **🌐 Network Connectivity**
+3. **🌐 Network Connectivity**
    - External hosts (google.com, github.com, docker.io)
-   - Local ports (8011, 30012, 30080, 80, 3000, 9090, 8080)
+   - Local ports (30012, 30080, 80, 3000, 9090, 8080)
 
-5. **🎯 Application Endpoints**
+4. **🎯 Application Endpoints**
    - Health endpoints, API docs, metrics
    - Monitoring tools accessibility
 
-6. **🗄️ Database Connectivity**
+5. **🗄️ Database Connectivity**
    - PostgreSQL connection and query testing
    - Redis ping response verification
 
-7. **📊 Resource Usage**
+6. **📊 Resource Usage**
    - Disk, memory, CPU utilization
-   - Docker and Kubernetes resource metrics
+   - Kubernetes resource metrics
 
-8. **🔧 System Services**
+7. **🔧 System Services**
    - Docker daemon, kubelet, containerd status
 
 ### **Health Assessment Levels:**
@@ -122,7 +105,6 @@ NativeSeries is a complete, production-ready student management platform featuri
 ## 🔧 **Fixes & Improvements Included**
 
 ### **1. Port Conflict Resolution**
-- ✅ Docker Compose: Port 8011
 - ✅ Kubernetes: Port 30012 (valid NodePort range)
 - ✅ ArgoCD: Port 30080
 - ✅ No conflicts between services
