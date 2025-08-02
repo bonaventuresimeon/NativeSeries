@@ -62,6 +62,32 @@ check_prerequisites() {
     print_status "Prerequisites check completed."
 }
 
+# Function to check and fix common deployment issues
+check_deployment_issues() {
+    print_status "Checking for common deployment issues..."
+    
+    # Check if namespace exists and is accessible
+    if kubectl cluster-info >/dev/null 2>&1; then
+        if ! kubectl get namespace $NAMESPACE >/dev/null 2>&1; then
+            print_info "Creating namespace $NAMESPACE..."
+            kubectl create namespace $NAMESPACE
+        fi
+        
+        # Check for existing resources that might conflict
+        if kubectl get deployment $APP_NAME -n $NAMESPACE >/dev/null 2>&1; then
+            print_warning "Deployment $APP_NAME already exists in namespace $NAMESPACE"
+            print_info "This will be updated during deployment"
+        fi
+        
+        # Check for ServiceMonitor CRD
+        if ! kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
+            print_warning "ServiceMonitor CRD not found. Monitoring will be disabled."
+        fi
+    fi
+    
+    print_status "Deployment issues check completed."
+}
+
 # Function to check cluster connectivity
 check_cluster() {
     print_status "Checking cluster connectivity..."
@@ -84,9 +110,13 @@ validate_helm_chart() {
     helm repo add bitnami https://charts.bitnami.com/bitnami
     helm repo update
     
-    # Update Helm dependencies
+    # Update Helm dependencies (only if dependencies exist)
     cd $HELM_CHART_PATH
-    helm dependency update
+    if [ -f "Chart.yaml" ] && grep -q "dependencies:" Chart.yaml; then
+        helm dependency update || echo "Dependency update failed, continuing..."
+    else
+        echo "No dependencies to update"
+    fi
     cd ..
     
     # Lint Helm chart
@@ -296,6 +326,9 @@ main() {
     
     # Check if we have a cluster
     if check_cluster; then
+        # Check for common deployment issues
+        check_deployment_issues
+        
         # We have a cluster, proceed with full deployment
         echo "Choose deployment type:"
         echo "1. Install ArgoCD and deploy application"
