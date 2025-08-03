@@ -49,12 +49,16 @@ async def init_database():
         # Try to import motor for MongoDB
         import motor.motor_asyncio
 
-        # Connect to MongoDB
-        client = motor.motor_asyncio.AsyncIOMotorClient(db_config.get_mongo_uri())
+        # Connect to MongoDB with timeout
+        client = motor.motor_asyncio.AsyncIOMotorClient(
+            db_config.get_mongo_uri(),
+            serverSelectionTimeoutMS=5000,  # 5 second timeout
+            connectTimeoutMS=5000
+        )
         database = client[db_config.database_name]
         student_collection = database.get_collection(db_config.collection_name)
 
-        # Test connection
+        # Test connection with timeout
         await client.admin.command("ping")
         logger.info("✅ MongoDB connection established successfully")
 
@@ -66,7 +70,7 @@ async def init_database():
         student_collection = None
 
     except Exception as e:
-        logger.error(f"❌ Database connection failed: {e}")
+        logger.warning(f"⚠️ MongoDB connection failed: {e}")
         logger.info("🔄 Using in-memory storage as fallback")
         client = None
         database = None

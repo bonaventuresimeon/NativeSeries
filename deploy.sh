@@ -350,17 +350,26 @@ deploy_docker() {
             print_error "❌ Unsupported package manager for Docker installation"
             exit 1
         fi
-        sudo systemctl start docker
-        sudo systemctl enable docker
+        if command_exists systemctl; then
+            sudo systemctl start docker
+            sudo systemctl enable docker
+        else
+            sudo service docker start || sudo dockerd &
+        fi
         sudo usermod -aG docker $USER
         print_warning "Please logout and login again, then run this script."
+        print_info "Or continue with sudo for Docker commands"
         exit 1
     fi
     
     # Check if Docker is running
     if ! sudo docker info &> /dev/null; then
         print_status "Starting Docker..."
-        sudo systemctl start docker
+        if command_exists systemctl; then
+            sudo systemctl start docker
+        else
+            sudo service docker start || sudo dockerd &
+        fi
         sleep 5
     fi
     
