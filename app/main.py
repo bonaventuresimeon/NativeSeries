@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request, Form, HTTPException, Depends
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +8,6 @@ import os
 import logging
 import time
 from datetime import datetime
-from typing import Optional, Dict, Any
 import uvicorn
 
 # Configure logging
@@ -17,8 +16,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("app.log") if os.path.exists("logs") or os.makedirs("logs", exist_ok=True) else logging.StreamHandler()
-    ]
+        (
+            logging.FileHandler("app.log")
+            if os.path.exists("logs") or os.makedirs("logs", exist_ok=True)
+            else logging.StreamHandler()
+        ),
+    ],
 )
 
 logger = logging.getLogger(__name__)
@@ -33,7 +36,7 @@ A comprehensive student tracking application built with FastAPI.
 ## Features
 
 * **Student Management** - Complete CRUD operations for student records
-* **Course Management** - Multi-course enrollment system  
+* **Course Management** - Multi-course enrollment system
 * **Progress Tracking** - Weekly progress monitoring and analytics
 * **Assignment System** - Assignment creation, submission, and grading
 * **Modern UI** - Responsive web interface
@@ -45,7 +48,9 @@ A comprehensive student tracking application built with FastAPI.
 This application is deployed at: **{production_url}**
 
 Access the interactive API documentation at: **{production_url}/docs**
-""".format(production_url=PRODUCTION_URL)
+""".format(
+    production_url=PRODUCTION_URL
+)
 
 app = FastAPI(
     title=APP_NAME,
@@ -66,7 +71,7 @@ app = FastAPI(
     servers=[
         {"url": PRODUCTION_URL, "description": "Production server"},
         {"url": "http://localhost:8000", "description": "Development server"},
-    ]
+    ],
 )
 
 # Add middleware
@@ -80,7 +85,7 @@ app.add_middleware(
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["18.206.89.183", "localhost", "127.0.0.1", "*"]
+    allowed_hosts=["18.206.89.183", "localhost", "127.0.0.1", "*"],
 )
 
 # Template configuration
@@ -113,35 +118,39 @@ app_state = {
     "request_count": 0,
     "last_health_check": None,
     "uptime_seconds": 0,
-    "production_url": PRODUCTION_URL
+    "production_url": PRODUCTION_URL,
 }
+
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
     """Add process time header and update metrics"""
     start_time = time.time()
     app_state["request_count"] += 1
-    
+
     response = await call_next(request)
-    
+
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
     response.headers["X-Request-Count"] = str(app_state["request_count"])
     response.headers["X-Production-URL"] = PRODUCTION_URL
-    
+
     if process_time > 1.0:
-        logger.warning(f"Slow request: {request.method} {request.url} took {process_time:.2f}s")
-    
+        logger.warning(
+            f"Slow request: {request.method} {request.url} took {process_time:.2f}s"
+        )
+
     return response
+
 
 @app.get("/health", tags=["System"])
 async def health_check():
     """
     Health check endpoint for Kubernetes probes and monitoring.
-    
+
     Returns comprehensive health status including:
     - Application status
-    - Database connectivity 
+    - Database connectivity
     - Memory usage
     - Uptime information
     - Production URL configuration
@@ -149,8 +158,10 @@ async def health_check():
     try:
         current_time = datetime.utcnow()
         app_state["last_health_check"] = current_time
-        app_state["uptime_seconds"] = int((current_time - app_state["start_time"]).total_seconds())
-        
+        app_state["uptime_seconds"] = int(
+            (current_time - app_state["start_time"]).total_seconds()
+        )
+
         # Test database connection (if available)
         db_status = "healthy"
         try:
@@ -159,7 +170,7 @@ async def health_check():
         except Exception as e:
             db_status = f"error: {str(e)}"
             logger.error(f"Database health check failed: {e}")
-        
+
         health_data = {
             "status": "healthy",
             "timestamp": current_time.isoformat(),
@@ -172,12 +183,12 @@ async def health_check():
             "services": {
                 "api": "healthy",
                 "database": db_status,
-                "cache": "healthy"  # Add Redis check if available
-            }
+                "cache": "healthy",  # Add Redis check if available
+            },
         }
-        
+
         return health_data
-        
+
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return JSONResponse(
@@ -186,15 +197,16 @@ async def health_check():
                 "status": "unhealthy",
                 "timestamp": datetime.utcnow().isoformat(),
                 "error": str(e),
-                "production_url": PRODUCTION_URL
-            }
+                "production_url": PRODUCTION_URL,
+            },
         )
+
 
 @app.get("/metrics", tags=["System"])
 async def get_metrics():
     """
     Prometheus-compatible metrics endpoint.
-    
+
     Provides application metrics including:
     - Request count and rate
     - Response times
@@ -204,31 +216,42 @@ async def get_metrics():
     """
     current_time = datetime.utcnow()
     uptime = int((current_time - app_state["start_time"]).total_seconds())
-    
+
     metrics = []
-    
+
     # Counter metrics
-    metrics.append(f"# HELP student_tracker_requests_total Total number of HTTP requests")
+    metrics.append(
+        f"# HELP student_tracker_requests_total Total number of HTTP requests"
+    )
     metrics.append(f"# TYPE student_tracker_requests_total counter")
-    metrics.append(f'student_tracker_requests_total{{method="ALL",production_url="{PRODUCTION_URL}"}} {app_state["request_count"]}')
-    
+    metrics.append(
+        f'student_tracker_requests_total{{method="ALL",production_url="{PRODUCTION_URL}"}} {app_state["request_count"]}'
+    )
+
     # Gauge metrics
-    metrics.append(f"# HELP student_tracker_uptime_seconds Application uptime in seconds")
+    metrics.append(
+        f"# HELP student_tracker_uptime_seconds Application uptime in seconds"
+    )
     metrics.append(f"# TYPE student_tracker_uptime_seconds gauge")
-    metrics.append(f'student_tracker_uptime_seconds{{production_url="{PRODUCTION_URL}"}} {uptime}')
-    
+    metrics.append(
+        f'student_tracker_uptime_seconds{{production_url="{PRODUCTION_URL}"}} {uptime}'
+    )
+
     # Info metrics
     metrics.append(f"# HELP student_tracker_info Application information")
     metrics.append(f"# TYPE student_tracker_info gauge")
-    metrics.append(f'student_tracker_info{{version="{APP_VERSION}",production_url="{PRODUCTION_URL}"}} 1')
-    
+    metrics.append(
+        f'student_tracker_info{{version="{APP_VERSION}",production_url="{PRODUCTION_URL}"}} 1'
+    )
+
     return Response("\n".join(metrics), media_type="text/plain")
+
 
 @app.get("/", response_class=HTMLResponse, tags=["Web Interface"])
 async def home(request: Request):
     """
     Main web interface for the Student Tracker application.
-    
+
     Displays:
     - Application overview and statistics
     - Quick access to key features
@@ -242,13 +265,15 @@ async def home(request: Request):
             "version": APP_VERSION,
             "production_url": PRODUCTION_URL,
             "request_count": app_state["request_count"],
-            "uptime": int((datetime.utcnow() - app_state["start_time"]).total_seconds())
+            "uptime": int(
+                (datetime.utcnow() - app_state["start_time"]).total_seconds()
+            ),
         }
         try:
             return templates.TemplateResponse("index.html", context)
         except Exception as e:
             logger.warning(f"Template rendering failed: {e}")
-    
+
     # Fallback HTML response
     html_content = f"""
     <!DOCTYPE html>
@@ -321,6 +346,7 @@ async def home(request: Request):
     """
     return HTMLResponse(content=html_content)
 
+
 @app.get("/about", response_class=HTMLResponse, tags=["Web Interface"])
 async def about(request: Request):
     """About page with application information."""
@@ -385,14 +411,17 @@ async def about(request: Request):
     """
     return HTMLResponse(content=html_content)
 
+
 # Include routers for different modules
 try:
     from app.routes import students, api
+
     app.include_router(students.router, prefix="/students", tags=["Students"])
     app.include_router(api.router, prefix="/api/v1", tags=["API"])
     logger.info("Student and API routes loaded successfully")
 except ImportError as e:
     logger.warning(f"Could not load all routes: {e}")
+
     # Fallback basic student endpoints
     @app.get("/students", response_class=HTMLResponse, tags=["Students"])
     async def list_students(request: Request):
@@ -442,6 +471,7 @@ except ImportError as e:
         """
         return HTMLResponse(content=html_content)
 
+
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
     """Custom 404 error handler."""
@@ -471,6 +501,7 @@ async def not_found_handler(request: Request, exc: HTTPException):
     </html>
     """
     return HTMLResponse(content=html_content, status_code=404)
+
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc: Exception):
@@ -503,6 +534,7 @@ async def internal_error_handler(request: Request, exc: Exception):
     """
     return HTMLResponse(content=html_content, status_code=500)
 
+
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
@@ -511,41 +543,47 @@ async def startup_event():
     logger.info(f"🌐 Production URL: {PRODUCTION_URL}")
     logger.info(f"📊 Health check available at: {PRODUCTION_URL}/health")
     logger.info(f"📖 API documentation available at: {PRODUCTION_URL}/docs")
-    
+
     # Initialize database
     try:
         from app.database import init_database
+
         await init_database()
         logger.info("✅ Database initialization completed")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
-    
+
     # Initialize application state
     try:
         logger.info("✅ Application initialization completed")
     except Exception as e:
         logger.error(f"❌ Application initialization failed: {e}")
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Application shutdown event."""
     logger.info(f"🛑 {APP_NAME} shutting down...")
     logger.info(f"📊 Final request count: {app_state['request_count']}")
-    logger.info(f"⏱️ Total uptime: {int((datetime.utcnow() - app_state['start_time']).total_seconds())} seconds")
-    
+    logger.info(
+        f"⏱️ Total uptime: {int((datetime.utcnow() - app_state['start_time']).total_seconds())} seconds"
+    )
+
     # Close database connection
     try:
         from app.database import close_database
+
         await close_database()
         logger.info("✅ Database connection closed")
     except Exception as e:
         logger.error(f"❌ Error closing database connection: {e}")
-    
+
     # Cleanup application state
     try:
         logger.info("✅ Application cleanup completed")
     except Exception as e:
         logger.error(f"❌ Error during application cleanup: {e}")
+
 
 if __name__ == "__main__":
     uvicorn.run(
@@ -554,5 +592,5 @@ if __name__ == "__main__":
         port=8000,
         reload=False,  # Disabled for production
         log_level="info",
-        access_log=True
+        access_log=True,
     )

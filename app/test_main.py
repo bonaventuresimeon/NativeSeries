@@ -4,6 +4,7 @@ from app.main import app
 
 client = TestClient(app)
 
+
 def test_health_check():
     """Test the health check endpoint"""
     response = client.get("/health")
@@ -12,6 +13,7 @@ def test_health_check():
     assert data["status"] == "healthy"
     assert data["service"] == "student-tracker"
     assert data["version"] == "1.0.0"
+
 
 def test_home_page():
     """Test the home page endpoint"""
@@ -22,25 +24,30 @@ def test_home_page():
         data = response.json()
         assert "message" in data
 
+
 def test_register_get():
     """Test GET /register endpoint"""
     response = client.get("/register")
     assert response.status_code == 200
+
 
 def test_progress_get():
     """Test GET /progress endpoint"""
     response = client.get("/progress")
     assert response.status_code == 200
 
+
 def test_update_get():
     """Test GET /update endpoint"""
     response = client.get("/update")
     assert response.status_code == 200
 
+
 def test_admin_get():
     """Test GET /admin endpoint"""
     response = client.get("/admin")
     assert response.status_code == 200
+
 
 def test_api_students():
     """Test the API students endpoint"""
@@ -50,11 +57,13 @@ def test_api_students():
     # Should either return students list or an error
     assert "students" in data or "error" in data
 
+
 def test_register_form_post():
     """Test POST /register with form data"""
     response = client.post("/register", data={"name": "Test Student"})
     # Should either succeed or fail gracefully
     assert response.status_code in [200, 500]
+
 
 def test_progress_form_post():
     """Test POST /progress with form data"""
@@ -62,15 +71,15 @@ def test_progress_form_post():
     # Should either succeed or fail gracefully
     assert response.status_code in [200, 500]
 
+
 def test_update_form_post():
     """Test POST /update with form data"""
-    response = client.post("/update", data={
-        "name": "Test Student",
-        "week": "week1",
-        "status": "completed"
-    })
+    response = client.post(
+        "/update", data={"name": "Test Student", "week": "week1", "status": "completed"}
+    )
     # Should either succeed or fail gracefully
     assert response.status_code in [200, 500]
+
 
 def test_api_register():
     """Test the API register endpoint"""

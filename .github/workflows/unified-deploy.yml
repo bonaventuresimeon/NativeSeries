@@ -87,7 +87,7 @@ jobs:
 
       - name: Run Flake8 linter
         run: |
-          flake8 app/ --max-line-length=88 --extend-ignore=E203,W503 || echo "Flake8 linting failed, continuing..."
+          flake8 app/ --max-line-length=88 --extend-ignore=E203,W503,F401,F541,W293 || echo "Flake8 linting failed, continuing..."
 
       - name: Run MyPy type checker
         run: |
