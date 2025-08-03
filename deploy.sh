@@ -750,6 +750,19 @@ run_validation() {
         fi
     done
     
+    # Validate Kubernetes manifests
+    for manifest in production staging; do
+        if [ -f "manifests/${manifest}.yaml" ]; then
+            print_status "Validating ${manifest} manifest..."
+            if command_exists python3; then
+                python3 -c "import yaml; list(yaml.safe_load_all(open('manifests/${manifest}.yaml'))); print('✅ ${manifest} manifest YAML is valid')" 2>/dev/null || {
+                    print_error "${manifest} manifest validation failed"
+                    return 1
+                }
+            fi
+        fi
+    done
+    
     print_success "✅ Comprehensive validation completed successfully"
 }
 
