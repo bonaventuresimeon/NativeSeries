@@ -12,13 +12,20 @@ from typing import Optional, Dict, Any
 import uvicorn
 
 # Configure logging
+log_handlers = [logging.StreamHandler()]
+logs_dir = "/app/logs" if os.path.exists("/app/logs") else "logs"
+try:
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir, exist_ok=True)
+    log_handlers.append(logging.FileHandler(os.path.join(logs_dir, "app.log")))
+except (OSError, PermissionError):
+    # Fall back to stdout only if we can't write to logs
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("app.log") if os.path.exists("logs") or os.makedirs("logs", exist_ok=True) else logging.StreamHandler()
-    ]
+    handlers=log_handlers
 )
 
 logger = logging.getLogger(__name__)
