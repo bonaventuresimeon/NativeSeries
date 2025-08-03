@@ -158,6 +158,9 @@ check_prerequisites() {
 validate_helm_chart() {
     print_status "Validating Helm chart..."
     
+    # Store original directory
+    ORIGINAL_DIR=$(pwd)
+    
     cd $HELM_CHART_PATH
     
     # Lint the chart
@@ -165,6 +168,9 @@ validate_helm_chart() {
     
     # Template the chart to check for errors
     helm template student-tracker . --debug
+    
+    # Return to original directory
+    cd "$ORIGINAL_DIR"
     
     print_success "Helm chart validation passed!"
 }
@@ -207,6 +213,9 @@ validate_argocd_application() {
 generate_manifests() {
     print_status "Generating deployment manifests..."
     
+    # Store original directory
+    ORIGINAL_DIR=$(pwd)
+    
     cd $HELM_CHART_PATH
     
     # Generate manifests for different environments
@@ -229,6 +238,9 @@ generate_manifests() {
         --set hpa.enabled=false \
         --set networkPolicy.enabled=false \
         > ../manifests/staging.yaml
+    
+    # Return to original directory
+    cd "$ORIGINAL_DIR"
     
     print_success "Deployment manifests generated successfully!"
     print_status "Manifests saved to:"
@@ -538,21 +550,39 @@ cleanup_local() {
 
 # Function to check GitHub Actions status
 check_github_actions() {
-    print_status "Checking GitHub Actions workflow..."
+    print_status "Checking GitHub Actions workflows..."
+    
+    WORKFLOWS_FOUND=false
+    
+    if [ -f ".github/workflows/enhanced-deploy.yml" ]; then
+        print_success "Enhanced GitHub Actions workflow found!"
+        print_status "Workflow: .github/workflows/enhanced-deploy.yml"
+        print_status "This workflow includes:"
+        print_status "  - Security scanning (Trivy + Bandit)"
+        print_status "  - Code quality checks (Black, Flake8, MyPy)"
+        print_status "  - Helm chart validation"
+        print_status "  - Multi-platform Docker builds"
+        print_status "  - Staging and production deployments"
+        WORKFLOWS_FOUND=true
+    fi
     
     if [ -f ".github/workflows/helm-argocd-deploy.yml" ]; then
-        print_success "GitHub Actions workflow found!"
+        print_success "Basic GitHub Actions workflow found!"
         print_status "Workflow: .github/workflows/helm-argocd-deploy.yml"
-        print_status "This workflow will:"
-        print_status "  - Validate code and Helm charts"
-        print_status "  - Build and push Docker images"
-        print_status "  - Deploy via ArgoCD (if cluster configured)"
-        
+        print_status "This workflow includes:"
+        print_status "  - Basic validation and testing"
+        print_status "  - Docker image building"
+        print_status "  - Helm chart validation"
+        WORKFLOWS_FOUND=true
+    fi
+    
+    if [ "$WORKFLOWS_FOUND" = true ]; then
         print_status "To trigger deployment:"
         print_status "1. Push changes to main branch"
         print_status "2. Or manually trigger workflow in GitHub"
+        print_status "3. Use workflow_dispatch for manual deployment"
     else
-        print_warning "GitHub Actions workflow not found"
+        print_warning "No GitHub Actions workflows found"
     fi
 }
 

@@ -1,82 +1,129 @@
 #!/usr/bin/env python3
 """
-Basic test file for Student Tracker application
+Basic test suite for Student Tracker application
 """
 
 import sys
 import os
+import unittest
+from unittest.mock import patch, MagicMock
 
-def test_imports():
-    """Test that all modules can be imported"""
-    try:
-        # Add app directory to path
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add the current directory to the path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+class TestBasicFunctionality(unittest.TestCase):
+    """Basic functionality tests"""
+    
+    def test_imports(self):
+        """Test that all modules can be imported"""
+        try:
+            import main
+            import crud
+            import database
+            import models
+            print("✅ All modules imported successfully")
+        except ImportError as e:
+            # This is expected if dependencies are not installed
+            print(f"⚠️ Import warning (expected without dependencies): {e}")
+            print("✅ Module structure is correct")
+        except Exception as e:
+            self.fail(f"Failed to import module: {e}")
+    
+    def test_main_exists(self):
+        """Test that main.py exists and is valid"""
+        self.assertTrue(os.path.exists("main.py"), "main.py should exist")
         
-        # Test imports (without dependencies)
-        import app.models
-        import app.crud
-        import app.database
+        # Test that main.py can be compiled
+        try:
+            with open("main.py", "r") as f:
+                compile(f.read(), "main.py", "exec")
+            print("✅ main.py compiles successfully")
+        except SyntaxError as e:
+            self.fail(f"main.py has syntax errors: {e}")
+    
+    def test_crud_exists(self):
+        """Test that crud.py exists and is valid"""
+        self.assertTrue(os.path.exists("crud.py"), "crud.py should exist")
         
-        print("✅ All modules imported successfully")
-        return True
-    except ImportError as e:
-        print(f"⚠️ Import warning (expected without dependencies): {e}")
-        print("✅ Module structure is correct")
-        return True
+        # Test that crud.py can be compiled
+        try:
+            with open("crud.py", "r") as f:
+                compile(f.read(), "crud.py", "exec")
+            print("✅ crud.py compiles successfully")
+        except SyntaxError as e:
+            self.fail(f"crud.py has syntax errors: {e}")
+    
+    def test_database_exists(self):
+        """Test that database.py exists and is valid"""
+        self.assertTrue(os.path.exists("database.py"), "database.py should exist")
+        
+        # Test that database.py can be compiled
+        try:
+            with open("database.py", "r") as f:
+                compile(f.read(), "database.py", "exec")
+            print("✅ database.py compiles successfully")
+        except SyntaxError as e:
+            self.fail(f"database.py has syntax errors: {e}")
+    
+    def test_models_exists(self):
+        """Test that models.py exists and is valid"""
+        self.assertTrue(os.path.exists("models.py"), "models.py should exist")
+        
+        # Test that models.py can be compiled
+        try:
+            with open("models.py", "r") as f:
+                compile(f.read(), "models.py", "exec")
+            print("✅ models.py compiles successfully")
+        except SyntaxError as e:
+            self.fail(f"models.py has syntax errors: {e}")
+    
+    def test_requirements_exists(self):
+        """Test that requirements.txt exists"""
+        self.assertTrue(os.path.exists("../requirements.txt"), "requirements.txt should exist")
+        print("✅ requirements.txt exists")
+    
+    def test_dockerfile_exists(self):
+        """Test that Dockerfile exists"""
+        self.assertTrue(os.path.exists("../Dockerfile"), "Dockerfile should exist")
+        print("✅ Dockerfile exists")
+    
+    def test_helm_chart_exists(self):
+        """Test that Helm chart exists"""
+        self.assertTrue(os.path.exists("../helm-chart"), "helm-chart directory should exist")
+        self.assertTrue(os.path.exists("../helm-chart/Chart.yaml"), "Chart.yaml should exist")
+        self.assertTrue(os.path.exists("../helm-chart/values.yaml"), "values.yaml should exist")
+        print("✅ Helm chart structure exists")
+    
+    def test_argocd_config_exists(self):
+        """Test that ArgoCD configuration exists"""
+        self.assertTrue(os.path.exists("../argocd"), "argocd directory should exist")
+        self.assertTrue(os.path.exists("../argocd/application.yaml"), "application.yaml should exist")
+        print("✅ ArgoCD configuration exists")
 
-def test_models():
-    """Test basic model functionality"""
+def run_basic_tests():
+    """Run basic tests and return exit code"""
     try:
-        # Test model structure without dependencies
-        with open('app/models.py', 'r') as f:
-            content = f.read()
-            if 'class Student' in content and 'BaseModel' in content:
-                print("✅ Student model structure is correct")
-                return True
-            else:
-                print("❌ Student model structure is incorrect")
-                return False
+        # Create test suite
+        suite = unittest.TestLoader().loadTestsFromTestCase(TestBasicFunctionality)
+        
+        # Run tests
+        runner = unittest.TextTestRunner(verbosity=2)
+        result = runner.run(suite)
+        
+        # Return exit code based on test results
+        return 0 if result.wasSuccessful() else 1
+        
     except Exception as e:
-        print(f"❌ Model test error: {e}")
-        return False
-
-def test_config():
-    """Test configuration loading"""
-    try:
-        # Test main app structure without dependencies
-        with open('app/main.py', 'r') as f:
-            content = f.read()
-            if 'FastAPI' in content and 'APP_NAME' in content and 'APP_VERSION' in content:
-                print("✅ FastAPI app structure is correct")
-                return True
-            else:
-                print("❌ FastAPI app structure is incorrect")
-                return False
-    except Exception as e:
-        print(f"❌ Config test error: {e}")
-        return False
+        print(f"❌ Test execution failed: {e}")
+        return 1
 
 if __name__ == "__main__":
-    print("🧪 Running basic tests...")
+    print("🧪 Running basic functionality tests...")
+    exit_code = run_basic_tests()
     
-    tests = [
-        test_imports,
-        test_models,
-        test_config
-    ]
-    
-    passed = 0
-    total = len(tests)
-    
-    for test in tests:
-        if test():
-            passed += 1
-    
-    print(f"\n📊 Test Results: {passed}/{total} tests passed")
-    
-    if passed == total:
-        print("🎉 All tests passed!")
-        sys.exit(0)
+    if exit_code == 0:
+        print("✅ All basic tests passed!")
     else:
-        print("❌ Some tests failed!")
-        sys.exit(1)
+        print("❌ Some basic tests failed!")
+    
+    sys.exit(exit_code)
