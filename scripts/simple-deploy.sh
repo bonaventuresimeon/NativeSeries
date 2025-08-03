@@ -18,8 +18,8 @@ NC='\033[0m' # No Color
 # Configuration - EVERYTHING in one namespace!
 NAMESPACE="student-tracker"
 APP_NAME="student-tracker"
-DOMAIN="${DOMAIN:-student-tracker.local}"
-NODE_PORT="${NODE_PORT:-30080}"
+DOMAIN="${DOMAIN:-18.206.89.183}"
+NODE_PORT="${NODE_PORT:-30011}"
 
 # Print with style
 print_header() {
@@ -363,12 +363,17 @@ setup_dns_and_show_info() {
     
     print_step "Configuring local DNS..."
     
-    # Add to /etc/hosts if not already there
-    if ! grep -q "$DOMAIN" /etc/hosts 2>/dev/null; then
-        echo "127.0.0.1 $DOMAIN" | sudo tee -a /etc/hosts >/dev/null
-        print_success "Added $DOMAIN to /etc/hosts"
+    # Skip /etc/hosts for public IP addresses
+    if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        print_success "Using public IP address: $DOMAIN"
     else
-        print_success "$DOMAIN already in /etc/hosts"
+        # Add to /etc/hosts if not already there for local domains
+        if ! grep -q "$DOMAIN" /etc/hosts 2>/dev/null; then
+            echo "127.0.0.1 $DOMAIN" | sudo tee -a /etc/hosts >/dev/null
+            print_success "Added $DOMAIN to /etc/hosts"
+        else
+            print_success "$DOMAIN already in /etc/hosts"
+        fi
     fi
     
     print_step "Testing application health..."
