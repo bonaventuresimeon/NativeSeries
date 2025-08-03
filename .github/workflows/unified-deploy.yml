@@ -25,12 +25,16 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: student-tracker
   HELM_CHART_PATH: ./helm-chart
-  ARGOCD_APP_PATH: ./argocd/application.yaml
+  ARGOCD_APP_PATH: ./argocd
 
 jobs:
   # Security Scanning
   security-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -158,7 +162,11 @@ jobs:
 
       - name: Validate ArgoCD application
         run: |
-          python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}')); print('✅ ArgoCD application YAML is valid')" || echo "ArgoCD validation failed, continuing..."
+          for app in production development staging; do
+            if [ -f "${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml" ]; then
+              python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml')); print('✅ ArgoCD ${app} application YAML is valid')" || echo "ArgoCD ${app} validation failed, continuing..."
+            fi
+          done
 
       - name: Check Helm chart dependencies
         run: |
@@ -195,7 +203,11 @@ jobs:
 
       - name: Validate ArgoCD application
         run: |
-          python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}')); print('✅ ArgoCD application YAML is valid')" || echo "ArgoCD validation failed, continuing..."
+          for app in production development staging; do
+            if [ -f "${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml" ]; then
+              python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml')); print('✅ ArgoCD ${app} application YAML is valid')" || echo "ArgoCD ${app} validation failed, continuing..."
+            fi
+          done
 
       - name: Check Helm chart dependencies
         run: |
@@ -287,8 +299,8 @@ jobs:
           argocd app sync student-tracker-staging --prune --force || echo "ArgoCD sync failed, continuing..."
           
           echo "✅ Staging deployment completed!"
-          echo "🌐 Access your application at: https://staging-student-tracker.yourdomain.com"
-          echo "🔧 Access ArgoCD at: https://argocd-staging.yourdomain.com"
+          echo "🌐 Access your application at: http://staging.18.206.89.183:30011"
+          echo "🔧 Access ArgoCD at: https://argocd-staging.18.206.89.183.nip.io"
 
   # Deploy to Production
   deploy-production:
@@ -319,5 +331,5 @@ jobs:
           argocd app sync student-tracker-production --prune --force || echo "ArgoCD sync failed, continuing..."
           
           echo "✅ Production deployment completed!"
-          echo "🌐 Access your application at: https://student-tracker.yourdomain.com"
-          echo "🔧 Access ArgoCD at: https://argocd-prod.yourdomain.com"
+          echo "🌐 Access your application at: http://18.206.89.183:30011"
+          echo "🔧 Access ArgoCD at: https://argocd-prod.18.206.89.183.nip.io"

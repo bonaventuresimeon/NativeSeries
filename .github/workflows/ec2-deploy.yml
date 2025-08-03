@@ -18,6 +18,10 @@ jobs:
   # Security Scanning
   security-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -106,7 +110,11 @@ jobs:
 
       - name: Validate ArgoCD application
         run: |
-          python -c "import yaml; yaml.safe_load(open('argocd/application.yaml')); print('✅ ArgoCD application YAML is valid')" || echo "ArgoCD validation failed, continuing..."
+          for app in production development staging; do
+            if [ -f "argocd/application-${app}.yaml" ]; then
+              python -c "import yaml; yaml.safe_load(open('argocd/application-${app}.yaml')); print('✅ ArgoCD ${app} application YAML is valid')" || echo "ArgoCD ${app} validation failed, continuing..."
+            fi
+          done
 
   build-and-push:
     needs: validate
