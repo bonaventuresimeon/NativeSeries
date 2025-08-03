@@ -2,6 +2,42 @@
 
 set -e
 
+# Parse command line arguments
+FORCE_PRUNE=false
+SKIP_PRUNE=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force-prune)
+            FORCE_PRUNE=true
+            shift
+            ;;
+        --skip-prune)
+            SKIP_PRUNE=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --force-prune    Automatically perform complete machine pruning without asking"
+            echo "  --skip-prune     Skip machine pruning entirely"
+            echo "  --help, -h       Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0                    # Interactive deployment with pruning prompt"
+            echo "  $0 --force-prune      # Deploy with automatic pruning"
+            echo "  $0 --skip-prune       # Deploy without pruning"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Get the directory where this script is located and change to project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -107,6 +143,141 @@ check_prerequisites() {
     fi
     
     print_status "✅ Prerequisites check completed."
+}
+
+# Function to perform complete machine pruning
+prune_machine() {
+    print_status "🧹 Starting complete machine pruning..."
+    
+    # Determine Docker command (with or without sudo)
+    DOCKER_CMD="docker"
+    if ! docker info >/dev/null 2>&1; then
+        if sudo docker info >/dev/null 2>&1; then
+            DOCKER_CMD="sudo docker"
+            print_info "Using sudo for Docker commands"
+        else
+            print_warning "Docker not available, skipping Docker pruning"
+            return 0
+        fi
+    fi
+    
+    print_info "Pruning Docker resources..."
+    
+    # Stop all running containers
+    print_info "Stopping all running containers..."
+    if $DOCKER_CMD ps -q | wc -l | grep -q -v "^0$"; then
+        $DOCKER_CMD stop $($DOCKER_CMD ps -q) 2>/dev/null || true
+        print_status "✅ All containers stopped"
+    else
+        print_info "No running containers found"
+    fi
+    
+    # Remove all containers
+    print_info "Removing all containers..."
+    if $DOCKER_CMD ps -aq | wc -l | grep -q -v "^0$"; then
+        $DOCKER_CMD rm -f $($DOCKER_CMD ps -aq) 2>/dev/null || true
+        print_status "✅ All containers removed"
+    else
+        print_info "No containers found"
+    fi
+    
+    # Remove all images
+    print_info "Removing all Docker images..."
+    if $DOCKER_CMD images -q | wc -l | grep -q -v "^0$"; then
+        $DOCKER_CMD rmi -f $($DOCKER_CMD images -q) 2>/dev/null || true
+        print_status "✅ All images removed"
+    else
+        print_info "No images found"
+    fi
+    
+    # Remove all volumes
+    print_info "Removing all Docker volumes..."
+    if $DOCKER_CMD volume ls -q | wc -l | grep -q -v "^0$"; then
+        $DOCKER_CMD volume rm $($DOCKER_CMD volume ls -q) 2>/dev/null || true
+        print_status "✅ All volumes removed"
+    else
+        print_info "No volumes found"
+    fi
+    
+    # Remove all networks (except default ones)
+    print_info "Removing custom Docker networks..."
+    if $DOCKER_CMD network ls --filter "type=custom" -q | wc -l | grep -q -v "^0$"; then
+        $DOCKER_CMD network rm $($DOCKER_CMD network ls --filter "type=custom" -q) 2>/dev/null || true
+        print_status "✅ Custom networks removed"
+    else
+        print_info "No custom networks found"
+    fi
+    
+    # Prune system (removes unused data)
+    print_info "Pruning Docker system..."
+    $DOCKER_CMD system prune -af --volumes 2>/dev/null || true
+    print_status "✅ Docker system pruned"
+    
+    # Clean up Docker build cache
+    print_info "Cleaning Docker build cache..."
+    $DOCKER_CMD builder prune -af 2>/dev/null || true
+    print_status "✅ Build cache cleaned"
+    
+    print_info "Pruning Kubernetes resources..."
+    
+    # Check if kubectl is available and cluster is accessible
+    if command_exists kubectl && kubectl cluster-info >/dev/null 2>&1; then
+        # Delete all resources in the project namespace
+        if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+            print_info "Cleaning up namespace: $NAMESPACE"
+            kubectl delete all --all -n "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+            kubectl delete namespace "$NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+            print_status "✅ Kubernetes namespace cleaned"
+        fi
+        
+        # Clean up ArgoCD namespace if it exists
+        if kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+            print_info "Cleaning up ArgoCD namespace: $ARGOCD_NAMESPACE"
+            kubectl delete all --all -n "$ARGOCD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+            kubectl delete namespace "$ARGOCD_NAMESPACE" --ignore-not-found=true 2>/dev/null || true
+            print_status "✅ ArgoCD namespace cleaned"
+        fi
+        
+        # Clean up any dangling resources
+        print_info "Cleaning up dangling Kubernetes resources..."
+        kubectl delete pods --field-selector=status.phase=Failed --all-namespaces --ignore-not-found=true 2>/dev/null || true
+        kubectl delete pods --field-selector=status.phase=Succeeded --all-namespaces --ignore-not-found=true 2>/dev/null || true
+        print_status "✅ Dangling resources cleaned"
+    else
+        print_warning "Kubernetes cluster not accessible, skipping Kubernetes cleanup"
+    fi
+    
+    print_info "Pruning system resources..."
+    
+    # Clean up temporary files
+    print_info "Cleaning temporary files..."
+    sudo rm -rf /tmp/* 2>/dev/null || true
+    sudo rm -rf /var/tmp/* 2>/dev/null || true
+    print_status "✅ Temporary files cleaned"
+    
+    # Clean up package cache (if apt is available)
+    if command_exists apt; then
+        print_info "Cleaning package cache..."
+        sudo apt clean 2>/dev/null || true
+        sudo apt autoremove -y 2>/dev/null || true
+        print_status "✅ Package cache cleaned"
+    fi
+    
+    # Clean up log files (keep recent ones)
+    print_info "Cleaning old log files..."
+    sudo find /var/log -name "*.log" -mtime +7 -delete 2>/dev/null || true
+    sudo find /var/log -name "*.gz" -mtime +7 -delete 2>/dev/null || true
+    print_status "✅ Old log files cleaned"
+    
+    # Clean up Helm cache
+    if command_exists helm; then
+        print_info "Cleaning Helm cache..."
+        helm repo update 2>/dev/null || true
+        print_status "✅ Helm cache updated"
+    fi
+    
+    print_status "🎉 Complete machine pruning finished!"
+    print_info "Freed up significant disk space and cleaned all resources"
 }
 
 # Function to check and fix common deployment issues
@@ -626,6 +797,39 @@ show_next_steps() {
 # Main deployment function
 main() {
     print_status "Starting deployment process..."
+    
+    # Handle machine pruning based on command line arguments
+    if [[ "$FORCE_PRUNE" == "true" ]]; then
+        print_status "🧹 Force pruning enabled. Performing complete machine pruning..."
+        prune_machine
+        echo ""
+        print_status "Pruning completed. Proceeding with deployment..."
+        echo ""
+    elif [[ "$SKIP_PRUNE" == "true" ]]; then
+        print_info "Skipping machine pruning (--skip-prune flag used)."
+    else
+        # Ask user if they want to perform complete machine pruning
+        echo ""
+        print_warning "🧹 Complete Machine Pruning"
+        echo "This will clean up all Docker resources, Kubernetes namespaces, and system files."
+        echo "This action will:"
+        echo "  • Stop and remove all Docker containers"
+        echo "  • Remove all Docker images and volumes"
+        echo "  • Clean up Kubernetes namespaces"
+        echo "  • Remove temporary files and logs"
+        echo "  • Clean package cache"
+        echo ""
+        read -p "Do you want to perform complete machine pruning before deployment? (y/N): " prune_choice
+        
+        if [[ $prune_choice =~ ^[Yy]$ ]]; then
+            prune_machine
+            echo ""
+            print_status "Pruning completed. Proceeding with deployment..."
+            echo ""
+        else
+            print_info "Skipping machine pruning. Proceeding with deployment..."
+        fi
+    fi
     
     check_prerequisites
     

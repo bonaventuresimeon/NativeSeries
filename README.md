@@ -274,9 +274,37 @@ cd NativeSeries
 # Make deployment script executable
 chmod +x scripts/deploy.sh
 
-# Run deployment (interactive menu)
+# Run deployment (interactive menu with pruning option)
 ./scripts/deploy.sh
+
+# Or run with automatic pruning (cleans everything before deployment)
+./scripts/deploy.sh --force-prune
+
+# Or skip pruning entirely
+./scripts/deploy.sh --skip-prune
 ```
+
+### 🧹 Machine Pruning
+
+The deployment script includes comprehensive machine pruning capabilities:
+
+**What gets cleaned:**
+- All Docker containers, images, volumes, and networks
+- Kubernetes namespaces and resources
+- Temporary files and old logs
+- Package cache and build artifacts
+- Helm cache and repositories
+
+**Pruning Options:**
+- **Interactive**: `./scripts/deploy.sh` (asks before pruning)
+- **Automatic**: `./scripts/deploy.sh --force-prune` (prunes without asking)
+- **Skip**: `./scripts/deploy.sh --skip-prune` (skips pruning entirely)
+
+**Benefits:**
+- Frees up significant disk space
+- Ensures clean deployment environment
+- Removes conflicting resources
+- Improves deployment reliability
 
 ### Quick Test
 
@@ -375,15 +403,22 @@ This script will:
 For production environments:
 
 ```bash
-# Deploy to Kubernetes cluster
+# Deploy to Kubernetes cluster (with pruning prompt)
 ./scripts/deploy.sh
+
+# Deploy with automatic pruning (recommended for clean environments)
+./scripts/deploy.sh --force-prune
+
+# Deploy without pruning (if you want to keep existing resources)
+./scripts/deploy.sh --skip-prune
 ```
 
 This script will:
-- Validate Helm charts
-- Deploy to Kubernetes cluster
-- Set up ArgoCD for GitOps
-- Configure monitoring and scaling
+- **Prune machine** (optional): Clean all Docker and Kubernetes resources
+- **Validate Helm charts**: Ensure all templates are correct
+- **Deploy to Kubernetes cluster**: Install the application
+- **Set up ArgoCD for GitOps**: Configure continuous deployment
+- **Configure monitoring and scaling**: Set up health checks and autoscaling
 
 ### ArgoCD GitOps Deployment
 
