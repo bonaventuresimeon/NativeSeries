@@ -35,7 +35,12 @@ while [[ $# -gt 0 ]]; do
             echo "  • Clean all Docker resources (containers, images, volumes, networks)"
             echo "  • Remove Kubernetes namespaces and resources"
             echo "  • Clean temporary files and system cache"
-            echo "  • Automatically install all required tools (kubectl, helm, docker, argocd, etc.)"
+            echo "  • Automatically install all required tools:"
+            echo "    - Core tools: kubectl, helm, docker, argocd"
+            echo "    - Utilities: jq, yq, k9s, kubectx/kubens"
+            echo "    - Local dev: kind, minikube"
+            echo "  • Set up shell aliases and autocompletion"
+            echo "  • Create development helper scripts"
             echo ""
             echo "Environment Variables:"
             echo "  DOCKER_USERNAME  Your Docker Hub username (for option 6)"
@@ -279,8 +284,29 @@ install_all_tools() {
         rm minikube-linux-amd64 || print_warning "Failed to install minikube"
     fi
     
+    # Install k9s for Kubernetes cluster management
+    if ! command_exists k9s; then
+        print_info "Installing k9s..."
+        K9S_VERSION=$(curl -s https://api.github.com/repos/derailed/k9s/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        curl -L "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_amd64.tar.gz" -o k9s.tar.gz
+        tar -xzf k9s.tar.gz k9s
+        sudo install -o root -g root -m 0755 k9s /usr/local/bin/k9s
+        rm -f k9s k9s.tar.gz || print_warning "Failed to install k9s"
+    fi
+    
+    # Install kubectx and kubens for context switching
+    if ! command_exists kubectx; then
+        print_info "Installing kubectx and kubens..."
+        sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx 2>/dev/null || {
+            print_info "Updating existing kubectx installation..."
+            sudo git -C /opt/kubectx pull
+        }
+        sudo ln -sf /opt/kubectx/kubectx /usr/local/bin/kubectx
+        sudo ln -sf /opt/kubectx/kubens /usr/local/bin/kubens || print_warning "Failed to install kubectx/kubens"
+    fi
+    
     print_status "🎉 All tools installation completed!"
-    print_info "Installed tools: kubectl, helm, docker, argocd, jq, yq, kind, minikube"
+    print_info "Installed tools: kubectl, helm, docker, argocd, jq, yq, kind, minikube, k9s, kubectx/kubens"
     
     # Verify installations
     print_status "Verifying tool installations..."
@@ -321,6 +347,9 @@ install_all_tools() {
     command_exists yq && print_status "✅ yq: $(yq --version 2>/dev/null || echo 'installed')" || print_warning "⚠️ yq not installed"
     command_exists kind && print_status "✅ kind: $(kind version 2>/dev/null || echo 'installed')" || print_warning "⚠️ kind not installed"
     command_exists minikube && print_status "✅ minikube: $(minikube version --short 2>/dev/null || echo 'installed')" || print_warning "⚠️ minikube not installed"
+    command_exists k9s && print_status "✅ k9s: $(k9s version --short 2>/dev/null || echo 'installed')" || print_warning "⚠️ k9s not installed"
+    command_exists kubectx && print_status "✅ kubectx: $(kubectx --version 2>/dev/null || echo 'installed')" || print_warning "⚠️ kubectx not installed"
+    command_exists kubens && print_status "✅ kubens: $(kubens --version 2>/dev/null || echo 'installed')" || print_warning "⚠️ kubens not installed"
     
     if [ "$verification_failed" = true ]; then
         print_error "Some critical tools failed to install. Please check the errors above."
@@ -328,6 +357,507 @@ install_all_tools() {
     fi
     
     print_status "🎉 All critical tools verified successfully!"
+    
+    # Set up useful aliases and configurations
+    setup_shell_enhancements
+}
+
+# Function to set up shell enhancements
+setup_shell_enhancements() {
+    print_status "Setting up shell enhancements..."
+    
+    # Create kubectl aliases file
+    cat > /tmp/kubectl_aliases << 'EOF'
+# Kubectl aliases for faster development
+alias k='kubectl'
+alias kgp='kubectl get pods'
+alias kgs='kubectl get services'
+alias kgd='kubectl get deployments'
+alias kgn='kubectl get nodes'
+alias kd='kubectl describe'
+alias kdel='kubectl delete'
+alias kl='kubectl logs'
+alias kex='kubectl exec -it'
+alias kpf='kubectl port-forward'
+alias kctx='kubectx'
+alias kns='kubens'
+
+# Docker aliases
+alias d='docker'
+alias dps='docker ps'
+alias dpa='docker ps -a'
+alias di='docker images'
+alias drm='docker rm'
+alias drmi='docker rmi'
+alias dstop='docker stop'
+alias dstart='docker start'
+alias dlogs='docker logs'
+alias dexec='docker exec -it'
+
+# Helm aliases
+alias h='helm'
+alias hls='helm list'
+alias his='helm install'
+alias hup='helm upgrade'
+alias hdel='helm delete'
+alias hget='helm get'
+
+# ArgoCD aliases
+alias argocd='argocd'
+alias argo='argocd'
+alias argoapp='argocd app'
+alias argosync='argocd app sync'
+alias argoget='argocd app get'
+EOF
+
+    # Add aliases to bashrc if they don't exist
+    if [ -f "$HOME/.bashrc" ]; then
+        if ! grep -q "kubectl_aliases" "$HOME/.bashrc"; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# Kubernetes and Docker aliases" >> "$HOME/.bashrc"
+            echo "if [ -f ~/.kubectl_aliases ]; then" >> "$HOME/.bashrc"
+            echo "    source ~/.kubectl_aliases" >> "$HOME/.bashrc"
+            echo "fi" >> "$HOME/.bashrc"
+            print_status "✅ Added aliases to ~/.bashrc"
+        fi
+        
+        # Copy aliases to home directory
+        cp /tmp/kubectl_aliases "$HOME/.kubectl_aliases"
+        print_status "✅ Created ~/.kubectl_aliases"
+    fi
+    
+    # Set up kubectl autocompletion
+    if command_exists kubectl; then
+        if [ -f "$HOME/.bashrc" ] && ! grep -q "kubectl completion" "$HOME/.bashrc"; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# Kubectl autocompletion" >> "$HOME/.bashrc"
+            echo "source <(kubectl completion bash)" >> "$HOME/.bashrc"
+            echo "complete -F __start_kubectl k" >> "$HOME/.bashrc"
+            print_status "✅ Added kubectl autocompletion to ~/.bashrc"
+        fi
+    fi
+    
+    # Set up helm autocompletion
+    if command_exists helm; then
+        if [ -f "$HOME/.bashrc" ] && ! grep -q "helm completion" "$HOME/.bashrc"; then
+            echo "" >> "$HOME/.bashrc"
+            echo "# Helm autocompletion" >> "$HOME/.bashrc"
+            echo "source <(helm completion bash)" >> "$HOME/.bashrc"
+            echo "complete -F __start_helm h" >> "$HOME/.bashrc"
+            print_status "✅ Added helm autocompletion to ~/.bashrc"
+        fi
+    fi
+    
+    # Clean up temp file
+    rm -f /tmp/kubectl_aliases
+    
+    print_status "✅ Shell enhancements configured"
+    print_info "Run 'source ~/.bashrc' or start a new terminal to activate aliases and autocompletion"
+    
+    # Create development helper scripts
+    create_dev_scripts
+}
+
+# Function to create development helper scripts
+create_dev_scripts() {
+    print_status "Creating development helper scripts..."
+    
+    # Create scripts directory if it doesn't exist
+    mkdir -p "$PROJECT_ROOT/scripts/helpers"
+    
+    # Create cluster setup script
+    cat > "$PROJECT_ROOT/scripts/helpers/setup-local-cluster.sh" << 'EOF'
+#!/bin/bash
+# Quick local Kubernetes cluster setup script
+
+set -e
+
+echo "🚀 Setting up local Kubernetes cluster..."
+
+# Check if kind or minikube is available
+if command -v kind >/dev/null 2>&1; then
+    echo "Using kind for local cluster..."
+    
+    # Create kind cluster if it doesn't exist
+    if ! kind get clusters | grep -q "student-tracker"; then
+        echo "Creating kind cluster: student-tracker"
+        kind create cluster --name student-tracker --config - <<EOL
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  - containerPort: 30080
+    hostPort: 30080
+    protocol: TCP
+  - containerPort: 30443
+    hostPort: 30443
+    protocol: TCP
+EOL
+    else
+        echo "Kind cluster 'student-tracker' already exists"
+    fi
+    
+    # Set kubectl context
+    kubectl config use-context kind-student-tracker
+    
+elif command -v minikube >/dev/null 2>&1; then
+    echo "Using minikube for local cluster..."
+    
+    # Start minikube if not running
+    if ! minikube status >/dev/null 2>&1; then
+        echo "Starting minikube..."
+        minikube start --driver=docker --cpus=2 --memory=4096
+        minikube addons enable ingress
+    else
+        echo "Minikube is already running"
+    fi
+    
+    # Set kubectl context
+    kubectl config use-context minikube
+    
+else
+    echo "❌ Neither kind nor minikube is available. Please install one of them."
+    exit 1
+fi
+
+echo "✅ Local Kubernetes cluster is ready!"
+echo "📋 Cluster info:"
+kubectl cluster-info
+echo ""
+echo "🔍 Available nodes:"
+kubectl get nodes
+EOF
+
+    chmod +x "$PROJECT_ROOT/scripts/helpers/setup-local-cluster.sh"
+    print_status "✅ Created setup-local-cluster.sh"
+    
+    # Create cleanup script
+    cat > "$PROJECT_ROOT/scripts/helpers/cleanup-local-cluster.sh" << 'EOF'
+#!/bin/bash
+# Cleanup local Kubernetes cluster
+
+set -e
+
+echo "🧹 Cleaning up local Kubernetes cluster..."
+
+# Check what's running and clean up
+if kind get clusters | grep -q "student-tracker"; then
+    echo "Deleting kind cluster: student-tracker"
+    kind delete cluster --name student-tracker
+fi
+
+if command -v minikube >/dev/null 2>&1 && minikube status >/dev/null 2>&1; then
+    echo "Stopping and deleting minikube cluster"
+    minikube stop
+    minikube delete
+fi
+
+echo "✅ Local cluster cleanup completed!"
+EOF
+
+    chmod +x "$PROJECT_ROOT/scripts/helpers/cleanup-local-cluster.sh"
+    print_status "✅ Created cleanup-local-cluster.sh"
+    
+    # Create development workflow script
+    cat > "$PROJECT_ROOT/scripts/helpers/dev-workflow.sh" << 'EOF'
+#!/bin/bash
+# Development workflow helper script
+
+set -e
+
+show_help() {
+    echo "Development Workflow Helper"
+    echo "Usage: $0 [COMMAND]"
+    echo ""
+    echo "Commands:"
+    echo "  setup       Set up local development environment"
+    echo "  build       Build and deploy to local cluster"
+    echo "  test        Run application tests"
+    echo "  logs        Show application logs"
+    echo "  port-forward Start port forwarding to local app"
+    echo "  status      Show deployment status"
+    echo "  clean       Clean up development resources"
+    echo "  help        Show this help message"
+}
+
+setup_dev() {
+    echo "🔧 Setting up development environment..."
+    
+    # Setup local cluster
+    ./setup-local-cluster.sh
+    
+    # Create namespace
+    kubectl create namespace student-tracker --dry-run=client -o yaml | kubectl apply -f -
+    
+    echo "✅ Development environment ready!"
+}
+
+build_and_deploy() {
+    echo "🏗️ Building and deploying application..."
+    
+    # Build Docker image
+    docker build -t student-tracker:dev .
+    
+    # Load image into kind if using kind
+    if kind get clusters | grep -q "student-tracker"; then
+        kind load docker-image student-tracker:dev --name student-tracker
+    fi
+    
+    # Deploy with Helm
+    helm upgrade --install student-tracker ./helm-chart \
+        --namespace student-tracker \
+        --set image.repository=student-tracker \
+        --set image.tag=dev \
+        --set image.pullPolicy=Never \
+        --set serviceMonitor.enabled=false
+    
+    echo "✅ Application deployed!"
+}
+
+show_logs() {
+    echo "📄 Application logs:"
+    kubectl logs -n student-tracker -l app.kubernetes.io/name=student-tracker --tail=50 -f
+}
+
+port_forward() {
+    echo "🔌 Starting port forwarding..."
+    echo "Application will be available at: http://localhost:8080"
+    kubectl port-forward -n student-tracker service/student-tracker 8080:80
+}
+
+show_status() {
+    echo "📊 Deployment Status:"
+    echo "===================="
+    kubectl get all -n student-tracker
+    echo ""
+    echo "Pod Details:"
+    kubectl describe pods -n student-tracker -l app.kubernetes.io/name=student-tracker
+}
+
+cleanup() {
+    echo "🧹 Cleaning up development resources..."
+    helm uninstall student-tracker -n student-tracker || true
+    kubectl delete namespace student-tracker || true
+    docker rmi student-tracker:dev || true
+    echo "✅ Cleanup completed!"
+}
+
+case "${1:-help}" in
+    setup)
+        setup_dev
+        ;;
+    build)
+        build_and_deploy
+        ;;
+    test)
+        echo "🧪 Running tests..."
+        # Add your test commands here
+        echo "No tests configured yet"
+        ;;
+    logs)
+        show_logs
+        ;;
+    port-forward|pf)
+        port_forward
+        ;;
+    status)
+        show_status
+        ;;
+    clean)
+        cleanup
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac
+EOF
+
+    chmod +x "$PROJECT_ROOT/scripts/helpers/dev-workflow.sh"
+    print_status "✅ Created dev-workflow.sh"
+    
+    # Create quick reference file
+    cat > "$PROJECT_ROOT/scripts/helpers/QUICK_REFERENCE.md" << 'EOF'
+# Quick Reference Guide
+
+## 🚀 Getting Started
+
+### 1. Install All Tools
+```bash
+./scripts/deploy.sh --install-tools
+```
+
+### 2. Set Up Local Development
+```bash
+./scripts/helpers/dev-workflow.sh setup
+```
+
+### 3. Build and Deploy
+```bash
+./scripts/helpers/dev-workflow.sh build
+```
+
+## 📋 Useful Commands
+
+### Kubernetes Shortcuts (after sourcing ~/.bashrc)
+```bash
+k get pods              # kubectl get pods
+kgp                     # kubectl get pods
+kgs                     # kubectl get services
+kgd                     # kubectl get deployments
+kl <pod-name>          # kubectl logs
+kex <pod-name>         # kubectl exec -it
+kctx                   # kubectx (switch contexts)
+kns                    # kubens (switch namespaces)
+```
+
+### Docker Shortcuts
+```bash
+d ps                   # docker ps
+dps                    # docker ps
+dpa                    # docker ps -a
+di                     # docker images
+dlogs <container>      # docker logs
+dexec <container>      # docker exec -it
+```
+
+### Helm Shortcuts
+```bash
+h list                 # helm list
+hls                    # helm list
+his <name> <chart>     # helm install
+hup <name> <chart>     # helm upgrade
+```
+
+## 🛠️ Development Workflow
+
+### Local Development
+```bash
+# Setup local cluster
+./scripts/helpers/setup-local-cluster.sh
+
+# Development workflow
+./scripts/helpers/dev-workflow.sh setup
+./scripts/helpers/dev-workflow.sh build
+./scripts/helpers/dev-workflow.sh port-forward
+
+# View logs
+./scripts/helpers/dev-workflow.sh logs
+
+# Check status
+./scripts/helpers/dev-workflow.sh status
+
+# Cleanup
+./scripts/helpers/dev-workflow.sh clean
+```
+
+### Production Deployment
+```bash
+# Full deployment with pruning
+./scripts/deploy.sh --force-prune
+
+# Deploy without pruning
+./scripts/deploy.sh --skip-prune
+
+# Deploy to production with Docker Hub
+./scripts/deploy.sh  # Choose option 6
+```
+
+## 🔧 Cluster Management
+
+### Kind Cluster
+```bash
+# Create cluster
+kind create cluster --name student-tracker
+
+# Load image
+kind load docker-image student-tracker:latest --name student-tracker
+
+# Delete cluster
+kind delete cluster --name student-tracker
+```
+
+### Minikube Cluster
+```bash
+# Start cluster
+minikube start --driver=docker
+
+# Enable addons
+minikube addons enable ingress
+
+# Stop cluster
+minikube stop
+
+# Delete cluster
+minikube delete
+```
+
+## 📊 Monitoring and Debugging
+
+### Useful Tools
+- **k9s**: Terminal-based Kubernetes dashboard (`k9s`)
+- **kubectx**: Switch between clusters (`kubectx`)
+- **kubens**: Switch between namespaces (`kubens`)
+
+### Common Debug Commands
+```bash
+# Check pod logs
+kubectl logs -f <pod-name> -n <namespace>
+
+# Describe resources
+kubectl describe pod <pod-name> -n <namespace>
+kubectl describe service <service-name> -n <namespace>
+
+# Port forward for testing
+kubectl port-forward service/<service-name> 8080:80 -n <namespace>
+
+# Execute into pod
+kubectl exec -it <pod-name> -n <namespace> -- /bin/bash
+```
+
+## 🚨 Troubleshooting
+
+### Common Issues
+1. **Docker daemon not running**: `sudo systemctl start docker`
+2. **Permission denied for Docker**: `sudo usermod -aG docker $USER` (then logout/login)
+3. **Kubectl context issues**: `kubectl config get-contexts` and `kubectl config use-context <context>`
+4. **Helm deployment fails**: Check `helm list` and `kubectl get pods -n <namespace>`
+
+### Reset Everything
+```bash
+# Complete system reset
+./scripts/deploy.sh --force-prune
+
+# Clean local clusters
+./scripts/helpers/cleanup-local-cluster.sh
+```
+EOF
+
+    print_status "✅ Created QUICK_REFERENCE.md"
+    
+    print_status "🎉 Development helper scripts created!"
+    print_info "Available scripts in scripts/helpers/:"
+    print_info "  - setup-local-cluster.sh: Set up kind/minikube cluster"
+    print_info "  - cleanup-local-cluster.sh: Clean up local clusters"
+    print_info "  - dev-workflow.sh: Complete development workflow"
+    print_info "  - QUICK_REFERENCE.md: Quick reference guide"
 }
 
 # Function to check prerequisites
