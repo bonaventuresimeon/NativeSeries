@@ -173,6 +173,7 @@ async def health_check():
 
         health_data = {
             "status": "healthy",
+            "service": "student-tracker",
             "timestamp": current_time.isoformat(),
             "version": APP_VERSION,
             "uptime_seconds": app_state["uptime_seconds"],

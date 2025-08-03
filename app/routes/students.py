@@ -58,12 +58,26 @@ async def list_students_page(request: Request):
                 .container {{ max-width: 1200px; margin: 0 auto; background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
                 .header {{ text-align: center; margin-bottom: 30px; }}
                 .stats {{ background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center; }}
-                .student-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 30px; }}
-                .student-card {{ background: #f8f9fa; border: 1px solid #dee2e6; padding: 20px; border-radius: 8px; }}
+                .student-grid {{ 
+                    display: grid; 
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+                    gap: 20px; 
+                    margin-top: 30px; 
+                }}
+                .student-card {{ 
+                    background: #f8f9fa; 
+                    border: 1px solid #dee2e6; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                }}
                 .student-name {{ font-size: 18px; font-weight: bold; margin-bottom: 10px; }}
                 .student-id {{ color: #6c757d; font-size: 14px; margin-bottom: 10px; }}
                 .progress {{ margin-top: 10px; }}
-                .progress-item {{ display: flex; justify-content: space-between; margin: 5px 0; }}
+                .progress-item {{ 
+                    display: flex; 
+                    justify-content: space-between; 
+                    margin: 5px 0; 
+                }}
                 .completed {{ color: #28a745; }}
                 .pending {{ color: #dc3545; }}
                 .nav-links {{ margin-top: 20px; text-align: center; }}
@@ -91,7 +105,8 @@ async def list_students_page(request: Request):
                 status_class = "completed" if completed else "pending"
                 status_text = "✅" if completed else "⏳"
                 progress_items.append(
-                    f'<div class="progress-item"><span>{week}</span><span class="{status_class}">{status_text}</span></div>'
+                    f'<div class="progress-item"><span>{week}</span>'
+                    f'<span class="{status_class}">{status_text}</span></div>'
                 )
 
             progress_html = (

@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: student-tracker-development
+  namespace: argocd
+  labels:
+    environment: development
+  annotations:
+    argocd.argoproj.io/development-url: "https://dev-student-tracker.yourdomain.com"
+    argocd.argoproj.io/argocd-url: "https://argocd-dev.yourdomain.com"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries.git
+    targetRevision: develop
+    path: helm-chart
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: app.image.tag
+          value: develop
+        - name: app.image.repository
+          value: ghcr.io/bonaventuresimeon/NativeSeries/student-tracker
+        - name: app.env[0].value
+          value: "development"
+        - name: ingress.hosts[0].host
+          value: "dev-student-tracker.yourdomain.com"
+        - name: argocd.urls.development
+          value: "https://argocd-dev.yourdomain.com"
+        - name: hpa.minReplicas
+          value: "1"
+        - name: hpa.maxReplicas
+          value: "3"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-tracker-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+  revisionHistoryLimit: 5
+  info:
+    - name: 'Development URL'
+      value: 'https://dev-student-tracker.yourdomain.com'
+    - name: 'ArgoCD URL'
+      value: 'https://argocd-dev.yourdomain.com'
+    - name: 'Environment'
+      value: 'development'
