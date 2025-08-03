@@ -68,6 +68,7 @@ show_usage() {
     echo ""
     echo "OPTIONS:"
     echo "  docker           Quick Docker deployment (recommended for EC2)"
+    echo "  docker-clean     Docker deployment with complete cleanup"
     echo "  ec2              Full EC2 deployment with system setup"
     echo "  kubernetes       Full Kubernetes deployment with ArgoCD"
     echo "  helm-fix         Fix Helm deployment issues"
@@ -79,6 +80,7 @@ show_usage() {
     echo "  health-check     Check deployment health"
     echo "  status           Show deployment status"
     echo "  clean            Clean up deployments"
+    echo "  prune            Complete system cleanup (Docker prune all)"
     echo "  help             Show this help message"
     echo ""
     echo "EXAMPLES:"
@@ -95,6 +97,44 @@ show_usage() {
     echo "  ArgoCD Prod: ${ARGOCD_PROD_URL}"
     echo "  ArgoCD Dev: ${ARGOCD_DEV_URL}"
     echo ""
+}
+
+# Function to perform complete system cleanup
+complete_cleanup() {
+    print_status "🧹 Performing complete system cleanup..."
+    
+    # Stop and remove all containers
+    print_status "🔄 Stopping all containers..."
+    sudo docker stop $(sudo docker ps -aq) 2>/dev/null || true
+    
+    print_status "🗑️ Removing all containers..."
+    sudo docker rm $(sudo docker ps -aq) 2>/dev/null || true
+    
+    # Remove all images
+    print_status "🗑️ Removing all Docker images..."
+    sudo docker rmi $(sudo docker images -aq) 2>/dev/null || true
+    
+    # Remove all volumes
+    print_status "🗑️ Removing all Docker volumes..."
+    sudo docker volume rm $(sudo docker volume ls -q) 2>/dev/null || true
+    
+    # Remove all networks
+    print_status "🗑️ Removing all Docker networks..."
+    sudo docker network rm $(sudo docker network ls -q) 2>/dev/null || true
+    
+    # Prune everything
+    print_status "🧹 Pruning Docker system..."
+    sudo docker system prune -af --volumes 2>/dev/null || true
+    
+    # Clean up any dangling images
+    print_status "🧹 Removing dangling images..."
+    sudo docker image prune -af 2>/dev/null || true
+    
+    # Clean up build cache
+    print_status "🧹 Cleaning build cache..."
+    sudo docker builder prune -af 2>/dev/null || true
+    
+    print_success "✅ Complete cleanup finished"
 }
 
 # Function to check prerequisites
@@ -1007,6 +1047,11 @@ main() {
             check_prerequisites
             deploy_docker
             ;;
+        "docker-clean")
+            check_prerequisites
+            complete_cleanup
+            deploy_docker
+            ;;
         "ec2")
             check_prerequisites
             setup_ec2_environment
@@ -1055,6 +1100,9 @@ main() {
             ;;
         "clean")
             cleanup_deployments
+            ;;
+        "prune")
+            complete_cleanup
             ;;
         "help"|*)
             show_usage

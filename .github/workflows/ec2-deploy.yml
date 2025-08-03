@@ -221,6 +221,9 @@ jobs:
           sudo docker stop student-tracker || echo "No existing container to stop"
           sudo docker rm student-tracker || echo "No existing container to remove"
           
+          # Clean up any dangling resources
+          sudo docker system prune -f || echo "Docker prune failed, continuing..."
+          
           # Pull latest image
           echo "📥 Pulling latest image..."
           sudo docker pull ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}:latest || echo "Image pull failed, continuing..."
