@@ -287,8 +287,8 @@ jobs:
           argocd app sync student-tracker-staging --prune --force || echo "ArgoCD sync failed, continuing..."
           
           echo "✅ Staging deployment completed!"
-          echo "🌐 Access your application at: https://staging-student-tracker.yourdomain.com"
-          echo "🔧 Access ArgoCD at: https://argocd-staging.yourdomain.com"
+          echo "🌐 Access your application at: http://staging.18.206.89.183:30011"
+          echo "🔧 Access ArgoCD at: https://argocd-staging.18.206.89.183.nip.io"
 
   # Deploy to Production
   deploy-production:
@@ -319,5 +319,5 @@ jobs:
           argocd app sync student-tracker-production --prune --force || echo "ArgoCD sync failed, continuing..."
           
           echo "✅ Production deployment completed!"
-          echo "🌐 Access your application at: https://student-tracker.yourdomain.com"
-          echo "🔧 Access ArgoCD at: https://argocd-prod.yourdomain.com"
+          echo "🌐 Access your application at: http://18.206.89.183:30011"
+          echo "🔧 Access ArgoCD at: https://argocd-prod.18.206.89.183.nip.io"

@@ -6,8 +6,8 @@ metadata:
   labels:
     environment: staging
   annotations:
-    argocd.argoproj.io/staging-url: "https://staging-student-tracker.yourdomain.com"
-    argocd.argoproj.io/argocd-url: "https://argocd-staging.yourdomain.com"
+    argocd.argoproj.io/staging-url: "http://staging.18.206.89.183:30011"
+    argocd.argoproj.io/argocd-url: "https://argocd-staging.18.206.89.183.nip.io"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -27,9 +27,9 @@ spec:
         - name: app.env[0].value
           value: "staging"
         - name: ingress.hosts[0].host
-          value: "staging-student-tracker.yourdomain.com"
+          value: "staging.18.206.89.183.nip.io"
         - name: argocd.urls.staging
-          value: "https://argocd-staging.yourdomain.com"
+          value: "https://argocd-staging.18.206.89.183.nip.io"
         - name: hpa.minReplicas
           value: "2"
         - name: hpa.maxReplicas
@@ -55,8 +55,8 @@ spec:
   revisionHistoryLimit: 7
   info:
     - name: 'Staging URL'
-      value: 'https://staging-student-tracker.yourdomain.com'
+      value: 'http://staging.18.206.89.183:30011'
     - name: 'ArgoCD URL'
-      value: 'https://argocd-staging.yourdomain.com'
+      value: 'https://argocd-staging.18.206.89.183.nip.io'
     - name: 'Environment'
       value: 'staging'

@@ -6,8 +6,8 @@ metadata:
   labels:
     environment: production
   annotations:
-    argocd.argoproj.io/production-url: "https://student-tracker.yourdomain.com"
-    argocd.argoproj.io/argocd-url: "https://argocd-prod.yourdomain.com"
+    argocd.argoproj.io/production-url: "http://18.206.89.183:30011"
+    argocd.argoproj.io/argocd-url: "https://argocd-prod.18.206.89.183.nip.io"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -27,9 +27,9 @@ spec:
         - name: app.env[0].value
           value: "production"
         - name: ingress.hosts[0].host
-          value: "student-tracker.yourdomain.com"
+          value: "18.206.89.183.nip.io"
         - name: argocd.urls.production
-          value: "https://argocd-prod.yourdomain.com"
+          value: "https://argocd-prod.18.206.89.183.nip.io"
   destination:
     server: https://kubernetes.default.svc
     namespace: student-tracker-prod
@@ -51,8 +51,8 @@ spec:
   revisionHistoryLimit: 10
   info:
     - name: 'Production URL'
-      value: 'https://student-tracker.yourdomain.com'
+      value: 'http://18.206.89.183:30011'
     - name: 'ArgoCD URL'
-      value: 'https://argocd-prod.yourdomain.com'
+      value: 'https://argocd-prod.18.206.89.183.nip.io'
     - name: 'Environment'
       value: 'production'

@@ -6,8 +6,8 @@ metadata:
   labels:
     environment: development
   annotations:
-    argocd.argoproj.io/development-url: "https://dev-student-tracker.yourdomain.com"
-    argocd.argoproj.io/argocd-url: "https://argocd-dev.yourdomain.com"
+    argocd.argoproj.io/development-url: "http://dev.18.206.89.183:30011"
+    argocd.argoproj.io/argocd-url: "https://argocd-dev.18.206.89.183.nip.io"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -27,9 +27,9 @@ spec:
         - name: app.env[0].value
           value: "development"
         - name: ingress.hosts[0].host
-          value: "dev-student-tracker.yourdomain.com"
+          value: "dev.18.206.89.183.nip.io"
         - name: argocd.urls.development
-          value: "https://argocd-dev.yourdomain.com"
+          value: "https://argocd-dev.18.206.89.183.nip.io"
         - name: hpa.minReplicas
           value: "1"
         - name: hpa.maxReplicas
@@ -55,8 +55,8 @@ spec:
   revisionHistoryLimit: 5
   info:
     - name: 'Development URL'
-      value: 'https://dev-student-tracker.yourdomain.com'
+      value: 'http://dev.18.206.89.183:30011'
     - name: 'ArgoCD URL'
-      value: 'https://argocd-dev.yourdomain.com'
+      value: 'https://argocd-dev.18.206.89.183.nip.io'
     - name: 'Environment'
       value: 'development'

@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # 🚀 Comprehensive Deployment Script for Student Tracker
-# Merged from: deploy-production.sh, setup-local-dev.sh, deploy-to-production.sh, get-docker.sh
-# Based on Kubernetes + Helm + ArgoCD + Ingress best practices
+# Merged from: deploy-ec2-user.sh, fix-helm-deployment.sh, quick-deploy-docker.sh, scripts/deploy.sh
+# Updated with DNS IP: 18.206.89.183
 
-set -euo pipefail
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -14,23 +14,28 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
+APP_NAME="student-tracker"
 NAMESPACE="student-tracker"
 ARGOCD_NAMESPACE="argocd"
-HELM_CHART_PATH="$(pwd)/helm-chart"
-ARGOCD_APP_PATH="$(pwd)/argocd/application.yaml"
-CLUSTER_NAME="student-tracker-dev"
-APP_NAME="student-tracker"
+HELM_CHART_PATH="./helm-chart"
+ARGOCD_APP_PATH="./argocd"
+
+# Production configuration with DNS IP
 PRODUCTION_HOST="18.206.89.183"
 PRODUCTION_PORT="30011"
 PRODUCTION_URL="http://${PRODUCTION_HOST}:${PRODUCTION_PORT}"
+ARGOCD_HTTP_PORT="30080"
+ARGOCD_HTTPS_PORT="30443"
+ARGOCD_PROD_URL="https://argocd-prod.${PRODUCTION_HOST}.nip.io"
+ARGOCD_DEV_URL="https://argocd-dev.${PRODUCTION_HOST}.nip.io"
+ARGOCD_STAGING_URL="https://argocd-staging.${PRODUCTION_HOST}.nip.io"
+
+# EC2 configuration
+EC2_USER="ec2-user"
 
 # Function to print colored output
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[INFO]${NC} $1"
 }
 
 print_warning() {
@@ -41,282 +46,320 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
 # Function to show usage
 show_usage() {
-    echo "🚀 Student Tracker Deployment Script"
-    echo "=================================="
+    echo "🚀 Student Tracker Comprehensive Deployment Script"
+    echo "================================================="
     echo ""
     echo "Usage: ./deploy.sh [OPTION]"
     echo ""
-    echo "Options:"
-    echo "  production    Deploy to production (Docker-based)"
-    echo "  local         Set up local development environment (kind + ArgoCD)"
-    echo "  validate      Validate Helm charts and ArgoCD application"
-    echo "  manifests     Generate deployment manifests"
-    echo "  cleanup       Clean up local development environment"
-    echo "  install-deps  Install required dependencies (kubectl, helm, argocd)"
-    echo "  help          Show this help message"
+    echo "OPTIONS:"
+    echo "  docker           Quick Docker deployment (recommended for EC2)"
+    echo "  ec2              Full EC2 deployment with system setup"
+    echo "  kubernetes       Full Kubernetes deployment with ArgoCD"
+    echo "  helm-fix         Fix Helm deployment issues"
+    echo "  validate         Validate configuration only"
+    echo "  build            Build Docker image only"
+    echo "  argocd           Install ArgoCD only"
+    echo "  monitoring       Deploy with Prometheus monitoring"
+    echo "  health-check     Check deployment health"
+    echo "  status           Show deployment status"
+    echo "  clean            Clean up deployments"
+    echo "  help             Show this help message"
     echo ""
-    echo "Examples:"
-    echo "  ./deploy.sh production    # Deploy to production server"
-    echo "  ./deploy.sh local         # Set up local development"
-    echo "  ./deploy.sh validate      # Validate configurations"
-    echo "  ./deploy.sh cleanup       # Clean up local environment"
+    echo "EXAMPLES:"
+    echo "  ./deploy.sh docker        # Quick Docker deployment"
+    echo "  ./deploy.sh ec2           # Full EC2 setup and deployment"
+    echo "  ./deploy.sh kubernetes    # Full K8s deployment"
+    echo "  ./deploy.sh validate      # Validate configuration"
     echo ""
-}
-
-# Function to install dependencies
-install_dependencies() {
-    print_status "Installing required dependencies..."
-    
-    # Install kubectl
-    if ! command -v kubectl &> /dev/null; then
-        print_status "Installing kubectl..."
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/
-        print_success "kubectl installed successfully!"
-    else
-        print_success "kubectl already installed!"
-    fi
-    
-    # Install Helm
-    if ! command -v helm &> /dev/null; then
-        print_status "Installing Helm..."
-        curl https://get.helm.sh/helm-v3.12.0-linux-amd64.tar.gz | tar xz
-        sudo mv linux-amd64/helm /usr/local/bin/
-        rm -rf linux-amd64
-        print_success "Helm installed successfully!"
-    else
-        print_success "Helm already installed!"
-    fi
-    
-    # Install ArgoCD CLI
-    if ! command -v argocd &> /dev/null; then
-        print_status "Installing ArgoCD CLI..."
-        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-        chmod +x argocd-linux-amd64
-        sudo mv argocd-linux-amd64 /usr/local/bin/argocd
-        print_success "ArgoCD CLI installed successfully!"
-    else
-        print_success "ArgoCD CLI already installed!"
-    fi
-    
-    # Install kind (for local development)
-    if ! command -v kind &> /dev/null; then
-        print_status "Installing kind..."
-        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
-        chmod +x ./kind
-        sudo mv ./kind /usr/local/bin/kind
-        print_success "kind installed successfully!"
-    else
-        print_success "kind already installed!"
-    fi
-    
-    print_success "All dependencies installed successfully!"
+    echo "PRODUCTION URLS:"
+    echo "  Application: ${PRODUCTION_URL}"
+    echo "  API Docs: ${PRODUCTION_URL}/docs"
+    echo "  Health: ${PRODUCTION_URL}/health"
+    echo "  ArgoCD Prod: ${ARGOCD_PROD_URL}"
+    echo "  ArgoCD Dev: ${ARGOCD_DEV_URL}"
+    echo ""
 }
 
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
     
-    # Check if kubectl is installed
-    if ! command -v kubectl &> /dev/null; then
-        print_error "kubectl is not installed. Run: ./deploy.sh install-deps"
-        exit 1
+    # Basic tools
+    local missing_tools=()
+    
+    if ! command_exists curl; then
+        missing_tools+=("curl")
     fi
     
-    # Check if helm is installed
-    if ! command -v helm &> /dev/null; then
-        print_error "Helm is not installed. Run: ./deploy.sh install-deps"
-        exit 1
+    if ! command_exists git; then
+        missing_tools+=("git")
     fi
     
-    # Check if argocd CLI is installed
-    if ! command -v argocd &> /dev/null; then
-        print_error "ArgoCD CLI is not installed. Run: ./deploy.sh install-deps"
-        exit 1
-    fi
-    
-    # Check cluster connectivity (optional)
-    if kubectl cluster-info &> /dev/null; then
-        print_success "Connected to Kubernetes cluster!"
-        CLUSTER_AVAILABLE=true
-    else
-        print_warning "Cannot connect to Kubernetes cluster."
-        print_status "Available options:"
-        print_status "1. Set up a local cluster with: ./deploy.sh local"
-        print_status "2. Configure kubectl for a remote cluster"
-        print_status "3. Use GitHub Actions for deployment"
-        CLUSTER_AVAILABLE=false
-    fi
-    
-    print_success "Prerequisites check completed!"
-}
-
-# Function to validate Helm chart
-validate_helm_chart() {
-    print_status "Validating Helm chart..."
-    
-    # Store original directory
-    ORIGINAL_DIR=$(pwd)
-    
-    cd $HELM_CHART_PATH
-    
-    # Lint the chart
-    helm lint .
-    
-    # Template the chart to check for errors
-    helm template student-tracker . --debug
-    
-    # Return to original directory
-    cd "$ORIGINAL_DIR"
-    
-    print_success "Helm chart validation passed!"
-}
-
-# Function to validate ArgoCD application
-validate_argocd_application() {
-    print_status "Validating ArgoCD application..."
-    
-    # Check if the application file exists
-    if [ ! -f "$ARGOCD_APP_PATH" ]; then
-        print_error "ArgoCD application file not found: $ARGOCD_APP_PATH"
-        exit 1
-    fi
-    
-    print_status "Found ArgoCD application file: $ARGOCD_APP_PATH"
-    
-    # Simple YAML syntax check using grep
-    if grep -q "apiVersion:" "$ARGOCD_APP_PATH" && grep -q "kind:" "$ARGOCD_APP_PATH"; then
-        print_success "ArgoCD application YAML structure appears valid"
-    else
-        print_error "ArgoCD application YAML structure is invalid"
-        exit 1
-    fi
-    
-    # Try kubectl validation if cluster is available, otherwise skip
-    if kubectl cluster-info &> /dev/null; then
-        if kubectl apply --dry-run=client -f "$ARGOCD_APP_PATH" &> /dev/null; then
-            print_success "ArgoCD application YAML is valid"
+    if [ ${#missing_tools[@]} -ne 0 ]; then
+        print_warning "Installing missing tools: ${missing_tools[*]}"
+        if command_exists yum; then
+            sudo yum update -y
+            sudo yum install -y "${missing_tools[@]}"
+        elif command_exists apt-get; then
+            sudo apt-get update
+            sudo apt-get install -y "${missing_tools[@]}"
         else
-            print_warning "ArgoCD application YAML validation failed (cluster validation)"
+            print_error "Package manager not found. Please install: ${missing_tools[*]}"
+            exit 1
         fi
-    else
-        print_warning "Skipping cluster validation (no cluster available)"
     fi
     
-    print_success "ArgoCD application validation passed!"
+    print_success "Prerequisites check completed"
 }
 
-# Function to generate deployment manifests
-generate_manifests() {
-    print_status "Generating deployment manifests..."
-    
-    # Store original directory
-    ORIGINAL_DIR=$(pwd)
-    
-    cd $HELM_CHART_PATH
-    
-    # Generate manifests for different environments
-    mkdir -p ../manifests
-    
-    # Production manifests
-    helm template student-tracker . \
-        --set app.image.repository=ghcr.io/bonaventuresimeon/NativeSeries/student-tracker \
-        --set app.image.tag=latest \
-        --set ingress.enabled=true \
-        --set hpa.enabled=true \
-        --set networkPolicy.enabled=true \
-        > ../manifests/production.yaml
-    
-    # Staging manifests
-    helm template student-tracker . \
-        --set app.image.repository=ghcr.io/bonaventuresimeon/NativeSeries/student-tracker \
-        --set app.image.tag=latest \
-        --set ingress.enabled=false \
-        --set hpa.enabled=false \
-        --set networkPolicy.enabled=false \
-        > ../manifests/staging.yaml
-    
-    # Return to original directory
-    cd "$ORIGINAL_DIR"
-    
-    print_success "Deployment manifests generated successfully!"
-    print_status "Manifests saved to:"
-    print_status "  - Production: manifests/production.yaml"
-    print_status "  - Staging: manifests/staging.yaml"
-}
-
-# Function to deploy to production (Docker-based)
-deploy_production() {
-    print_status "🚀 Deploying Student Tracker to Production"
+# Function to setup EC2 environment
+setup_ec2_environment() {
+    print_status "🚀 Setting up EC2 environment for ${EC2_USER}"
     print_status "Production URL: ${PRODUCTION_URL}"
     
-    # Check if Docker is available
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed. Please install Docker first."
-        exit 1
+    # Check if running as ec2-user
+    if [ "$(whoami)" != "${EC2_USER}" ]; then
+        print_warning "⚠️  This script is designed to run as ${EC2_USER}"
+        print_info "Current user: $(whoami)"
+        print_info "You may need to run: sudo su - ${EC2_USER}"
     fi
     
-    # Check if Docker daemon is running
+    # Update system packages
+    print_status "📦 Updating system packages..."
+    sudo yum update -y
+    
+    # Install required packages
+    print_status "📦 Installing required packages..."
+    sudo yum install -y \
+        docker \
+        git \
+        curl \
+        wget \
+        unzip \
+        python3 \
+        python3-pip
+    
+    # Start and enable Docker
+    print_status "🐳 Setting up Docker..."
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker ${EC2_USER}
+    
+    # Install Docker Compose
+    print_status "📦 Installing Docker Compose..."
+    if ! command_exists docker-compose; then
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+    fi
+    
+    # Verify Docker installation
+    print_status "🔍 Verifying Docker installation..."
     if ! sudo docker info &> /dev/null; then
-        print_error "Docker daemon is not running. Please start Docker first."
+        print_error "❌ Docker is not running. Please start Docker manually."
+        print_info "Run: sudo systemctl start docker"
         exit 1
     fi
     
-    # Build the Docker image
-    print_status "Building Docker image..."
+    print_success "✅ EC2 environment setup completed"
+}
+
+# Function to install Kubernetes tools
+install_kubernetes_tools() {
+    print_status "📦 Installing Kubernetes tools..."
+    
+    # Install kubectl
+    if ! command_exists kubectl; then
+        print_status "Installing kubectl..."
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        rm kubectl
+        print_success "✅ kubectl installed successfully"
+    fi
+    
+    # Install Helm
+    if ! command_exists helm; then
+        print_status "Installing Helm..."
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        print_success "✅ Helm installed successfully"
+    fi
+    
+    # Install ArgoCD CLI
+    if ! command_exists argocd; then
+        print_status "Installing ArgoCD CLI..."
+        if curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64; then
+            sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+            rm argocd-linux-amd64
+            print_success "✅ ArgoCD CLI installed successfully"
+        else
+            print_error "Failed to download ArgoCD CLI"
+            exit 1
+        fi
+    fi
+    
+    print_success "Kubernetes tools installation completed"
+}
+
+# Function to build Docker image
+build_docker_image() {
+    print_status "🔨 Building Docker image..."
+    
+    if ! command_exists docker; then
+        print_error "Docker is not installed"
+        return 1
+    fi
+    
+    if ! sudo docker info &> /dev/null; then
+        print_error "Docker is not running"
+        return 1
+    fi
+    
+    # Stop and remove existing container
+    print_status "🔄 Stopping existing container..."
+    sudo docker stop ${APP_NAME} || true
+    sudo docker rm ${APP_NAME} || true
+    
+    # Build Docker image
     sudo docker build -t ${APP_NAME}:latest .
     
-    # Check if the image was built successfully
     if [ $? -eq 0 ]; then
-        print_status "✅ Docker image built successfully"
+        print_success "✅ Docker image built successfully"
+        return 0
     else
         print_error "❌ Failed to build Docker image"
+        return 1
+    fi
+}
+
+# Function to deploy with Docker
+deploy_docker() {
+    print_status "🚀 Starting Docker deployment..."
+    
+    # Ensure Docker is available
+    if ! command_exists docker; then
+        print_status "Installing Docker..."
+        sudo yum update -y
+        sudo yum install -y docker
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo usermod -aG docker ec2-user
+        print_warning "Please logout and login again, then run this script."
         exit 1
     fi
     
-    # Stop and remove existing container if it exists
-    if sudo docker ps -a --format 'table {{.Names}}' | grep -q "^${APP_NAME}$"; then
-        print_status "Stopping existing container..."
-        sudo docker stop ${APP_NAME} || true
-        sudo docker rm ${APP_NAME} || true
+    # Check if Docker is running
+    if ! sudo docker info &> /dev/null; then
+        print_status "Starting Docker..."
+        sudo systemctl start docker
+        sleep 5
+    fi
+    
+    # Build image if needed
+    if ! sudo docker images | grep -q "${APP_NAME}"; then
+        build_docker_image
     fi
     
     # Run the application container
-    print_status "Starting application container..."
+    print_status "🚀 Starting application container..."
     sudo docker run -d \
         --name ${APP_NAME} \
         --restart unless-stopped \
         -p ${PRODUCTION_PORT}:8000 \
         -e HOST=0.0.0.0 \
         -e PORT=8000 \
+        -e ENVIRONMENT=production \
+        -e MONGO_URI=mongodb://${PRODUCTION_HOST}:27017 \
+        -e DATABASE_NAME=student_project_tracker \
+        -e COLLECTION_NAME=students \
         ${APP_NAME}:latest
     
-    # Check if container started successfully
     if [ $? -eq 0 ]; then
-        print_status "✅ Application container started successfully"
+        print_success "✅ Application container started successfully"
     else
         print_error "❌ Failed to start application container"
-        exit 1
+        return 1
     fi
     
-    # Wait a moment for the application to start
-    print_status "Waiting for application to start..."
-    sleep 10
+    # Wait for application to start
+    print_status "⏳ Waiting for application to start..."
+    sleep 30
     
-    # Test the application
-    print_status "Testing application health..."
-    if curl -f "${PRODUCTION_URL}/health" > /dev/null 2>&1; then
-        print_status "✅ Application is healthy and responding"
-    else
-        print_warning "⚠️  Health check failed, but container is running"
-    fi
+    # Health check with retry
+    perform_health_check
+    
+    # Test all endpoints
+    test_endpoints
     
     # Show deployment information
+    show_deployment_info
+    
+    print_success "✅ Docker deployment completed successfully!"
+}
+
+# Function to perform health check
+perform_health_check() {
+    print_status "🔍 Performing health check..."
+    retry_count=0
+    max_retries=10
+    
+    while [ $retry_count -lt $max_retries ]; do
+        if curl -f "${PRODUCTION_URL}/health" > /dev/null 2>&1; then
+            print_success "✅ Application is healthy and responding"
+            return 0
+        else
+            retry_count=$((retry_count + 1))
+            print_warning "⚠️  Health check attempt $retry_count/$max_retries failed"
+            if [ $retry_count -lt $max_retries ]; then
+                sleep 10
+            else
+                print_error "❌ Health check failed after $max_retries attempts"
+                print_info "Container logs:"
+                sudo docker logs ${APP_NAME} --tail 20
+                return 1
+            fi
+        fi
+    done
+}
+
+# Function to test all endpoints
+test_endpoints() {
+    print_status "🧪 Testing all endpoints..."
+    
+    local endpoints=(
+        "/health:Health endpoint"
+        "/docs:API documentation"
+        "/students/:Students interface"
+        "/metrics:Metrics endpoint"
+    )
+    
+    for endpoint_info in "${endpoints[@]}"; do
+        IFS=':' read -r endpoint description <<< "$endpoint_info"
+        if curl -f "${PRODUCTION_URL}${endpoint}" > /dev/null 2>&1; then
+            print_success "✅ ${description} working"
+        else
+            print_error "❌ ${description} failed"
+        fi
+    done
+}
+
+# Function to show deployment information
+show_deployment_info() {
     echo ""
-    print_success "🎉 Production Deployment Complete!"
+    print_success "🎉 Deployment Complete!"
     echo ""
     echo "📋 Deployment Information:"
     echo "   Application: ${APP_NAME}"
@@ -324,311 +367,490 @@ deploy_production() {
     echo "   API Documentation: ${PRODUCTION_URL}/docs"
     echo "   Health Check: ${PRODUCTION_URL}/health"
     echo "   Metrics: ${PRODUCTION_URL}/metrics"
+    echo "   Students Interface: ${PRODUCTION_URL}/students/"
+    echo ""
+    echo "🌐 ArgoCD URLs:"
+    echo "   Production: ${ARGOCD_PROD_URL}"
+    echo "   Development: ${ARGOCD_DEV_URL}"
+    echo "   Staging: ${ARGOCD_STAGING_URL}"
     echo ""
     echo "🔧 Useful Commands:"
-    echo "   View logs: docker logs -f ${APP_NAME}"
-    echo "   Stop app: docker stop ${APP_NAME}"
-    echo "   Restart app: docker restart ${APP_NAME}"
-    echo "   Remove app: docker rm -f ${APP_NAME}"
+    echo "   View logs: sudo docker logs -f ${APP_NAME}"
+    echo "   Stop app: sudo docker stop ${APP_NAME}"
+    echo "   Restart app: sudo docker restart ${APP_NAME}"
+    echo "   Remove app: sudo docker rm -f ${APP_NAME}"
+    echo "   View container: sudo docker ps"
+    echo "   View images: sudo docker images"
     echo ""
-    print_success "🌐 Your Student Tracker application is now live at: ${PRODUCTION_URL}"
+    
+    # Show container status
+    print_status "📊 Container Status:"
+    sudo docker ps --filter "name=${APP_NAME}"
+    
+    # Show recent logs
+    echo ""
+    print_status "📋 Recent Logs:"
+    sudo docker logs ${APP_NAME} --tail 10
 }
 
-# Function to set up local development environment
-setup_local_dev() {
-    print_status "🧪 Setting up local development environment..."
+# Function to install ArgoCD
+install_argocd() {
+    print_status "Installing ArgoCD..."
     
-    # Check if Docker is running
-    if ! docker info &> /dev/null; then
-        print_error "Docker is not running. Please start Docker first."
-        exit 1
-    fi
-    print_success "Docker is running!"
-    
-    # Create local Kubernetes cluster
-    print_status "Creating local Kubernetes cluster with kind..."
-    
-    # Check if cluster already exists
-    if kind get clusters | grep -q "$CLUSTER_NAME"; then
-        print_warning "Cluster $CLUSTER_NAME already exists. Deleting it..."
-        kind delete cluster --name $CLUSTER_NAME
+    # Check cluster connectivity
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_error "Cannot connect to Kubernetes cluster"
+        return 1
     fi
     
-    # Create cluster configuration
-    cat <<EOF > kind-config.yaml
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-nodes:
-- role: control-plane
-  extraPortMappings:
-  - containerPort: 30011
-    hostPort: 30011
-    protocol: TCP
-  - containerPort: 30080
-    hostPort: 30080
-    protocol: TCP
-  - containerPort: 30443
-    hostPort: 30443
-    protocol: TCP
-  kubeadmConfigPatches:
-  - |
-    kind: InitConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        node-labels: "ingress-ready=true"
-  extraMounts:
-  - hostPath: /var/run/docker.sock
-    containerPath: /var/run/docker.sock
-EOF
-    
-    # Create the cluster
-    kind create cluster --name $CLUSTER_NAME --config kind-config.yaml --wait 5m
-    
-    # Configure kubectl to use the new cluster
-    kind export kubeconfig --name $CLUSTER_NAME
-    
-    print_success "Local Kubernetes cluster created successfully!"
-    
-    # Install NGINX Ingress Controller
-    print_status "Installing NGINX Ingress Controller..."
-    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-    
-    # Wait for ingress controller to be ready
-    kubectl wait --namespace ingress-nginx \
-        --for=condition=ready pod \
-        --selector=app.kubernetes.io/component=controller \
-        --timeout=5m
-    
-    print_success "NGINX Ingress Controller installed successfully!"
+    # Create namespace
+    kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
     
     # Install ArgoCD
-    print_status "Installing ArgoCD..."
-    kubectl create namespace $ARGOCD_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-    kubectl apply -n $ARGOCD_NAMESPACE -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    print_status "Applying ArgoCD manifests..."
+    kubectl apply -n "$ARGOCD_NAMESPACE" -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
     
     # Wait for ArgoCD to be ready
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n $ARGOCD_NAMESPACE --timeout=5m
+    print_status "Waiting for ArgoCD to be ready..."
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n "$ARGOCD_NAMESPACE" || {
+        print_warning "ArgoCD server not ready within timeout, but continuing..."
+    }
     
-    # Get ArgoCD admin password
-    ARGOCD_PASSWORD=$(kubectl -n $ARGOCD_NAMESPACE get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
-    
-    print_success "ArgoCD installed successfully!"
-    print_status "ArgoCD admin password: $ARGOCD_PASSWORD"
-    
-    # Build and load Docker image
-    print_status "Building and loading Docker image..."
-    docker build -t student-tracker:latest .
-    kind load docker-image student-tracker:latest --name $CLUSTER_NAME
-    print_success "Docker image built and loaded successfully!"
-    
-    # Deploy the application
-    print_status "Deploying application..."
-    kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-    
-    # Create local values file
-    cat <<EOF > helm-chart/values-local.yaml
-app:
-  name: student-tracker
-  image:
-    repository: student-tracker
-    tag: latest
-    pullPolicy: Never
-  env:
-    - name: ENVIRONMENT
-      value: "development"
-    - name: MONGO_URI
-      value: "mongodb://localhost:27017"
-    - name: DATABASE_NAME
-      value: "student_project_tracker"
-    - name: COLLECTION_NAME
-      value: "students"
-
-service:
+    # Create external service for ArgoCD
+    print_status "Creating ArgoCD external service..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-external
+  namespace: $ARGOCD_NAMESPACE
+  labels:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
+spec:
   type: NodePort
-  port: 8000
-  targetPort: 8000
-  nodePort: 30011
-
-ingress:
-  enabled: true
-  className: "nginx"
-  annotations:
-    kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/rewrite-target: /
-  hosts:
-    - host: student-tracker.local
-      paths:
-        - path: /
-          pathType: Prefix
-
-hpa:
-  enabled: false
-
-resources:
-  limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 250m
-    memory: 256Mi
-
-networkPolicy:
-  enabled: false
-
-serviceMonitor:
-  enabled: false
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: $ARGOCD_HTTP_PORT
+      protocol: TCP
+    - name: https
+      port: 443
+      targetPort: 8080
+      nodePort: $ARGOCD_HTTPS_PORT
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/part-of: argocd
 EOF
     
-    # Install the application using Helm
-    helm install student-tracker ./helm-chart \
-        --namespace $NAMESPACE \
-        --values helm-chart/values-local.yaml \
-        --wait --timeout=5m
+    print_success "✅ ArgoCD installed successfully"
+}
+
+# Function to get ArgoCD password
+get_argocd_password() {
+    print_status "Getting ArgoCD admin password..."
     
-    print_success "Application deployed successfully!"
+    local retry_count=0
+    local max_retries=30
     
-    # Configure local DNS
-    print_status "Configuring local DNS..."
-    CLUSTER_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+    while [ $retry_count -lt $max_retries ]; do
+        if kubectl get secret argocd-initial-admin-secret -n "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+            ARGOCD_PASSWORD=$(kubectl -n "$ARGOCD_NAMESPACE" get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+            echo "ArgoCD admin password: $ARGOCD_PASSWORD"
+            print_warning "Please save this password for ArgoCD UI access."
+            return 0
+        fi
+        print_info "Waiting for ArgoCD password secret... (attempt $((retry_count + 1))/$max_retries)"
+        sleep 5
+        retry_count=$((retry_count + 1))
+    done
     
-    if ! grep -q "student-tracker.local" /etc/hosts; then
-        echo "$CLUSTER_IP student-tracker.local" | sudo tee -a /etc/hosts
-        print_success "Added student-tracker.local to /etc/hosts"
-    else
-        print_warning "student-tracker.local already exists in /etc/hosts"
+    print_error "Failed to retrieve ArgoCD password"
+    return 1
+}
+
+# Function to validate Helm chart
+validate_helm_chart() {
+    print_status "Validating Helm chart..."
+    
+    if [ ! -d "$HELM_CHART_PATH" ]; then
+        print_error "Helm chart directory not found: $HELM_CHART_PATH"
+        return 1
     fi
+    
+    # Add repositories
+    helm repo add bitnami https://charts.bitnami.com/bitnami 2>/dev/null || true
+    helm repo update || true
+    
+    # Lint Helm chart
+    if ! helm lint "$HELM_CHART_PATH"; then
+        print_error "Helm chart linting failed"
+        return 1
+    fi
+    
+    # Dry run to validate templates
+    if ! helm template "$APP_NAME" "$HELM_CHART_PATH" --namespace "$NAMESPACE" --dry-run >/dev/null; then
+        print_error "Helm template validation failed"
+        return 1
+    fi
+    
+    print_success "✅ Helm chart validation completed"
+}
+
+# Function to deploy Helm chart
+deploy_helm_chart() {
+    print_status "Deploying Helm chart..."
+    
+    # Create namespace
+    kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+    
+    # Check if ServiceMonitor CRD exists
+    if kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1; then
+        SERVICE_MONITOR_ENABLED="true"
+    else
+        SERVICE_MONITOR_ENABLED="false"
+    fi
+    
+    # Install/upgrade Helm chart
+    helm upgrade --install "$APP_NAME" "$HELM_CHART_PATH" \
+        --namespace "$NAMESPACE" \
+        --create-namespace \
+        --set serviceMonitor.enabled="$SERVICE_MONITOR_ENABLED" \
+        --set ingress.hosts[0].host="${PRODUCTION_HOST}.nip.io" \
+        --set argocd.urls.production="${ARGOCD_PROD_URL}" \
+        --set argocd.urls.development="${ARGOCD_DEV_URL}" \
+        --set argocd.urls.staging="${ARGOCD_STAGING_URL}" \
+        --timeout 10m
+    
+    # Wait for deployment to be ready
+    print_status "Waiting for deployment to be ready..."
+    kubectl wait --for=condition=available --timeout=300s deployment/"$APP_NAME" -n "$NAMESPACE" || {
+        print_warning "Deployment not ready within timeout"
+    }
+    
+    print_success "✅ Helm chart deployed successfully"
+}
+
+# Function to deploy ArgoCD applications
+deploy_argocd_apps() {
+    print_status "Deploying ArgoCD applications..."
+    
+    # Deploy all environment applications
+    local apps=("production" "development" "staging")
+    
+    for app in "${apps[@]}"; do
+        if [ -f "$ARGOCD_APP_PATH/application-${app}.yaml" ]; then
+            print_status "Deploying ${app} application..."
+            kubectl apply -f "$ARGOCD_APP_PATH/application-${app}.yaml"
+        fi
+    done
+    
+    print_success "✅ ArgoCD applications deployed"
+}
+
+# Function to fix Helm deployment issues
+fix_helm_deployment() {
+    print_status "🔧 Fixing Helm deployment issues..."
+    
+    # Install tools if needed
+    install_kubernetes_tools
+    
+    # Check cluster connectivity
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_error "Cannot connect to Kubernetes cluster"
+        print_info "Please ensure you have:"
+        print_info "1. A running Kubernetes cluster"
+        print_info "2. kubectl configured to connect to your cluster"
+        print_info "3. Proper permissions to access the cluster"
+        return 1
+    fi
+    
+    print_success "✅ Connected to Kubernetes cluster"
+    
+    # Check namespace
+    if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+        print_status "Creating namespace..."
+        kubectl create namespace "$NAMESPACE"
+    fi
+    
+    # Check existing deployment
+    if kubectl get deployment "$APP_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
+        print_warning "Existing deployment found"
+        print_status "Rolling back to previous version..."
+        helm rollback "$APP_NAME" -n "$NAMESPACE" || true
+        sleep 30
+    fi
+    
+    # Show current status
+    print_status "Current pod status:"
+    kubectl get pods -n "$NAMESPACE"
+    
+    print_status "Recent events:"
+    kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' | tail -10
+    
+    # Fix ArgoCD configuration
+    print_status "Checking ArgoCD configuration..."
+    if kubectl get namespace "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
+        print_success "✅ ArgoCD namespace exists"
+        
+        # Get ArgoCD server address
+        ARGOCD_SERVER=$(kubectl get service argocd-server -n "$ARGOCD_NAMESPACE" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+        if [ -z "$ARGOCD_SERVER" ]; then
+            ARGOCD_SERVER=$(kubectl get service argocd-server -n "$ARGOCD_NAMESPACE" -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+        fi
+        
+        if [ -n "$ARGOCD_SERVER" ]; then
+            print_status "ArgoCD server found at: $ARGOCD_SERVER"
+        fi
+    else
+        print_warning "ArgoCD namespace not found"
+        print_info "To install ArgoCD, run: ./deploy.sh argocd"
+    fi
+    
+    print_success "✅ Helm deployment fix completed"
+}
+
+# Function to run comprehensive validation
+run_validation() {
+    print_status "Running comprehensive validation..."
+    
+    # Check required files
+    local required_files=(
+        "app/main.py"
+        "app/crud.py" 
+        "app/database.py"
+        "app/models.py"
+        "Dockerfile"
+        "requirements.txt"
+        "helm-chart/Chart.yaml"
+        "helm-chart/values.yaml"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            print_error "Required file not found: $file"
+            return 1
+        fi
+    done
+    
+    # Validate Python code
+    if command_exists python3; then
+        print_status "Validating Python code..."
+        python3 -m py_compile app/main.py app/crud.py app/database.py app/models.py || {
+            print_error "Python code validation failed"
+            return 1
+        }
+    fi
+    
+    # Validate Helm chart
+    if command_exists helm; then
+        validate_helm_chart || return 1
+    fi
+    
+    # Validate ArgoCD applications
+    for app in production development staging; do
+        if [ -f "$ARGOCD_APP_PATH/application-${app}.yaml" ]; then
+            print_status "Validating ArgoCD ${app} application..."
+            if command_exists python3; then
+                python3 -c "import yaml; yaml.safe_load(open('$ARGOCD_APP_PATH/application-${app}.yaml'))" 2>/dev/null || {
+                    print_error "ArgoCD ${app} application validation failed"
+                    return 1
+                }
+            fi
+        fi
+    done
+    
+    print_success "✅ Comprehensive validation completed successfully"
+}
+
+# Function to check deployment health
+check_health() {
+    print_status "Checking deployment health..."
+    
+    # Check Docker deployment
+    if command_exists docker && sudo docker ps --filter "name=${APP_NAME}" --format "table {{.Names}}\t{{.Status}}" | grep -q "${APP_NAME}"; then
+        print_success "✅ Docker container is running"
+        
+        # Test endpoints
+        if curl -f "${PRODUCTION_URL}/health" >/dev/null 2>&1; then
+            print_success "✅ Application is responding"
+        else
+            print_error "❌ Application is not responding"
+        fi
+    else
+        print_warning "⚠️ Docker container not found"
+    fi
+    
+    # Check Kubernetes deployment if available
+    if command_exists kubectl && kubectl cluster-info >/dev/null 2>&1; then
+        if kubectl get deployment "$APP_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
+            print_success "✅ Kubernetes deployment exists"
+            
+            # Check pod status
+            if kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name="$APP_NAME" --no-headers | grep -q "Running"; then
+                print_success "✅ Kubernetes pods are running"
+            else
+                print_warning "⚠️ Kubernetes pods are not running"
+            fi
+        else
+            print_warning "⚠️ Kubernetes deployment not found"
+        fi
+    fi
+}
+
+# Function to show deployment status
+show_status() {
+    print_status "Deployment Status"
+    echo "=================="
+    
+    # Docker status
+    if command_exists docker; then
+        echo ""
+        echo "Docker Containers:"
+        sudo docker ps --filter "name=${APP_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || echo "No Docker containers found"
+    fi
+    
+    # Kubernetes status
+    if command_exists kubectl && kubectl cluster-info >/dev/null 2>&1; then
+        echo ""
+        echo "Kubernetes Resources:"
+        kubectl get all -n "$NAMESPACE" 2>/dev/null || echo "No Kubernetes resources found"
+        
+        if command_exists argocd; then
+            echo ""
+            echo "ArgoCD Applications:"
+            argocd app list 2>/dev/null || echo "ArgoCD not accessible"
+        fi
+    fi
+    
+    echo ""
+    echo "Application URLs:"
+    echo "  - Main App: ${PRODUCTION_URL}"
+    echo "  - API Docs: ${PRODUCTION_URL}/docs"
+    echo "  - Health: ${PRODUCTION_URL}/health"
+    echo "  - ArgoCD Prod: ${ARGOCD_PROD_URL}"
+    echo "  - ArgoCD Dev: ${ARGOCD_DEV_URL}"
+}
+
+# Function to clean up deployments
+cleanup_deployments() {
+    print_status "Cleaning up deployments..."
+    
+    # Stop Docker containers
+    if command_exists docker; then
+        print_status "Stopping Docker containers..."
+        sudo docker stop ${APP_NAME} 2>/dev/null || true
+        sudo docker rm ${APP_NAME} 2>/dev/null || true
+        print_success "Docker cleanup completed"
+    fi
+    
+    # Clean Kubernetes resources
+    if command_exists kubectl && kubectl cluster-info >/dev/null 2>&1; then
+        print_status "Cleaning Kubernetes resources..."
+        kubectl delete namespace "$NAMESPACE" --ignore-not-found=true
+        print_success "Kubernetes cleanup completed"
+    fi
+    
+    print_success "✅ Cleanup completed"
+}
+
+# Function to deploy with full Kubernetes setup
+deploy_kubernetes() {
+    print_status "🚀 Starting full Kubernetes deployment..."
+    
+    # Install tools
+    install_kubernetes_tools
+    
+    # Check cluster
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_error "No Kubernetes cluster available"
+        print_info "Please set up a cluster first (minikube, kind, or cloud provider)"
+        return 1
+    fi
+    
+    # Install ArgoCD
+    install_argocd
+    get_argocd_password
+    
+    # Build and deploy
+    build_docker_image
+    validate_helm_chart
+    deploy_helm_chart
+    deploy_argocd_apps
     
     # Show status
-    print_status "Checking deployment status..."
-    echo ""
-    echo "📊 Application Status:"
-    kubectl get pods -n $NAMESPACE
-    echo ""
-    echo "🌐 Services:"
-    kubectl get services -n $NAMESPACE
-    echo ""
-    echo "🔗 Ingress:"
-    kubectl get ingress -n $NAMESPACE
-    echo ""
-    print_success "Local development environment is ready!"
-    print_status "Access your application at:"
-    print_status "  - Student Tracker: http://student-tracker.local:30011"
-    print_status "  - ArgoCD UI: http://localhost:30080"
-    print_status "  - ArgoCD admin password: $ARGOCD_PASSWORD"
+    show_status
     
-    echo ""
-    print_success "🎉 Local development environment setup completed!"
-    print_status "Next steps:"
-    print_status "1. Access your application at http://student-tracker.local:30011"
-    print_status "2. Access ArgoCD UI at http://localhost:30080"
-    print_status "3. Make changes to your code and rebuild: docker build -t student-tracker:latest ."
-    print_status "4. Reload the image: kind load docker-image student-tracker:latest --name $CLUSTER_NAME"
-    print_status "5. Restart the deployment: kubectl rollout restart deployment/student-tracker -n $NAMESPACE"
+    print_success "✅ Kubernetes deployment completed!"
 }
 
-# Function to clean up local environment
-cleanup_local() {
-    print_status "Cleaning up local development environment..."
+# Function to deploy with monitoring
+deploy_with_monitoring() {
+    print_status "🚀 Deploying with Prometheus monitoring..."
     
-    # Delete the kind cluster
-    if kind get clusters | grep -q "$CLUSTER_NAME"; then
-        kind delete cluster --name $CLUSTER_NAME
-        print_success "Kind cluster deleted"
-    fi
+    # Install Prometheus CRDs
+    print_status "Installing Prometheus Operator CRDs..."
+    kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
     
-    # Remove from /etc/hosts
-    sudo sed -i '/student-tracker.local/d' /etc/hosts
-    print_success "Removed student-tracker.local from /etc/hosts"
+    # Wait for CRD
+    kubectl wait --for=condition=established --timeout=60s crd/servicemonitors.monitoring.coreos.com || {
+        print_warning "ServiceMonitor CRD not ready within timeout"
+    }
     
-    # Clean up config files
-    rm -f kind-config.yaml
-    rm -f helm-chart/values-local.yaml
-    print_success "Configuration files cleaned up"
+    # Deploy with monitoring enabled
+    deploy_kubernetes
     
-    print_success "🎉 Cleanup completed!"
+    print_success "✅ Deployment with monitoring completed!"
 }
 
-# Function to check GitHub Actions status
-check_github_actions() {
-    print_status "Checking GitHub Actions workflows..."
-    
-    WORKFLOWS_FOUND=false
-    
-    if [ -f ".github/workflows/unified-deploy.yml" ]; then
-        print_success "Unified GitHub Actions workflow found!"
-        print_status "Workflow: .github/workflows/unified-deploy.yml"
-        print_status "This unified workflow includes:"
-        print_status "  - Security scanning (Trivy + Bandit)"
-        print_status "  - Code quality checks (Black, Flake8, MyPy)"
-        print_status "  - Helm chart validation"
-        print_status "  - Multi-platform Docker builds"
-        print_status "  - Staging and production deployments"
-        print_status "  - Manual deployment instructions"
-        print_status "  - Emergency deployment options"
-        WORKFLOWS_FOUND=true
-    fi
-    
-    if [ "$WORKFLOWS_FOUND" = true ]; then
-        print_status "To trigger deployment:"
-        print_status "1. Push changes to main branch"
-        print_status "2. Or manually trigger workflow in GitHub"
-        print_status "3. Use workflow_dispatch for manual deployment"
-    else
-        print_warning "No GitHub Actions workflows found"
-    fi
-}
-
-# Function to show deployment options
-show_deployment_options() {
-    print_status "Deployment Options Available:"
-    echo ""
-    echo "1. 🚀 GitHub Actions (Recommended)"
-    echo "   - Automated CI/CD pipeline"
-    echo "   - Builds and pushes Docker images"
-    echo "   - Deploys via ArgoCD"
-    echo "   - Trigger: Push to main branch"
-    echo ""
-    echo "2. 🧪 Local Development"
-    echo "   - Use: ./deploy.sh local"
-    echo "   - Requires Docker and kind"
-    echo "   - Full local development environment"
-    echo ""
-    echo "3. 🔧 Manual Deployment"
-    echo "   - Use generated manifests in manifests/"
-    echo "   - Apply with kubectl apply -f manifests/"
-    echo "   - Requires configured Kubernetes cluster"
-    echo ""
-    echo "4. 📋 Remote Cluster"
-    echo "   - Configure kubectl for your cluster"
-    echo "   - Run: ./deploy.sh validate"
-    echo "   - Install ArgoCD and deploy"
-}
-
-# Main function
+# Main execution
 main() {
     case "${1:-help}" in
-        "production")
-            deploy_production
+        "docker")
+            check_prerequisites
+            deploy_docker
             ;;
-        "local")
-            setup_local_dev
+        "ec2")
+            check_prerequisites
+            setup_ec2_environment
+            deploy_docker
+            ;;
+        "kubernetes")
+            check_prerequisites
+            deploy_kubernetes
+            ;;
+        "helm-fix")
+            check_prerequisites
+            fix_helm_deployment
             ;;
         "validate")
             check_prerequisites
-            validate_helm_chart
-            validate_argocd_application
-            generate_manifests
-            check_github_actions
-            show_deployment_options
+            run_validation
             ;;
-        "manifests")
-            generate_manifests
+        "build")
+            check_prerequisites
+            build_docker_image
             ;;
-        "cleanup")
-            cleanup_local
+        "argocd")
+            check_prerequisites
+            install_kubernetes_tools
+            install_argocd
+            get_argocd_password
             ;;
-        "install-deps")
-            install_dependencies
+        "monitoring")
+            check_prerequisites
+            deploy_with_monitoring
+            ;;
+        "health-check")
+            check_health
+            ;;
+        "status")
+            show_status
+            ;;
+        "clean")
+            cleanup_deployments
             ;;
         "help"|*)
             show_usage
@@ -636,5 +858,5 @@ main() {
     esac
 }
 
-# Run main function
+# Run main function with all arguments
 main "$@"

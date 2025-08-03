@@ -32,20 +32,20 @@ ingress:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - host: student-tracker.yourdomain.com  # Replace with your actual domain
+    - host: 18.206.89.183.nip.io
       paths:
         - path: /
           pathType: Prefix
   tls:
     - hosts:
-        - student-tracker.yourdomain.com
+        - 18.206.89.183.nip.io
       secretName: student-tracker-tls
 
 # DNS and domain configuration
 dns:
   enabled: true
-  domain: student-tracker.yourdomain.com
-  type: CNAME  # or A record depending on your setup
+  domain: 18.206.89.183.nip.io
+  type: A  # A record for IP address
 
 # MongoDB configuration (external)
 mongodb:
@@ -67,9 +67,9 @@ argocd:
     type: LoadBalancer
     port: 80
   urls:
-    production: "https://argocd-prod.yourdomain.com"
-    development: "https://argocd-dev.yourdomain.com"
-    staging: "https://argocd-staging.yourdomain.com"
+    production: "https://argocd-prod.18.206.89.183.nip.io"
+    development: "https://argocd-dev.18.206.89.183.nip.io"
+    staging: "https://argocd-staging.18.206.89.183.nip.io"
   ingress:
     enabled: true
     className: "nginx"
@@ -80,18 +80,18 @@ argocd:
       nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
       nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
     hosts:
-      - host: argocd-prod.yourdomain.com
+      - host: argocd-prod.18.206.89.183.nip.io
         paths:
           - path: /
             pathType: Prefix
-      - host: argocd-dev.yourdomain.com
+      - host: argocd-dev.18.206.89.183.nip.io
         paths:
           - path: /
             pathType: Prefix
     tls:
       - hosts:
-          - argocd-prod.yourdomain.com
-          - argocd-dev.yourdomain.com
+          - argocd-prod.18.206.89.183.nip.io
+          - argocd-dev.18.206.89.183.nip.io
         secretName: argocd-tls
 
 # Enhanced Horizontal Pod Autoscaler
