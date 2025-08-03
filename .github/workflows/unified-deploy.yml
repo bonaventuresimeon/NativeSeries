@@ -25,12 +25,16 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: student-tracker
   HELM_CHART_PATH: ./helm-chart
-  ARGOCD_APP_PATH: ./argocd/application.yaml
+  ARGOCD_APP_PATH: ./argocd
 
 jobs:
   # Security Scanning
   security-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -158,7 +162,11 @@ jobs:
 
       - name: Validate ArgoCD application
         run: |
-          python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}')); print('✅ ArgoCD application YAML is valid')" || echo "ArgoCD validation failed, continuing..."
+          for app in production development staging; do
+            if [ -f "${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml" ]; then
+              python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml')); print('✅ ArgoCD ${app} application YAML is valid')" || echo "ArgoCD ${app} validation failed, continuing..."
+            fi
+          done
 
       - name: Check Helm chart dependencies
         run: |
@@ -195,7 +203,11 @@ jobs:
 
       - name: Validate ArgoCD application
         run: |
-          python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}')); print('✅ ArgoCD application YAML is valid')" || echo "ArgoCD validation failed, continuing..."
+          for app in production development staging; do
+            if [ -f "${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml" ]; then
+              python -c "import yaml; yaml.safe_load(open('${{ env.ARGOCD_APP_PATH }}/application-${app}.yaml')); print('✅ ArgoCD ${app} application YAML is valid')" || echo "ArgoCD ${app} validation failed, continuing..."
+            fi
+          done
 
       - name: Check Helm chart dependencies
         run: |
