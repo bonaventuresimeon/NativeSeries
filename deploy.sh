@@ -340,11 +340,19 @@ deploy_docker() {
     # Ensure Docker is available
     if ! command_exists docker; then
         print_status "Installing Docker..."
-        sudo yum update -y
-        sudo yum install -y docker
+        if command_exists yum; then
+            sudo yum update -y
+            sudo yum install -y docker
+        elif command_exists apt-get; then
+            sudo apt-get update
+            sudo apt-get install -y docker.io
+        else
+            print_error "❌ Unsupported package manager for Docker installation"
+            exit 1
+        fi
         sudo systemctl start docker
         sudo systemctl enable docker
-        sudo usermod -aG docker ec2-user
+        sudo usermod -aG docker $USER
         print_warning "Please logout and login again, then run this script."
         exit 1
     fi
