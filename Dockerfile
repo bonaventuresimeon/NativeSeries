@@ -8,6 +8,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user (UID 1000 to match Helm chart security context)
+RUN groupadd -r appuser && useradd -r -g appuser -u 1000 appuser
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 
@@ -18,8 +21,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY templates/ ./templates/
 
-# Create logs directory
-RUN mkdir -p logs
+# Create logs directory and set permissions
+RUN mkdir -p logs && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
 
 # Expose port
 EXPOSE 8000

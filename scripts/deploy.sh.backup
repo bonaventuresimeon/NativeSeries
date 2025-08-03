@@ -95,8 +95,6 @@ check_prerequisites() {
     if command_exists docker; then
         if docker info >/dev/null 2>&1; then
             print_status "✅ Docker is available and running"
-        elif sudo docker info >/dev/null 2>&1; then
-            print_status "✅ Docker is available (requires sudo)"
         else
             print_warning "⚠️ Docker is installed but not running"
             print_info "Start Docker: sudo systemctl start docker"
@@ -223,22 +221,7 @@ build_docker_image() {
         return 1
     fi
     
-    if command_exists docker; then
-        # Check if Docker is accessible (with or without sudo)
-        DOCKER_CMD="docker"
-        if ! docker info >/dev/null 2>&1; then
-            if sudo docker info >/dev/null 2>&1; then
-                DOCKER_CMD="sudo docker"
-                print_info "Using sudo for Docker commands"
-            else
-                print_warning "Docker is not available. Skipping image build."
-                print_warning "Please build and push the Docker image manually."
-                print_info "Build command: docker build -t $APP_NAME:latest ."
-                print_info "Push command: docker push $APP_NAME:latest"
-                return 0
-            fi
-        fi
-        
+    if command_exists docker && docker info >/dev/null 2>&1; then
         print_status "Building Docker image..."
         
         # Get the current git commit SHA
@@ -246,22 +229,22 @@ build_docker_image() {
         IMAGE_NAME="$APP_NAME:$IMAGE_TAG"
         
         # Build Docker image
-        if $DOCKER_CMD build -t "$IMAGE_NAME" .; then
+        if docker build -t "$IMAGE_NAME" .; then
             print_status "✅ Docker image built successfully: $IMAGE_NAME"
             
             # Check if we should push the image
             if [ "$PUSH_IMAGE" = "true" ]; then
                 print_status "Pushing Docker image to registry..."
-                if $DOCKER_CMD push "$IMAGE_NAME"; then
+                if docker push "$IMAGE_NAME"; then
                     print_status "✅ Docker image pushed successfully"
                 else
                     print_warning "⚠️ Failed to push Docker image"
-                    print_info "You can push manually with: $DOCKER_CMD push $IMAGE_NAME"
-                    print_info "Make sure you're logged in to the registry: $DOCKER_CMD login"
+                    print_info "You can push manually with: docker push $IMAGE_NAME"
+                    print_info "Make sure you're logged in to the registry: docker login"
                 fi
             else
-                print_info "To push the image, run: $DOCKER_CMD push $IMAGE_NAME"
-                print_info "Make sure you're logged in to the registry: $DOCKER_CMD login"
+                print_info "To push the image, run: docker push $IMAGE_NAME"
+                print_info "Make sure you're logged in to the registry: docker login"
             fi
         else
             print_error "❌ Docker image build failed"
