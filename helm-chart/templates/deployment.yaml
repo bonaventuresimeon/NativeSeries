@@ -67,7 +67,12 @@ spec:
             - name: config
               mountPath: /app/config
               readOnly: true
+            - name: logs
+              mountPath: /app/logs
+              readOnly: false
       volumes:
         - name: config
           configMap:
             name: {{ include "student-tracker.fullname" . }}-config
+        - name: logs
+          emptyDir: {}
