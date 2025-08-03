@@ -554,25 +554,17 @@ check_github_actions() {
     
     WORKFLOWS_FOUND=false
     
-    if [ -f ".github/workflows/enhanced-deploy.yml" ]; then
-        print_success "Enhanced GitHub Actions workflow found!"
-        print_status "Workflow: .github/workflows/enhanced-deploy.yml"
-        print_status "This workflow includes:"
+    if [ -f ".github/workflows/unified-deploy.yml" ]; then
+        print_success "Unified GitHub Actions workflow found!"
+        print_status "Workflow: .github/workflows/unified-deploy.yml"
+        print_status "This unified workflow includes:"
         print_status "  - Security scanning (Trivy + Bandit)"
         print_status "  - Code quality checks (Black, Flake8, MyPy)"
         print_status "  - Helm chart validation"
         print_status "  - Multi-platform Docker builds"
         print_status "  - Staging and production deployments"
-        WORKFLOWS_FOUND=true
-    fi
-    
-    if [ -f ".github/workflows/helm-argocd-deploy.yml" ]; then
-        print_success "Basic GitHub Actions workflow found!"
-        print_status "Workflow: .github/workflows/helm-argocd-deploy.yml"
-        print_status "This workflow includes:"
-        print_status "  - Basic validation and testing"
-        print_status "  - Docker image building"
-        print_status "  - Helm chart validation"
+        print_status "  - Manual deployment instructions"
+        print_status "  - Emergency deployment options"
         WORKFLOWS_FOUND=true
     fi
     
