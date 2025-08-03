@@ -22,17 +22,30 @@ service:
   targetPort: 8000
   nodePort: 30011
 
-# Ingress configuration (disabled for direct IP deployment)
+# Enhanced Ingress configuration with TLS support
 ingress:
-  enabled: false
-  className: ""
-  annotations: {}
+  enabled: true  # Enable for production with proper domain
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - host: student-tracker.example.com
+    - host: student-tracker.yourdomain.com  # Replace with your actual domain
       paths:
         - path: /
-          pathType: ImplementationSpecific
-  tls: []
+          pathType: Prefix
+  tls:
+    - hosts:
+        - student-tracker.yourdomain.com
+      secretName: student-tracker-tls
+
+# DNS and domain configuration
+dns:
+  enabled: true
+  domain: student-tracker.yourdomain.com
+  type: CNAME  # or A record depending on your setup
 
 # MongoDB configuration (external)
 mongodb:
@@ -48,32 +61,89 @@ vault:
 
 # ArgoCD configuration
 argocd:
-  enabled: false
+  enabled: true
+  namespace: argocd
+  server:
+    type: LoadBalancer
+    port: 80
 
-# Horizontal Pod Autoscaler
+# Enhanced Horizontal Pod Autoscaler
 hpa:
   enabled: true
   minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
 
-# Resources
+# Enhanced Resources with better defaults
 resources:
   limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
     cpu: 500m
     memory: 512Mi
-  requests:
-    cpu: 250m
-    memory: 256Mi
 
-# Security context
+# Enhanced Security context
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
 
-# Service monitor for Prometheus (requires Prometheus Operator)
+# Pod Security Standards
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Enhanced Service monitor for Prometheus
 serviceMonitor:
-  enabled: false
+  enabled: true
   interval: 30s
+  path: /metrics
+  port: http
+
+# Network policies for enhanced security
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+
+# Backup and disaster recovery
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 7  # Keep 7 days of backups
+
+# Monitoring and alerting
+monitoring:
+  enabled: true
+  grafana:
+    enabled: false
+  prometheus:
+    enabled: true
+    retention: 15d
