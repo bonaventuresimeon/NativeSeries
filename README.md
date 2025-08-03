@@ -19,19 +19,19 @@ A comprehensive student management system built with FastAPI, featuring modern d
 ## 📋 Table of Contents
 
 - [Features](#-features)
+- [Architecture](#-architecture)
 - [Quick Start](#-quick-start)
 - [Deployment Options](#-deployment-options)
 - [EC2 Deployment Guide](#-ec2-deployment-guide)
+- [EC2 Quick Reference](#-ec2-quick-reference)
 - [ArgoCD Configuration](#-argocd-configuration)
-- [Architecture](#-architecture)
+- [GitHub Actions & CI/CD](#-github-actions--cicd)
+- [Main Branch Fixes](#-main-branch-fixes)
+- [Screenshots & Visual Guide](#-screenshots--visual-guide)
 - [Development](#-development)
 - [API Documentation](#-api-documentation)
-- [Screenshots & Visual Guide](#-screenshots--visual-guide)
 - [Monitoring](#-monitoring)
 - [Troubleshooting](#-troubleshooting)
-- [GitHub Actions Fixes & Improvements](#-github-actions-fixes--improvements)
-- [Main Branch Issues - Fixed](#-main-branch-issues---fixed)
-- [EC2 Quick Reference](#-ec2-quick-reference)
 - [Contributing](#-contributing)
 
 ## ✨ Features
@@ -54,452 +54,7 @@ A comprehensive student management system built with FastAPI, featuring modern d
 - **Code Quality**: Automated linting with Black, Flake8, and MyPy
 - **Monitoring**: Prometheus metrics and health endpoints
 
-## 🚀 Quick Start
-
-### Option 1: Docker Deployment (Recommended)
-```bash
-# Clone the repository
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
-
-# Quick Docker deployment
-./deploy.sh docker
-```
-
-### Option 2: EC2 Deployment
-```bash
-# Full EC2 setup and deployment
-./deploy.sh ec2
-```
-
-### Option 3: Kubernetes Deployment
-```bash
-# Full Kubernetes deployment with ArgoCD
-./deploy.sh kubernetes
-```
-
-## 🎯 Deployment Options
-
-The application supports multiple deployment methods:
-
-| Method | Use Case | Command | Requirements |
-|--------|----------|---------|-------------|
-| **Docker** | Quick testing, development | `./deploy.sh docker` | Docker |
-| **EC2** | Production on EC2 | `./deploy.sh ec2` | EC2 instance |
-| **Kubernetes** | Scalable production | `./deploy.sh kubernetes` | K8s cluster |
-| **Helm Fix** | Troubleshooting | `./deploy.sh helm-fix` | kubectl, helm |
-| **Validation** | Configuration check | `./deploy.sh validate` | Python |
-
-### Deployment Script Options
-
-```bash
-./deploy.sh [OPTION]
-
-OPTIONS:
-  docker           Quick Docker deployment (recommended for EC2)
-  ec2              Full EC2 deployment with system setup
-  kubernetes       Full Kubernetes deployment with ArgoCD
-  helm-fix         Fix Helm deployment issues
-  validate         Validate configuration only
-  build            Build Docker image only
-  argocd           Install ArgoCD only
-  monitoring       Deploy with Prometheus monitoring
-  health-check     Check deployment health
-  status           Show deployment status
-  clean            Clean up deployments
-  help             Show help message
-```
-
-## 🚀 Complete EC2 Deployment Guide
-
-### 📋 Prerequisites
-
-#### EC2 Instance Requirements
-- **OS**: Amazon Linux 2 or Ubuntu 20.04+
-- **Instance Type**: t2.micro (minimum) or t2.small (recommended)
-- **Storage**: 8GB minimum
-- **Security Groups**: Configure as shown below
-
-#### Security Group Configuration
-| Type | Protocol | Port Range | Source | Description |
-|------|----------|------------|--------|-------------|
-| SSH | TCP | 22 | Your IP | SSH Access |
-| HTTP | TCP | 80 | 0.0.0.0/0 | HTTP Traffic |
-| Custom TCP | TCP | 30011 | 0.0.0.0/0 | Application Port |
-| Custom TCP | TCP | 30080 | 0.0.0.0/0 | ArgoCD HTTP |
-| Custom TCP | TCP | 30443 | 0.0.0.0/0 | ArgoCD HTTPS |
-
-### 🔧 Step-by-Step EC2 Setup
-
-#### Step 1: Launch EC2 Instance
-1. **Go to AWS Console** → EC2 → Launch Instance
-2. **Choose Amazon Linux 2** AMI
-3. **Select Instance Type**: t2.small (recommended)
-4. **Configure Security Groups** as shown above
-5. **Launch and Download Key Pair**
-
-#### Step 2: Connect to EC2
-```bash
-# Connect using SSH
-ssh -i your-key.pem ec2-user@18.206.89.183
-
-# Verify connection
-whoami  # Should show: ec2-user
-pwd     # Should show: /home/ec2-user
-```
-
-#### Step 3: System Setup
-```bash
-# Update system
-sudo yum update -y
-
-# Install required packages
-sudo yum install -y \
-    docker \
-    git \
-    curl \
-    wget \
-    unzip \
-    python3 \
-    python3-pip
-
-# Start and enable Docker
-sudo systemctl start docker
-sudo systemctl enable docker
-sudo usermod -aG docker ec2-user
-
-# Logout and login again to apply docker group
-exit
-# Reconnect: ssh -i your-key.pem ec2-user@18.206.89.183
-```
-
-#### Step 4: Clone Repository
-```bash
-# Clone the repository
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
-
-# Verify files
-ls -la
-```
-
-#### Step 5: Deploy Application
-```bash
-# Make deploy script executable
-chmod +x deploy.sh
-
-# Run EC2 deployment
-./deploy.sh ec2
-```
-
-### 🎯 Deployment Verification
-
-#### Health Check Commands
-```bash
-# Check if container is running
-sudo docker ps
-
-# Test health endpoint
-curl http://18.206.89.183:30011/health
-
-# Test API documentation
-curl http://18.206.89.183:30011/docs
-
-# Test students interface
-curl http://18.206.89.183:30011/students/
-
-# Check container logs
-sudo docker logs -f student-tracker
-```
-
-#### Expected Output
-
-**Docker Container Status**
-```
-CONTAINER ID   IMAGE                    COMMAND                  CREATED         STATUS         PORTS                      NAMES
-abc123def456   student-tracker:latest   "python app/main.py"     2 minutes ago   Up 2 minutes   0.0.0.0:30011->8000/tcp    student-tracker
-```
-
-**Health Check Response**
-```json
-{
-  "status": "healthy",
-  "service": "student-tracker",
-  "timestamp": "2024-01-15T10:30:00.000Z",
-  "version": "1.0.0",
-  "uptime_seconds": 3600,
-  "request_count": 150,
-  "production_url": "http://18.206.89.183:30011",
-  "database": "healthy",
-  "environment": "production"
-}
-```
-
-### 🔍 Troubleshooting Guide
-
-#### Common Issues and Solutions
-
-**1. Docker Not Running**
-```bash
-# Check Docker status
-sudo systemctl status docker
-
-# Start Docker if not running
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# Verify Docker is working
-sudo docker info
-```
-
-**2. Port Already in Use**
-```bash
-# Check what's using port 30011
-sudo netstat -tlnp | grep 30011
-
-# Kill process if needed
-sudo kill -9 <PID>
-
-# Or stop existing container
-sudo docker stop student-tracker
-```
-
-**3. Container Won't Start**
-```bash
-# Check container logs
-sudo docker logs student-tracker
-
-# Check Docker daemon
-sudo systemctl status docker
-
-# Restart Docker
-sudo systemctl restart docker
-
-# Try running container manually
-sudo docker run -d -p 30011:8000 --name student-tracker student-tracker:latest
-```
-
-**4. Health Check Fails**
-```bash
-# Check if container is running
-sudo docker ps
-
-# Check container logs
-sudo docker logs student-tracker
-
-# Check if port is exposed
-sudo docker port student-tracker
-
-# Test from inside container
-sudo docker exec student-tracker curl http://localhost:8000/health
-```
-
-**5. Permission Issues**
-```bash
-# Fix file permissions
-sudo chown -R ec2-user:ec2-user /home/ec2-user/NativeSeries
-chmod +x deploy.sh
-
-# Add user to docker group
-sudo usermod -aG docker ec2-user
-# Logout and login again
-```
-
-### 📊 Monitoring and Maintenance
-
-#### System Monitoring
-```bash
-# Monitor system resources
-htop
-
-# Monitor Docker
-sudo docker stats
-
-# Monitor logs
-sudo journalctl -f
-
-# Monitor application logs
-sudo docker logs -f student-tracker
-```
-
-#### Backup and Recovery
-```bash
-# Backup container
-sudo docker commit student-tracker student-tracker-backup
-
-# Save image to file
-sudo docker save student-tracker:latest > student-tracker-backup.tar
-
-# Restore from backup
-sudo docker load < student-tracker-backup.tar
-```
-
-#### Updates and Maintenance
-```bash
-# Update application
-cd NativeSeries
-git pull origin main
-./deploy.sh docker
-
-# Update system packages
-sudo yum update -y
-
-# Clean up Docker
-sudo docker system prune -f
-```
-
-### 🔒 Security Best Practices
-
-#### Network Security
-- Use security groups to restrict access
-- Consider using a VPN for SSH access
-- Regularly update security group rules
-
-#### Application Security
-- Keep system packages updated
-- Monitor logs for suspicious activity
-- Use HTTPS in production
-- Implement proper authentication
-
-#### Container Security
-- Regularly update base images
-- Scan images for vulnerabilities
-- Use non-root user in containers
-- Limit container capabilities
-
-### 📈 Performance Optimization
-
-#### Resource Monitoring
-```bash
-# Check CPU usage
-top
-
-# Check memory usage
-free -h
-
-# Check disk usage
-df -h
-
-# Check network usage
-iftop
-```
-
-#### Performance Tuning
-```bash
-# Increase Docker memory limit
-sudo docker run -d -p 30011:8000 --memory=1g --name student-tracker student-tracker:latest
-
-# Monitor performance
-sudo docker stats student-tracker
-```
-
-### 🎉 Success Criteria
-
-Your deployment is successful when:
-
-✅ **Container is running**: `sudo docker ps` shows student-tracker  
-✅ **Health check passes**: `curl http://18.206.89.183:30011/health` returns 200  
-✅ **All endpoints work**: Health, docs, students, metrics all accessible  
-✅ **External access**: Application accessible from internet  
-✅ **Logs are clean**: No errors in container logs  
-✅ **GitHub Actions pass**: All workflow steps complete successfully  
-
-### 📞 Support
-
-If you encounter issues:
-
-1. **Check logs**: `sudo docker logs student-tracker`
-2. **Verify configuration**: Review this guide
-3. **Test manually**: Run deployment script step by step
-4. **Check GitHub Actions**: Review workflow logs
-5. **Contact support**: Create GitHub issue
-
-#### Useful Commands Reference
-```bash
-# Quick health check
-curl -f http://18.206.89.183:30011/health || echo "Health check failed"
-
-# Check all endpoints
-for endpoint in health docs students metrics; do
-    echo "Testing $endpoint..."
-    curl -I http://18.206.89.183:30011/$endpoint
-done
-
-# Monitor real-time
-watch -n 5 'curl -s http://18.206.89.183:30011/health | jq .'
-```
-
-## 🎯 ArgoCD Configuration
-
-### Environment Configurations
-
-#### Production (`application-production.yaml`)
-- **Application URL**: http://18.206.89.183:30011
-- **ArgoCD URL**: https://argocd-prod.18.206.89.183.nip.io
-- **Branch**: `main`
-- **Namespace**: `student-tracker-prod`
-- **Replicas**: 2-10 (auto-scaling)
-- **Environment**: production
-
-#### Staging (`application-staging.yaml`)
-- **Application URL**: http://staging.18.206.89.183:30011
-- **ArgoCD URL**: https://argocd-staging.18.206.89.183.nip.io
-- **Branch**: `develop`
-- **Namespace**: `student-tracker-staging`
-- **Replicas**: 2-5 (auto-scaling)
-- **Environment**: staging
-
-#### Development (`application-development.yaml`)
-- **Application URL**: http://dev.18.206.89.183:30011
-- **ArgoCD URL**: https://argocd-dev.18.206.89.183.nip.io
-- **Branch**: `develop`
-- **Namespace**: `student-tracker-dev`
-- **Replicas**: 1-3 (auto-scaling)
-- **Environment**: development
-
-### Deployment Process
-
-#### Automatic Deployments
-The GitHub Actions workflows automatically deploy to different environments:
-
-1. **Development**: Triggered on pushes to `develop` branch
-2. **Staging**: Triggered on workflow dispatch with staging environment selected
-3. **Production**: Triggered on pushes to `main` branch
-
-#### Manual Deployment
-You can manually deploy using ArgoCD CLI:
-
-```bash
-# Deploy to development
-kubectl apply -f argocd/application-development.yaml
-argocd app sync student-tracker-development
-
-# Deploy to staging
-kubectl apply -f argocd/application-staging.yaml
-argocd app sync student-tracker-staging
-
-# Deploy to production
-kubectl apply -f argocd/application-production.yaml
-argocd app sync student-tracker-production
-```
-
-### Configuration Details
-
-#### Helm Parameters
-Each environment uses different Helm parameters:
-
-- **Image tag**: `latest` (prod), `staging` (staging), `develop` (dev)
-- **Environment variables**: Set according to environment
-- **Resource limits**: Production has higher limits
-- **Ingress hosts**: Different domains for each environment
-
-#### Sync Policies
-All environments use:
-- **Automated sync**: Enabled with prune and self-heal
-- **Retry policy**: Exponential backoff with environment-specific limits
-- **Sync options**: CreateNamespace, PrunePropagationPolicy, PruneLast
-
-## 🏗️ Architecture & Diagrams
+## 🏗️ Architecture
 
 ### System Architecture Overview
 
@@ -543,32 +98,6 @@ graph TB
     B --> K
     I --> S
     S --> Q
-```
-
-### Deployment Flow
-
-```mermaid
-sequenceDiagram
-    participant Dev as Developer
-    participant GH as GitHub
-    participant GA as GitHub Actions
-    participant CR as Container Registry
-    participant EC2 as EC2 Instance
-    participant K8s as Kubernetes
-    participant ArgoCD as ArgoCD
-    participant App as Application
-    
-    Dev->>GH: Push Code
-    GH->>GA: Trigger CI/CD
-    GA->>GA: Run Tests
-    GA->>GA: Build Docker Image
-    GA->>CR: Push Image
-    GA->>EC2: Deploy to EC2
-    GA->>K8s: Deploy to Kubernetes
-    K8s->>ArgoCD: Sync Application
-    ArgoCD->>App: Deploy Application
-    App->>App: Health Check
-    App->>GA: Report Status
 ```
 
 ### Infrastructure Components
@@ -625,155 +154,194 @@ graph TB
     end
 ```
 
-### Monitoring and Observability
+## 🚀 Quick Start
 
-```mermaid
-graph LR
-    subgraph "Application Metrics"
-        A[FastAPI App] --> B[Prometheus Metrics]
-        B --> C[Request Count]
-        B --> D[Response Time]
-        B --> E[Error Rate]
-        B --> F[System Resources]
-    end
-    
-    subgraph "Health Monitoring"
-        G[Health Endpoint] --> H[Status Check]
-        I[Database] --> J[Connection Status]
-        K[Container] --> L[Resource Usage]
-    end
-    
-    subgraph "Alerting"
-        M[Prometheus] --> N[Alert Manager]
-        N --> O[Email/Slack]
-        P[Grafana] --> Q[Dashboards]
-    end
-```
-
-### Technology Stack
-- **Backend**: FastAPI (Python)
-- **Database**: MongoDB
-- **Containerization**: Docker
-- **Orchestration**: Kubernetes
-- **Package Manager**: Helm
-- **GitOps**: ArgoCD
-- **CI/CD**: GitHub Actions
-- **Infrastructure**: AWS EC2
-- **Monitoring**: Prometheus + Grafana
-- **Security**: Trivy, Bandit, Safety
-
-## 💻 Development
-
-### Local Development Setup
-
-#### Prerequisites
-- Python 3.11+
-- Docker
-- Git
-
-#### Setup Steps
+### Option 1: Docker Deployment (Recommended)
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/bonaventuresimeon/NativeSeries.git
 cd NativeSeries
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Quick Docker deployment
+./deploy.sh docker
 
-# Install dependencies
-pip install -r requirements.txt
+# Docker deployment with cleanup
+./deploy.sh docker-clean
 
-# Run locally
-python app/main.py
+# Fresh deployment with machine cleanup
+./deploy.sh docker-fresh
 ```
 
-#### Development Commands
+### Option 2: EC2 Deployment
 ```bash
-# Run tests
-python app/test_basic.py
-
-# Format code
-black app/
-
-# Lint code
-flake8 app/
-
-# Type checking
-mypy app/
-
-# Run with hot reload
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Full EC2 setup and deployment
+./deploy.sh ec2
 ```
 
-### Project Structure
-```
-NativeSeries/
-├── app/                    # Application source code
-│   ├── main.py            # FastAPI application
-│   ├── crud.py            # Database operations
-│   ├── models.py          # Data models
-│   ├── database.py        # Database connection
-│   └── routes/            # API routes
-├── helm-chart/            # Helm deployment charts
-│   ├── templates/         # Kubernetes templates
-│   ├── Chart.yaml         # Chart metadata
-│   └── values.yaml        # Configuration values
-├── argocd/                # ArgoCD application configs
-│   ├── application-production.yaml
-│   ├── application-staging.yaml
-│   └── application-development.yaml
-├── .github/workflows/     # GitHub Actions workflows
-├── deploy.sh              # Unified deployment script
-├── Dockerfile             # Container definition
-├── requirements.txt       # Python dependencies
-└── README.md              # This file
-```
-
-## 📚 API Documentation
-
-### Core Endpoints
-
-#### Health and Monitoring
-- `GET /health` - Application health check
-- `GET /metrics` - Prometheus metrics
-- `GET /docs` - Interactive API documentation
-- `GET /redoc` - Alternative API documentation
-
-#### Student Management
-- `GET /students/` - List all students (Web UI)
-- `GET /api/students` - Get all students (JSON)
-- `POST /api/register` - Register new student
-- `POST /register` - Register student (Form)
-- `GET /progress` - Student progress page
-- `POST /progress` - Update student progress
-- `GET /update` - Update student page
-- `POST /update` - Update student data
-- `GET /admin` - Admin interface
-
-### API Examples
-
-#### Register a Student
+### Option 3: Kubernetes Deployment
 ```bash
-curl -X POST "http://18.206.89.183:30011/api/register?name=John%20Doe" \
-     -H "accept: application/json"
+# Full Kubernetes deployment with ArgoCD
+./deploy.sh kubernetes
 ```
 
-#### Get All Students
+## 🎯 Deployment Options
+
+The application supports multiple deployment methods:
+
+| Method | Use Case | Command | Requirements |
+|--------|----------|---------|-------------|
+| **Docker** | Quick testing, development | `./deploy.sh docker` | Docker |
+| **Docker Clean** | Clean deployment | `./deploy.sh docker-clean` | Docker |
+| **Docker Fresh** | Complete machine cleanup | `./deploy.sh docker-fresh` | Docker |
+| **EC2** | Production on EC2 | `./deploy.sh ec2` | EC2 instance |
+| **Kubernetes** | Scalable production | `./deploy.sh kubernetes` | K8s cluster |
+| **Helm Fix** | Troubleshooting | `./deploy.sh helm-fix` | kubectl, helm |
+| **Validation** | Configuration check | `./deploy.sh validate` | Python |
+| **Machine Clean** | System cleanup | `./deploy.sh machine-clean` | Docker |
+
+### Deployment Script Options
+
 ```bash
-curl -X GET "http://18.206.89.183:30011/api/students" \
-     -H "accept: application/json"
+./deploy.sh [OPTION]
+
+OPTIONS:
+  docker           Quick Docker deployment (recommended for EC2)
+  docker-clean     Docker deployment with complete cleanup
+  docker-fresh     Docker deployment with machine cleanup
+  ec2              Full EC2 deployment with system setup
+  kubernetes       Full Kubernetes deployment with ArgoCD
+  helm-fix         Fix Helm deployment issues
+  validate         Validate configuration only
+  ec2-validate     Comprehensive EC2 deployment validation
+  build            Build Docker image only
+  argocd           Install ArgoCD only
+  monitoring       Deploy with Prometheus monitoring
+  health-check     Check deployment health
+  status           Show deployment status
+  clean            Clean up deployments
+  prune            Complete system cleanup (Docker prune all)
+  machine-clean    Complete machine cleanup (system-wide)
+  help             Show this help message
 ```
 
-#### Health Check
+## 🚀 EC2 Deployment Guide
+
+### 📋 Prerequisites
+
+#### EC2 Instance Requirements
+- **OS**: Amazon Linux 2 or Ubuntu 20.04+
+- **Instance Type**: t2.micro (minimum) or t2.small (recommended)
+- **Storage**: 8GB minimum
+- **Security Groups**: Configure as shown below
+
+#### Security Group Configuration
+
+| Type | Protocol | Port Range | Source | Description |
+|------|----------|------------|--------|-------------|
+| SSH | TCP | 22 | Your IP | SSH Access |
+| HTTP | TCP | 80 | 0.0.0.0/0 | HTTP Traffic |
+| Custom TCP | TCP | 30011 | 0.0.0.0/0 | Application Port |
+| Custom TCP | TCP | 30080 | 0.0.0.0/0 | ArgoCD HTTP |
+| Custom TCP | TCP | 30443 | 0.0.0.0/0 | ArgoCD HTTPS |
+
+### 🔧 Step-by-Step EC2 Setup
+
+#### Step 1: Launch EC2 Instance
+
+1. **Go to AWS Console** → EC2 → Launch Instance
+2. **Choose Amazon Linux 2** AMI
+3. **Select Instance Type**: t2.small (recommended)
+4. **Configure Security Groups** as shown above
+5. **Launch and Download Key Pair**
+
+#### Step 2: Connect to EC2
+
 ```bash
-curl -X GET "http://18.206.89.183:30011/health" \
-     -H "accept: application/json"
+# Connect using SSH
+ssh -i your-key.pem ec2-user@18.206.89.183
+
+# Verify connection
+whoami  # Should show: ec2-user
+pwd     # Should show: /home/ec2-user
 ```
 
-### Response Examples
+#### Step 3: System Setup
 
-#### Health Check Response
+```bash
+# Update system
+sudo yum update -y
+
+# Install required packages
+sudo yum install -y \
+    docker \
+    git \
+    curl \
+    wget \
+    unzip \
+    python3 \
+    python3-pip
+
+# Start and enable Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+# Logout and login again to apply docker group
+exit
+# Reconnect: ssh -i your-key.pem ec2-user@18.206.89.183
+```
+
+#### Step 4: Clone Repository
+
+```bash
+# Clone the repository
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
+
+# Verify files
+ls -la
+```
+
+#### Step 5: Deploy Application
+
+```bash
+# Make deploy script executable
+chmod +x deploy.sh
+
+# Run EC2 deployment
+./deploy.sh ec2
+```
+
+### 🎯 Deployment Verification
+
+#### Health Check Commands
+
+```bash
+# Check if container is running
+sudo docker ps
+
+# Test health endpoint
+curl http://18.206.89.183:30011/health
+
+# Test API documentation
+curl http://18.206.89.183:30011/docs
+
+# Test students interface
+curl http://18.206.89.183:30011/students/
+
+# Check container logs
+sudo docker logs -f student-tracker
+```
+
+#### Expected Output
+
+##### Docker Container Status
+```
+CONTAINER ID   IMAGE                    COMMAND                  CREATED         STATUS         PORTS                      NAMES
+abc123def456   student-tracker:latest   "python app/main.py"     2 minutes ago   Up 2 minutes   0.0.0.0:30011->8000/tcp    student-tracker
+```
+
+##### Health Check Response
 ```json
 {
   "status": "healthy",
@@ -786,6 +354,311 @@ curl -X GET "http://18.206.89.183:30011/health" \
   "database": "healthy",
   "environment": "production"
 }
+```
+
+## ⚡ EC2 Quick Reference
+
+### Quick Commands
+
+#### Deployment
+```bash
+# Full EC2 deployment
+./deploy.sh ec2
+
+# Quick Docker deployment
+./deploy.sh docker
+
+# Validate deployment
+./deploy.sh ec2-validate
+
+# Check health
+./deploy.sh health-check
+
+# Show status
+./deploy.sh status
+```
+
+#### Validation
+```bash
+# Comprehensive validation
+./scripts/ec2-validation.sh
+
+# Test endpoints
+curl http://18.206.89.183:30011/health
+curl http://18.206.89.183:30011/docs
+curl http://18.206.89.183:30011/students/
+
+# Check container
+sudo docker ps
+sudo docker logs student-tracker
+```
+
+### Common Issues & Solutions
+
+#### Docker Issues
+```bash
+# Docker not running
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Permission denied
+sudo usermod -aG docker ec2-user
+# Logout and login again
+
+# Port already in use
+sudo docker stop student-tracker
+sudo docker rm student-tracker
+```
+
+#### Network Issues
+```bash
+# Check ports
+sudo netstat -tlnp | grep 30011
+
+# Test connectivity
+curl -v http://18.206.89.183:30011/health
+
+# Check security groups
+# Ensure ports 22, 80, 30011, 30080, 30443 are open
+```
+
+#### Application Issues
+```bash
+# Check logs
+sudo docker logs -f student-tracker
+
+# Restart container
+sudo docker restart student-tracker
+
+# Check resources
+sudo docker stats student-tracker
+htop
+```
+
+### Monitoring Commands
+
+#### System Monitoring
+```bash
+# System resources
+htop
+free -h
+df -h
+
+# Docker monitoring
+sudo docker stats
+sudo docker ps
+
+# Application monitoring
+curl http://18.206.89.183:30011/metrics
+```
+
+#### Log Monitoring
+```bash
+# Application logs
+sudo docker logs -f student-tracker
+
+# System logs
+sudo journalctl -f
+
+# Docker daemon logs
+sudo journalctl -u docker -f
+```
+
+### Emergency Commands
+
+#### Quick Recovery
+```bash
+# Emergency restart
+sudo docker restart student-tracker
+
+# Emergency cleanup
+sudo docker system prune -f
+
+# Emergency logs
+sudo docker logs --tail 100 student-tracker
+
+# Emergency health check
+curl -f http://18.206.89.183:30011/health || echo "CRITICAL: Health check failed"
+```
+
+#### Backup & Restore
+```bash
+# Backup container
+sudo docker commit student-tracker student-tracker-backup
+
+# Save image
+sudo docker save student-tracker:latest > backup.tar
+
+# Restore image
+sudo docker load < backup.tar
+```
+
+## 🔧 GitHub Actions & CI/CD
+
+### 📋 Overview
+
+The project includes comprehensive GitHub Actions workflows with robust error handling and automated quality assurance.
+
+### 🚨 Issues Fixed
+
+#### **Problem**: Kubernetes/ArgoCD deployment failures
+- **Issue**: Workflows were trying to run `kubectl apply` and `argocd app sync` without proper context validation
+- **Impact**: Workflow failures when Kubernetes cluster was not available
+- **Solution**: Added proper context checking and graceful fallbacks
+
+#### **Problem**: Missing EC2 secrets handling
+- **Issue**: EC2 deployment job would fail when secrets were not configured
+- **Impact**: Workflow failures for users without EC2 setup
+- **Solution**: Added conditional execution and helpful error messages
+
+#### **Problem**: Hardcoded dependencies
+- **Issue**: Workflows assumed certain tools and configurations were always available
+- **Impact**: Brittle workflows that failed in different environments
+- **Solution**: Added proper existence checks and fallback mechanisms
+
+### ✅ Fixes Applied
+
+#### **Enhanced GitHub Actions Workflows**:
+
+```yaml
+# Added context validation
+if ! kubectl cluster-info &> /dev/null; then
+  echo "⚠️  No kubectl context available, skipping Kubernetes deployment"
+  exit 0
+fi
+
+# Added file existence checks
+if [ -f "argocd/application-production.yaml" ]; then
+  kubectl apply -f argocd/application-production.yaml
+fi
+
+# Added tool availability checks
+if command -v argocd &> /dev/null; then
+  argocd app sync student-tracker-production --prune --force
+else
+  echo "⚠️  ArgoCD CLI not available, skipping sync"
+fi
+```
+
+#### **EC2 Deployment Improvements**:
+```yaml
+# Added secret validation
+if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.EC2_HOST != '' && secrets.EC2_SSH_KEY != ''
+
+# Added fallback job
+deploy-skip-ec2:
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (secrets.EC2_HOST == '' || secrets.EC2_SSH_KEY == '')
+```
+
+### 📊 Results
+
+#### Before Fixes:
+- ❌ **Workflow failures** when Kubernetes context unavailable
+- ❌ **Missing screenshots** causing broken documentation
+- ❌ **Inconsistent file formats** (PNG/SVG mix)
+- ❌ **No validation** of documentation integrity
+- ❌ **Poor error handling** in deployment workflows
+
+#### After Fixes:
+- ✅ **Robust workflows** with proper error handling
+- ✅ **25 professional screenshots** covering all deployment phases
+- ✅ **Consistent SVG format** with PNG fallback
+- ✅ **Automated validation** of documentation integrity
+- ✅ **Graceful fallbacks** for missing dependencies
+- ✅ **Comprehensive error messages** for troubleshooting
+
+## 🔧 Main Branch Fixes
+
+### 📋 Overview
+
+All issues identified and fixed on the main branch of the Student Tracker project.
+
+### 🚨 Issues Identified and Fixed
+
+#### 1. **Kubernetes Manifest Validation Issue**
+
+##### **Problem**:
+- **Issue**: The validation script was trying to load Kubernetes manifests as single YAML documents
+- **Impact**: Validation failures for multi-document YAML files (production.yaml, staging.yaml)
+- **Error**: `yaml.composer.ComposerError: expected a single document in the stream`
+
+##### **Solution**:
+- **Fixed**: Updated `deploy.sh` to use `yaml.safe_load_all()` for Kubernetes manifests
+- **Added**: Proper validation for both production and staging manifests
+- **Result**: All Kubernetes manifests now validate successfully
+
+##### **Code Fix**:
+```bash
+# Before (failing)
+python3 -c "import yaml; yaml.safe_load(open('manifests/production.yaml'))"
+
+# After (working)
+python3 -c "import yaml; list(yaml.safe_load_all(open('manifests/production.yaml'))); print('✅ production manifest YAML is valid')"
+```
+
+#### 2. **Screenshot Generation and Validation**
+
+##### **Problem**:
+- **Issue**: Screenshots needed to be regenerated after recent changes
+- **Impact**: Potential inconsistencies in documentation
+
+##### **Solution**:
+- **Fixed**: Regenerated all 25 placeholder screenshots
+- **Updated**: Screenshot timestamps and metadata
+- **Result**: All screenshots are now current and consistent
+
+#### 3. **Documentation Consistency**
+
+##### **Problem**:
+- **Issue**: Some documentation references needed updating
+- **Impact**: Potential broken links or outdated information
+
+##### **Solution**:
+- **Fixed**: Updated all documentation to reference current screenshots
+- **Verified**: All image links are working correctly
+- **Result**: Documentation is now fully consistent
+
+### ✅ Validation Results
+
+#### **Before Fixes**:
+- ❌ Kubernetes manifest validation failing
+- ❌ Screenshot inconsistencies
+- ❌ Documentation validation issues
+
+#### **After Fixes**:
+- ✅ **All Python files compile successfully**
+- ✅ **All GitHub Actions workflows are valid YAML**
+- ✅ **All ArgoCD applications validate successfully**
+- ✅ **All Kubernetes manifests validate successfully**
+- ✅ **All screenshots are generated and consistent**
+- ✅ **All documentation links are working**
+
+### 🧪 Comprehensive Testing
+
+#### **Validation Tests Passed**:
+```bash
+✅ Prerequisites check completed
+✅ Python code validation
+✅ ArgoCD production application validation
+✅ ArgoCD development application validation
+✅ ArgoCD staging application validation
+✅ Production manifest YAML validation
+✅ Staging manifest YAML validation
+✅ Comprehensive validation completed successfully
+```
+
+#### **GitHub Actions Validation**:
+```bash
+✅ unified-deploy.yml - Valid YAML
+✅ screenshot-generation.yml - Valid YAML
+✅ ec2-deploy.yml - Valid YAML
+```
+
+#### **Script Validation**:
+```bash
+✅ deploy.sh syntax is valid
+✅ scripts/ec2-validation.sh syntax is valid
+✅ scripts/generate-screenshots.sh syntax is valid
 ```
 
 ## 📸 Screenshots & Visual Guide
@@ -846,42 +719,137 @@ curl -X GET "http://18.206.89.183:30011/health" \
 ![Application UI](docs/images/application-ui.svg)
 *Access the Student Tracker web interface*
 
+### 📊 Monitoring and Management
+
+#### 13. System Resources
+![System Resources](docs/images/system-resources.svg)
+*Monitor system performance*
+
+#### 14. Docker Logs
+![Docker Logs](docs/images/docker-logs.svg)
+*View application logs*
+
+#### 15. Network Configuration
+![Network Config](docs/images/network-config.svg)
+*Verify network connectivity*
+
+### 🔍 Troubleshooting
+
+#### 16. Error Logs
+![Error Logs](docs/images/error-logs.svg)
+*Debug deployment issues*
+
+#### 17. Port Configuration
+![Port Config](docs/images/port-config.svg)
+*Check port availability*
+
+#### 18. Security Group Verification
+![Security Verification](docs/images/security-verification.svg)
+*Verify security group settings*
+
 ### 📱 Application Screenshots
 
-#### 13. Main Dashboard
+#### 19. Main Dashboard
 ![Main Dashboard](docs/images/main-dashboard.svg)
 *Student Tracker main interface*
 
-#### 14. Student Registration
+#### 20. Student Registration
 ![Student Registration](docs/images/student-registration.svg)
 *Add new students to the system*
 
-#### 15. Progress Tracking
+#### 21. Progress Tracking
 ![Progress Tracking](docs/images/progress-tracking.svg)
 *Track student progress over time*
 
-#### 16. API Documentation
+#### 22. API Documentation
 ![API Docs](docs/images/api-docs.svg)
 *Interactive API documentation*
 
 ### 🎯 Success Indicators
 
-#### 17. Deployment Success
+#### 23. Deployment Success
 ![Deployment Success](docs/images/deployment-success.svg)
 *All systems operational*
 
-#### 18. Health Status
+#### 24. Health Status
 ![Health Status](docs/images/health-status.svg)
 *Application health metrics*
 
----
+#### 25. Performance Metrics
+![Performance Metrics](docs/images/performance-metrics.svg)
+*System performance overview*
 
-## 📊 Monitoring
+## 🔍 Troubleshooting Guide
 
-### Application Monitoring
-- **Health Check**: http://18.206.89.183:30011/health
-- **Metrics**: http://18.206.89.183:30011/metrics
-- **API Docs**: http://18.206.89.183:30011/docs
+### Common Issues and Solutions
+
+#### 1. Docker Not Running
+```bash
+# Check Docker status
+sudo systemctl status docker
+
+# Start Docker if not running
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Verify Docker is working
+sudo docker info
+```
+
+#### 2. Port Already in Use
+```bash
+# Check what's using port 30011
+sudo netstat -tlnp | grep 30011
+
+# Kill process if needed
+sudo kill -9 <PID>
+
+# Or stop existing container
+sudo docker stop student-tracker
+```
+
+#### 3. Container Won't Start
+```bash
+# Check container logs
+sudo docker logs student-tracker
+
+# Check Docker daemon
+sudo systemctl status docker
+
+# Restart Docker
+sudo systemctl restart docker
+
+# Try running container manually
+sudo docker run -d -p 30011:8000 --name student-tracker student-tracker:latest
+```
+
+#### 4. Health Check Fails
+```bash
+# Check if container is running
+sudo docker ps
+
+# Check container logs
+sudo docker logs student-tracker
+
+# Check if port is exposed
+sudo docker port student-tracker
+
+# Test from inside container
+sudo docker exec student-tracker curl http://localhost:8000/health
+```
+
+#### 5. Permission Issues
+```bash
+# Fix file permissions
+sudo chown -R ec2-user:ec2-user /home/ec2-user/NativeSeries
+chmod +x deploy.sh
+
+# Add user to docker group
+sudo usermod -aG docker ec2-user
+# Logout and login again
+```
+
+## 📊 Monitoring and Maintenance
 
 ### System Monitoring
 ```bash
@@ -898,133 +866,75 @@ sudo journalctl -f
 sudo docker logs -f student-tracker
 ```
 
-### Metrics Available
-- Request count and duration
-- Response status codes
-- Database connection status
-- Memory and CPU usage
-- Application uptime
-- Error rates
-
-## 🔧 Troubleshooting
-
-### Common Issues and Solutions
-
-#### Application Won't Start
+### Backup and Recovery
 ```bash
-# Check container logs
-sudo docker logs student-tracker
+# Backup container
+sudo docker commit student-tracker student-tracker-backup
 
-# Check if port is available
-sudo netstat -tlnp | grep 30011
+# Save image to file
+sudo docker save student-tracker:latest > student-tracker-backup.tar
 
-# Restart container
-sudo docker restart student-tracker
+# Restore from backup
+sudo docker load < student-tracker-backup.tar
 ```
 
-#### Database Connection Issues
+### Updates and Maintenance
 ```bash
-# Check MongoDB connectivity
-sudo docker exec student-tracker curl http://18.206.89.183:27017
+# Update application
+cd NativeSeries
+git pull origin main
+./deploy.sh docker
 
-# Check environment variables
-sudo docker exec student-tracker env | grep MONGO
-```
-
-#### Performance Issues
-```bash
-# Check resource usage
-sudo docker stats student-tracker
-
-# Check system resources
-free -h
-df -h
-```
-
-#### Network Issues
-```bash
-# Test connectivity
-curl -v http://18.206.89.183:30011/health
-
-# Check firewall
-sudo iptables -L
-
-# Check security groups (EC2)
-# Ensure ports 30011, 30080, 30443 are open
-```
-
-### Debug Commands
-```bash
-# Check system resources
-free -h
-df -h
-top
-
-# Check Docker status
-sudo docker info
-sudo docker version
-
-# Check network connectivity
-curl -v http://18.206.89.183:30011/health
-telnet 18.206.89.183 30011
-
-# Check firewall
-sudo iptables -L
-```
-
-### ArgoCD Troubleshooting
-
-#### Common Issues
-1. **Application not syncing**: Check the source repository and branch
-2. **Image pull errors**: Verify GitHub Container Registry permissions
-3. **Ingress issues**: Check cert-manager and NGINX ingress controller
-
-#### Useful Commands
-```bash
-# Check application status
-argocd app get student-tracker-production
-
-# View application logs
-argocd app logs student-tracker-production
-
-# Force sync
-argocd app sync student-tracker-production --force
-
-# Rollback to previous version
-argocd app rollback student-tracker-production
-```
-
-## 🔒 Security
-
-### Security Features
-- Input validation and sanitization
-- CORS protection
-- Security headers
-- Container security scanning
-- Dependency vulnerability scanning
-- Code security analysis
-
-### Security Best Practices
-1. **Use HTTPS** in production
-2. **Restrict security groups** to specific IPs
-3. **Regular updates** of system packages
-4. **Monitor logs** for suspicious activity
-5. **Use IAM roles** instead of access keys
-6. **Enable CloudWatch** monitoring
-
-### Security Commands
-```bash
-# Update system regularly
+# Update system packages
 sudo yum update -y
 
-# Check for security updates
-sudo yum check-update
+# Clean up Docker
+sudo docker system prune -f
+```
 
-# Monitor failed login attempts
-sudo tail -f /var/log/secure
+## 🔒 Security Best Practices
 
-# Check open ports
-sudo netstat -tlnp
+### Network Security
+- Use security groups to restrict access
+- Consider using a VPN for SSH access
+- Regularly update security group rules
+
+### Application Security
+- Keep system packages updated
+- Monitor logs for suspicious activity
+- Use HTTPS in production
+- Implement proper authentication
+
+### Container Security
+- Regularly update base images
+- Scan images for vulnerabilities
+- Use non-root user in containers
+- Limit container capabilities
+
+## 📈 Performance Optimization
+
+### Resource Monitoring
+```bash
+# Check CPU usage
+top
+
+# Check memory usage
+free -h
+
+# Check disk usage
+df -h
+
+# Check network usage
+iftop
+```
+
+### Performance Tuning
+```bash
+# Increase Docker memory limit
+sudo docker run -d -p 30011:8000 --memory=1g --name student-tracker student-tracker:latest
+
+# Monitor performance
+sudo docker stats student-tracker
 ```
 
 ## 🎯 Success Criteria
@@ -1038,399 +948,40 @@ Your deployment is successful when:
 ✅ **Logs are clean**: No errors in container logs  
 ✅ **GitHub Actions pass**: All workflow steps complete successfully  
 
-## 🤝 Contributing
+## 🔒 Security Checklist
 
-### How to Contribute
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Guidelines
-- Follow PEP 8 style guidelines
-- Add tests for new features
-- Update documentation
-- Ensure all checks pass
-
-### Code Quality
-- **Formatting**: Black
-- **Linting**: Flake8
-- **Type Checking**: MyPy
-- **Security**: Bandit
-- **Testing**: pytest
-
-### Pull Request Template
-
-When creating a pull request, please use the following template:
-
-#### 🎯 Overview
-Brief description of what this PR accomplishes
-
-#### ✨ What's Changed
-List the main changes in this PR
-
-**Infrastructure Changes**
-- [ ] Kubernetes manifests
-- [ ] Helm charts
-- [ ] ArgoCD applications
-- [ ] CI/CD pipeline
-
-**Application Changes**
-- [ ] FastAPI endpoints
-- [ ] Database models
-- [ ] Business logic
-- [ ] Configuration
-
-**Documentation**
-- [ ] README updates
-- [ ] API documentation
-- [ ] Deployment guides
-- [ ] Configuration examples
-
-#### 🎯 Deployment URLs
-If this affects deployed services, list the access URLs:
-- 🌐 **Application**: http://18.206.89.183:30011
-- 📖 **API Docs**: http://18.206.89.183:30011/docs
-- 🩺 **Health Check**: http://18.206.89.183:30011/health
-- 🎯 **ArgoCD**: http://30.80.98.218:30080
-
-#### 🚀 How to Test
-```bash
-# Deployment
-./scripts/deploy-all.sh
-
-# Testing
-pytest app/ -v
-
-# Health check
-curl http://localhost:30011/health
-```
-
-#### 📋 Files Changed
-List the key files modified in this PR:
-- `app/` - Application code changes
-- `infra/` - Infrastructure configuration
-- `scripts/` - Deployment and utility scripts
-- `.github/` - CI/CD workflow changes
-
-#### ✅ Checklist
-
-**Before Submitting**
-- [ ] Code follows project style guidelines
-- [ ] Tests have been added/updated and pass
-- [ ] Documentation has been updated
-- [ ] CI/CD pipeline passes
-- [ ] Security considerations addressed
-
-**Deployment Verification**
-- [ ] Local deployment tested
-- [ ] Health endpoints working
-- [ ] ArgoCD sync successful
-- [ ] No breaking changes to existing APIs
-
-**Security & Quality**
-- [ ] No secrets in code
-- [ ] Vulnerability scans pass
-- [ ] Resource limits configured
-- [ ] Security contexts applied
-
-#### 🔗 Related Issues
-Link any related issues:
-- Fixes #
-- Closes #
-- Related to #
-
-#### 🎉 Additional Notes
-Any additional context or considerations for reviewers
-
-## 🔧 GitHub Actions Fixes & Improvements
-
-### 🚨 Issues Fixed
-
-#### **Kubernetes/ArgoCD Deployment Failures**
-- **Problem**: Workflows were trying to run `kubectl apply` and `argocd app sync` without proper context validation
-- **Solution**: Added proper context checking and graceful fallbacks
-- **Result**: Workflows now handle missing Kubernetes context gracefully
-
-#### **Missing EC2 Secrets Handling**
-- **Problem**: EC2 deployment job would fail when secrets were not configured
-- **Solution**: Added conditional execution and helpful error messages
-- **Result**: Workflows provide clear guidance when EC2 secrets are missing
-
-#### **Hardcoded Dependencies**
-- **Problem**: Workflows assumed certain tools and configurations were always available
-- **Solution**: Added proper existence checks and fallback mechanisms
-- **Result**: More robust workflows that work in different environments
-
-### ✅ Enhanced Workflow Features
-
-#### **unified-deploy.yml Improvements**:
-```yaml
-# Added context validation
-if ! kubectl cluster-info &> /dev/null; then
-  echo "⚠️  No kubectl context available, skipping Kubernetes deployment"
-  exit 0
-fi
-
-# Added file existence checks
-if [ -f "argocd/application-production.yaml" ]; then
-  kubectl apply -f argocd/application-production.yaml
-fi
-
-# Added tool availability checks
-if command -v argocd &> /dev/null; then
-  argocd app sync student-tracker-production --prune --force
-else
-  echo "⚠️  ArgoCD CLI not available, skipping sync"
-fi
-```
-
-#### **ec2-deploy.yml Improvements**:
-```yaml
-# Added secret validation
-if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.EC2_HOST != '' && secrets.EC2_SSH_KEY != ''
-
-# Added fallback job
-deploy-skip-ec2:
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (secrets.EC2_HOST == '' || secrets.EC2_SSH_KEY == '')
-```
-
-### 📊 Results
-
-#### **Before Fixes**:
-- ❌ **Workflow failures** when Kubernetes context unavailable
-- ❌ **Missing screenshots** causing broken documentation
-- ❌ **Inconsistent file formats** (PNG/SVG mix)
-- ❌ **No validation** of documentation integrity
-- ❌ **Poor error handling** in deployment workflows
-
-#### **After Fixes**:
-- ✅ **Robust workflows** with proper error handling
-- ✅ **25 professional screenshots** covering all deployment phases
-- ✅ **Consistent SVG format** with PNG fallback
-- ✅ **Automated validation** of documentation integrity
-- ✅ **Graceful fallbacks** for missing dependencies
-- ✅ **Comprehensive error messages** for troubleshooting
-
-## 🔧 Main Branch Issues - Fixed!
-
-### 🚨 Issues Identified and Fixed
-
-#### **1. Kubernetes Manifest Validation Issue**
-- **Problem**: Validation script was failing on multi-document YAML files
-- **Solution**: Updated `deploy.sh` to use `yaml.safe_load_all()` for Kubernetes manifests
-- **Result**: All manifests now validate successfully
-
-#### **2. Screenshot Generation and Validation**
-- **Problem**: Screenshots needed regeneration after recent changes
-- **Solution**: Regenerated all 25 placeholder screenshots with current timestamps
-- **Result**: All screenshots are now current and consistent
-
-#### **3. Documentation Consistency**
-- **Problem**: Some documentation references needed updating
-- **Solution**: Updated all documentation to reference current screenshots
-- **Result**: All documentation links are working correctly
-
-### ✅ Validation Results
-
-#### **Before Fixes**:
-- ❌ Kubernetes manifest validation failing
-- ❌ Screenshot inconsistencies
-- ❌ Documentation validation issues
-
-#### **After Fixes**:
-- ✅ **All Python files compile successfully**
-- ✅ **All GitHub Actions workflows are valid YAML**
-- ✅ **All ArgoCD applications validate successfully**
-- ✅ **All Kubernetes manifests validate successfully**
-- ✅ **All screenshots are generated and consistent**
-- ✅ **All documentation links are working**
-
-### 🧪 Comprehensive Testing
-
-#### **Validation Tests Passed**:
-```bash
-✅ Prerequisites check completed
-✅ Python code validation
-✅ ArgoCD production application validation
-✅ ArgoCD development application validation
-✅ ArgoCD staging application validation
-✅ Production manifest YAML validation
-✅ Staging manifest YAML validation
-✅ Comprehensive validation completed successfully
-```
-
-#### **GitHub Actions Validation**:
-```bash
-✅ unified-deploy.yml - Valid YAML
-✅ screenshot-generation.yml - Valid YAML
-✅ ec2-deploy.yml - Valid YAML
-```
-
-#### **Script Validation**:
-```bash
-✅ deploy.sh syntax is valid
-✅ scripts/ec2-validation.sh syntax is valid
-✅ scripts/generate-screenshots.sh syntax is valid
-```
-
-### 📊 Quality Metrics
-
-#### **Validation Coverage**:
-- **100% Python files** - All compile successfully
-- **100% YAML files** - All validate successfully
-- **100% Screenshots** - All generated and referenced
-- **100% Documentation** - All links working correctly
-
-#### **Error Reduction**:
-- **0 validation failures** - All tests pass
-- **0 broken links** - All documentation links work
-- **0 syntax errors** - All scripts and configurations are valid
-- **0 missing files** - All referenced files exist
-
-## 🚀 EC2 Quick Reference
-
-### ⚡ Quick Commands
-
-#### **Deployment**
-```bash
-# Full EC2 deployment
-./deploy.sh ec2
-
-# Quick Docker deployment
-./deploy.sh docker
-
-# Validate deployment
-./deploy.sh ec2-validate
-
-# Check health
-./deploy.sh health-check
-
-# Show status
-./deploy.sh status
-```
-
-#### **Validation**
-```bash
-# Comprehensive validation
-./scripts/ec2-validation.sh
-
-# Test endpoints
-curl http://18.206.89.183:30011/health
-curl http://18.206.89.183:30011/docs
-curl http://18.206.89.183:30011/students/
-
-# Check container
-sudo docker ps
-sudo docker logs student-tracker
-```
-
-### 🔧 Common Issues & Solutions
-
-#### **Docker Issues**
-```bash
-# Docker not running
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# Permission denied
-sudo usermod -aG docker ec2-user
-# Logout and login again
-
-# Port already in use
-sudo docker stop student-tracker
-sudo docker rm student-tracker
-```
-
-#### **Network Issues**
-```bash
-# Check ports
-sudo netstat -tlnp | grep 30011
-
-# Test connectivity
-curl -v http://18.206.89.183:30011/health
-
-# Check security groups
-# Ensure ports 22, 80, 30011, 30080, 30443 are open
-```
-
-#### **Application Issues**
-```bash
-# Check logs
-sudo docker logs -f student-tracker
-
-# Restart container
-sudo docker restart student-tracker
-
-# Check resources
-sudo docker stats student-tracker
-htop
-```
-
-### 📊 Monitoring Commands
-
-#### **System Monitoring**
-```bash
-# System resources
-htop
-free -h
-df -h
-
-# Docker monitoring
-sudo docker stats
-sudo docker ps
-
-# Application monitoring
-curl http://18.206.89.183:30011/metrics
-```
-
-#### **Log Monitoring**
-```bash
-# Application logs
-sudo docker logs -f student-tracker
-
-# System logs
-sudo journalctl -f
-
-# Docker daemon logs
-sudo journalctl -u docker -f
-```
-
-### 🔒 Security Checklist
-
-#### **Security Groups**
+### Security Groups
 - [ ] SSH (Port 22) - Your IP only
 - [ ] HTTP (Port 80) - 0.0.0.0/0
 - [ ] Custom TCP (Port 30011) - 0.0.0.0/0
 - [ ] Custom TCP (Port 30080) - 0.0.0.0/0
 - [ ] Custom TCP (Port 30443) - 0.0.0.0/0
 
-#### **System Security**
+### System Security
 - [ ] System packages updated
 - [ ] Docker running as non-root
 - [ ] Firewall configured
 - [ ] SSH key-based authentication
 - [ ] Regular security updates
 
-### 🎯 Success Indicators
+## 🎯 Success Indicators
 
-#### **✅ Deployment Success**
+### ✅ Deployment Success
 - Container is running: `sudo docker ps` shows student-tracker
 - Health check passes: `curl http://18.206.89.183:30011/health` returns 200
 - All endpoints work: Health, docs, students, metrics accessible
 - External access: Application accessible from internet
 - Logs are clean: No errors in container logs
 
-#### **📊 Performance Metrics**
+### 📊 Performance Metrics
 - Response time: < 2 seconds
 - Memory usage: < 80%
 - CPU usage: < 70%
 - Disk usage: < 85%
 
-### 🆘 Emergency Commands
+## 🆘 Emergency Commands
 
-#### **Quick Recovery**
+### Quick Recovery
 ```bash
 # Emergency restart
 sudo docker restart student-tracker
@@ -1445,7 +996,7 @@ sudo docker logs --tail 100 student-tracker
 curl -f http://18.206.89.183:30011/health || echo "CRITICAL: Health check failed"
 ```
 
-#### **Backup & Restore**
+### Backup & Restore
 ```bash
 # Backup container
 sudo docker commit student-tracker student-tracker-backup
@@ -1466,6 +1017,21 @@ If you encounter issues:
 3. **Test manually**: Run deployment script step by step
 4. **Check GitHub Actions**: Review workflow logs
 5. **Contact support**: Create GitHub issue
+
+### Useful Commands Reference
+```bash
+# Quick health check
+curl -f http://18.206.89.183:30011/health || echo "Health check failed"
+
+# Check all endpoints
+for endpoint in health docs students metrics; do
+    echo "Testing $endpoint..."
+    curl -I http://18.206.89.183:30011/$endpoint
+done
+
+# Monitor real-time
+watch -n 5 'curl -s http://18.206.89.183:30011/health | jq .'
+```
 
 ### Useful Resources
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
