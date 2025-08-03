@@ -113,10 +113,21 @@ curl http://18.206.89.183:30011/metrics
    ./deploy-to-production.sh
    ```
 
-2. **Kubernetes + ArgoCD** (Ready for Production)
+2. **EC2 Deployment** (Recommended for Production)
+   ```bash
+   ./deploy-ec2-user.sh
+   ```
+   📖 [Complete EC2 Deployment Guide](EC2-DEPLOYMENT-GUIDE.md)
+
+3. **Kubernetes + ArgoCD** (Ready for Production)
    ```bash
    ./scripts/deploy.sh
    ```
+
+4. **GitHub Actions Automation** (CI/CD Pipeline)
+   - Automatic deployment on push to main branch
+   - Builds Docker image and deploys to EC2
+   - Comprehensive testing and validation
 
 ---
 

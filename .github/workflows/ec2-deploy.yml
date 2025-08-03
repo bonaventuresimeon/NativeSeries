@@ -1,0 +1,242 @@
+name: EC2 Deployment Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: student-tracker
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_USER: ec2-user
+  EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        continue-on-error: true
+
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile app/main.py app/crud.py app/database.py app/models.py
+          echo "✅ All Python files compile successfully"
+
+      - name: Run basic tests
+        run: |
+          python app/test_basic.py
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.0
+
+      - name: Validate Helm chart
+        run: |
+          cd helm-chart
+          helm lint .
+
+      - name: Validate ArgoCD application
+        run: |
+          python -c "import yaml; yaml.safe_load(open('argocd/application.yaml')); print('✅ ArgoCD application YAML is valid')"
+
+  build-and-push:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image info
+        run: |
+          echo "Image built and pushed successfully!"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
+          echo "Labels: ${{ steps.meta.outputs.labels }}"
+
+  deploy-to-ec2:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          # Create deployment script
+          cat > deploy-ec2.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🚀 Starting EC2 deployment..."
+          
+          # Update system
+          sudo yum update -y
+          
+          # Install Docker if not installed
+          if ! command -v docker &> /dev/null; then
+              echo "📦 Installing Docker..."
+              sudo yum install -y docker
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker ec2-user
+          fi
+          
+          # Install Docker Compose if not installed
+          if ! command -v docker-compose &> /dev/null; then
+              echo "📦 Installing Docker Compose..."
+              sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+          fi
+          
+          # Stop and remove existing container
+          echo "🔄 Stopping existing container..."
+          sudo docker stop student-tracker || true
+          sudo docker rm student-tracker || true
+          
+          # Pull latest image
+          echo "📥 Pulling latest image..."
+          sudo docker pull ghcr.io/${{ github.repository }}/student-tracker:main
+          
+          # Run new container
+          echo "🚀 Starting new container..."
+          sudo docker run -d \
+              --name student-tracker \
+              --restart unless-stopped \
+              -p 30011:8000 \
+              -e HOST=0.0.0.0 \
+              -e PORT=8000 \
+              ghcr.io/${{ github.repository }}/student-tracker:main
+          
+          # Wait for container to start
+          echo "⏳ Waiting for container to start..."
+          sleep 30
+          
+          # Health check
+          echo "🔍 Performing health check..."
+          if curl -f http://localhost:30011/health; then
+              echo "✅ Deployment successful!"
+              echo "🌐 Application is live at: http://${{ secrets.EC2_HOST }}:30011"
+          else
+              echo "❌ Health check failed"
+              exit 1
+          fi
+          EOF
+          
+          # Copy deployment script to EC2
+          scp deploy-ec2.sh ${{ env.EC2_USER }}@${{ env.EC2_HOST }}:/home/${{ env.EC2_USER }}/
+          
+          # Execute deployment script on EC2
+          ssh ${{ env.EC2_USER }}@${{ env.EC2_HOST }} "chmod +x /home/${{ env.EC2_USER }}/deploy-ec2.sh && /home/${{ env.EC2_USER }}/deploy-ec2.sh"
+
+      - name: Verify deployment
+        run: |
+          # Wait a bit more for full startup
+          sleep 60
+          
+          # Test endpoints
+          echo "🧪 Testing endpoints..."
+          
+          # Health check
+          if curl -f http://${{ secrets.EC2_HOST }}:30011/health; then
+              echo "✅ Health check passed"
+          else
+              echo "❌ Health check failed"
+              exit 1
+          fi
+          
+          # API docs
+          if curl -f http://${{ secrets.EC2_HOST }}:30011/docs; then
+              echo "✅ API docs accessible"
+          else
+              echo "❌ API docs failed"
+              exit 1
+          fi
+          
+          # Students interface
+          if curl -f http://${{ secrets.EC2_HOST }}:30011/students/; then
+              echo "✅ Students interface accessible"
+          else
+              echo "❌ Students interface failed"
+              exit 1
+          fi
+          
+          echo "🎉 All endpoints verified successfully!"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
