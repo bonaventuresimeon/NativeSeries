@@ -2,8 +2,8 @@
 app:
   name: student-tracker
   image:
-    repository: ghcr.io/bonaventuresimeon/NativeSeries/student-tracker
-    tag: latest
+    repository: biwunor/student-tracker
+    tag: v1.1.0
     pullPolicy: IfNotPresent
   env:
     - name: ENVIRONMENT
