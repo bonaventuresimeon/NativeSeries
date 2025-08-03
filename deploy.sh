@@ -69,6 +69,7 @@ show_usage() {
     echo "OPTIONS:"
     echo "  docker           Quick Docker deployment (recommended for EC2)"
     echo "  docker-clean     Docker deployment with complete cleanup"
+    echo "  docker-fresh     Docker deployment with machine cleanup"
     echo "  ec2              Full EC2 deployment with system setup"
     echo "  kubernetes       Full Kubernetes deployment with ArgoCD"
     echo "  helm-fix         Fix Helm deployment issues"
@@ -81,6 +82,7 @@ show_usage() {
     echo "  status           Show deployment status"
     echo "  clean            Clean up deployments"
     echo "  prune            Complete system cleanup (Docker prune all)"
+    echo "  machine-clean    Complete machine cleanup (system-wide)"
     echo "  help             Show this help message"
     echo ""
     echo "EXAMPLES:"
@@ -135,6 +137,65 @@ complete_cleanup() {
     sudo docker builder prune -af 2>/dev/null || true
     
     print_success "✅ Complete cleanup finished"
+}
+
+# Function to perform complete machine cleanup
+complete_machine_cleanup() {
+    print_status "🧹 Performing complete machine cleanup..."
+    
+    # System package cleanup
+    print_status "📦 Cleaning package cache..."
+    if command_exists apt-get; then
+        sudo apt-get clean 2>/dev/null || true
+        sudo apt-get autoremove -y 2>/dev/null || true
+    elif command_exists yum; then
+        sudo yum clean all 2>/dev/null || true
+    fi
+    
+    # Clean temporary files
+    print_status "🗑️ Cleaning temporary files..."
+    sudo rm -rf /tmp/* 2>/dev/null || true
+    sudo rm -rf /var/tmp/* 2>/dev/null || true
+    
+    # Clean log files (keep recent ones)
+    print_status "📝 Cleaning old log files..."
+    sudo find /var/log -name "*.log" -mtime +7 -delete 2>/dev/null || true
+    sudo find /var/log -name "*.gz" -delete 2>/dev/null || true
+    
+    # Clean cache directories
+    print_status "🗂️ Cleaning cache directories..."
+    sudo rm -rf ~/.cache/* 2>/dev/null || true
+    sudo rm -rf /var/cache/* 2>/dev/null || true
+    
+    # Clean Docker completely
+    print_status "🐳 Complete Docker cleanup..."
+    complete_cleanup
+    
+    # Clean up any orphaned processes (but not the main Docker daemon)
+    print_status "🔄 Cleaning orphaned processes..."
+    sudo pkill -f "docker-compose" 2>/dev/null || true
+    sudo pkill -f "docker build" 2>/dev/null || true
+    
+    # Free up memory
+    print_status "🧠 Freeing up memory..."
+    sudo sync 2>/dev/null || true
+    echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null || true
+    
+    # Clean up any remaining Docker files
+    print_status "🗑️ Cleaning Docker files..."
+    sudo rm -rf /var/lib/docker/tmp/* 2>/dev/null || true
+    sudo rm -rf /var/lib/docker/containers/*/logs/* 2>/dev/null || true
+    
+    # Restart Docker daemon
+    print_status "🔄 Restarting Docker daemon..."
+    if command_exists systemctl; then
+        sudo systemctl restart docker 2>/dev/null || true
+    else
+        sudo service docker restart 2>/dev/null || sudo dockerd &
+    fi
+    sleep 5
+    
+    print_success "✅ Complete machine cleanup finished"
 }
 
 # Function to check prerequisites
@@ -376,6 +437,12 @@ build_docker_image() {
 # Function to deploy with Docker
 deploy_docker() {
     print_status "🚀 Starting Docker deployment..."
+    
+    # Check if we should run machine cleanup first
+    if [ "${MACHINE_CLEANUP:-false}" = "true" ]; then
+        print_status "🧹 Running machine cleanup before deployment..."
+        complete_machine_cleanup
+    fi
     
     # Ensure Docker is available
     if ! command_exists docker; then
@@ -1052,6 +1119,11 @@ main() {
             complete_cleanup
             deploy_docker
             ;;
+        "docker-fresh")
+            check_prerequisites
+            MACHINE_CLEANUP=true
+            deploy_docker
+            ;;
         "ec2")
             check_prerequisites
             setup_ec2_environment
@@ -1103,6 +1175,9 @@ main() {
             ;;
         "prune")
             complete_cleanup
+            ;;
+        "machine-clean")
+            complete_machine_cleanup
             ;;
         "help"|*)
             show_usage
