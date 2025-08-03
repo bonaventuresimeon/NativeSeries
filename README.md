@@ -106,142 +106,146 @@ OPTIONS:
   help             Show help message
 ```
 
-## 🚀 EC2 Deployment Guide
+## 🚀 Complete EC2 Deployment Guide
 
-### Prerequisites
+### 📋 Prerequisites
 
 #### EC2 Instance Requirements
 - **OS**: Amazon Linux 2 or Ubuntu 20.04+
 - **Instance Type**: t2.micro (minimum) or t2.small (recommended)
 - **Storage**: 8GB minimum
-- **Security Groups**: 
-  - SSH (Port 22)
-  - HTTP (Port 80)
-  - Custom TCP (Port 30011) - Application
-  - Custom TCP (Port 30080) - ArgoCD HTTP
-  - Custom TCP (Port 30443) - ArgoCD HTTPS
+- **Security Groups**: Configure as shown below
 
-#### GitHub Repository Setup
-- Repository with Student Tracker code
-- GitHub Actions enabled
-- Repository secrets configured
+#### Security Group Configuration
+| Type | Protocol | Port Range | Source | Description |
+|------|----------|------------|--------|-------------|
+| SSH | TCP | 22 | Your IP | SSH Access |
+| HTTP | TCP | 80 | 0.0.0.0/0 | HTTP Traffic |
+| Custom TCP | TCP | 30011 | 0.0.0.0/0 | Application Port |
+| Custom TCP | TCP | 30080 | 0.0.0.0/0 | ArgoCD HTTP |
+| Custom TCP | TCP | 30443 | 0.0.0.0/0 | ArgoCD HTTPS |
 
-### Step 1: EC2 Instance Setup
+### 🔧 Step-by-Step EC2 Setup
 
-#### Launch EC2 Instance
+#### Step 1: Launch EC2 Instance
+1. **Go to AWS Console** → EC2 → Launch Instance
+2. **Choose Amazon Linux 2** AMI
+3. **Select Instance Type**: t2.small (recommended)
+4. **Configure Security Groups** as shown above
+5. **Launch and Download Key Pair**
+
+#### Step 2: Connect to EC2
 ```bash
-# Connect to your EC2 instance
+# Connect using SSH
 ssh -i your-key.pem ec2-user@18.206.89.183
 
+# Verify connection
+whoami  # Should show: ec2-user
+pwd     # Should show: /home/ec2-user
+```
+
+#### Step 3: System Setup
+```bash
 # Update system
 sudo yum update -y
 
-# Install basic tools
-sudo yum install -y git curl wget unzip
+# Install required packages
+sudo yum install -y \
+    docker \
+    git \
+    curl \
+    wget \
+    unzip \
+    python3 \
+    python3-pip
+
+# Start and enable Docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+# Logout and login again to apply docker group
+exit
+# Reconnect: ssh -i your-key.pem ec2-user@18.206.89.183
 ```
 
-#### Configure Security Groups
-Create or modify security group with these rules:
-
-| Type | Protocol | Port Range | Source |
-|------|----------|------------|--------|
-| SSH | TCP | 22 | Your IP |
-| HTTP | TCP | 80 | 0.0.0.0/0 |
-| Custom TCP | TCP | 30011 | 0.0.0.0/0 |
-| Custom TCP | TCP | 30080 | 0.0.0.0/0 |
-| Custom TCP | TCP | 30443 | 0.0.0.0/0 |
-
-### Step 2: GitHub Secrets Configuration
-
-#### Required Secrets
-Add these secrets in your GitHub repository (Settings → Secrets and variables → Actions):
-
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `EC2_HOST` | Your EC2 public IP or domain | `18.206.89.183` |
-| `EC2_SSH_KEY` | Your private SSH key content | `-----BEGIN RSA PRIVATE KEY-----...` |
-
-### Step 3: Manual Deployment
-
-#### Quick Deployment
+#### Step 4: Clone Repository
 ```bash
-# Connect to EC2
-ssh ec2-user@18.206.89.183
-
-# Clone repository
+# Clone the repository
 git clone https://github.com/bonaventuresimeon/NativeSeries.git
 cd NativeSeries
 
-# Run deployment
+# Verify files
+ls -la
+```
+
+#### Step 5: Deploy Application
+```bash
+# Make deploy script executable
+chmod +x deploy.sh
+
+# Run EC2 deployment
 ./deploy.sh ec2
 ```
 
-#### Verify Deployment
+### 🎯 Deployment Verification
+
+#### Health Check Commands
 ```bash
-# Check container status
+# Check if container is running
 sudo docker ps
 
-# Test endpoints
+# Test health endpoint
 curl http://18.206.89.183:30011/health
+
+# Test API documentation
 curl http://18.206.89.183:30011/docs
+
+# Test students interface
 curl http://18.206.89.183:30011/students/
 
-# View logs
+# Check container logs
 sudo docker logs -f student-tracker
 ```
 
-### Step 4: Automated Deployment
+#### Expected Output
 
-#### GitHub Actions Workflow
-The repository includes GitHub Actions workflows that will:
-
-1. **Validate** code and configurations
-2. **Build** Docker image
-3. **Push** to GitHub Container Registry
-4. **Deploy** to EC2 automatically
-5. **Verify** all endpoints
-
-#### Trigger Deployment
-```bash
-# Push to main branch to trigger deployment
-git add .
-git commit -m "Update application"
-git push origin main
+**Docker Container Status**
+```
+CONTAINER ID   IMAGE                    COMMAND                  CREATED         STATUS         PORTS                      NAMES
+abc123def456   student-tracker:latest   "python app/main.py"     2 minutes ago   Up 2 minutes   0.0.0.0:30011->8000/tcp    student-tracker
 ```
 
-### Step 5: Testing and Verification
-
-#### Health Checks
-```bash
-# Test from EC2
-curl http://18.206.89.183:30011/health
-
-# Test from external
-curl http://18.206.89.183:30011/health
+**Health Check Response**
+```json
+{
+  "status": "healthy",
+  "service": "student-tracker",
+  "timestamp": "2024-01-15T10:30:00.000Z",
+  "version": "1.0.0",
+  "uptime_seconds": 3600,
+  "request_count": 150,
+  "production_url": "http://18.206.89.183:30011",
+  "database": "healthy",
+  "environment": "production"
+}
 ```
 
-#### Endpoint Testing
-```bash
-# All endpoints should return 200 OK
-curl -I http://18.206.89.183:30011/health
-curl -I http://18.206.89.183:30011/docs
-curl -I http://18.206.89.183:30011/students/
-curl -I http://18.206.89.183:30011/metrics
-```
+### 🔍 Troubleshooting Guide
 
-### Troubleshooting
-
-#### Common Issues
+#### Common Issues and Solutions
 
 **1. Docker Not Running**
 ```bash
-# Start Docker
+# Check Docker status
+sudo systemctl status docker
+
+# Start Docker if not running
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# Add user to docker group
-sudo usermod -aG docker ec2-user
-# Logout and login again
+# Verify Docker is working
+sudo docker info
 ```
 
 **2. Port Already in Use**
@@ -251,6 +255,9 @@ sudo netstat -tlnp | grep 30011
 
 # Kill process if needed
 sudo kill -9 <PID>
+
+# Or stop existing container
+sudo docker stop student-tracker
 ```
 
 **3. Container Won't Start**
@@ -263,6 +270,9 @@ sudo systemctl status docker
 
 # Restart Docker
 sudo systemctl restart docker
+
+# Try running container manually
+sudo docker run -d -p 30011:8000 --name student-tracker student-tracker:latest
 ```
 
 **4. Health Check Fails**
@@ -277,7 +287,142 @@ sudo docker logs student-tracker
 sudo docker port student-tracker
 
 # Test from inside container
-sudo docker exec student-tracker curl http://18.206.89.183:8000/health
+sudo docker exec student-tracker curl http://localhost:8000/health
+```
+
+**5. Permission Issues**
+```bash
+# Fix file permissions
+sudo chown -R ec2-user:ec2-user /home/ec2-user/NativeSeries
+chmod +x deploy.sh
+
+# Add user to docker group
+sudo usermod -aG docker ec2-user
+# Logout and login again
+```
+
+### 📊 Monitoring and Maintenance
+
+#### System Monitoring
+```bash
+# Monitor system resources
+htop
+
+# Monitor Docker
+sudo docker stats
+
+# Monitor logs
+sudo journalctl -f
+
+# Monitor application logs
+sudo docker logs -f student-tracker
+```
+
+#### Backup and Recovery
+```bash
+# Backup container
+sudo docker commit student-tracker student-tracker-backup
+
+# Save image to file
+sudo docker save student-tracker:latest > student-tracker-backup.tar
+
+# Restore from backup
+sudo docker load < student-tracker-backup.tar
+```
+
+#### Updates and Maintenance
+```bash
+# Update application
+cd NativeSeries
+git pull origin main
+./deploy.sh docker
+
+# Update system packages
+sudo yum update -y
+
+# Clean up Docker
+sudo docker system prune -f
+```
+
+### 🔒 Security Best Practices
+
+#### Network Security
+- Use security groups to restrict access
+- Consider using a VPN for SSH access
+- Regularly update security group rules
+
+#### Application Security
+- Keep system packages updated
+- Monitor logs for suspicious activity
+- Use HTTPS in production
+- Implement proper authentication
+
+#### Container Security
+- Regularly update base images
+- Scan images for vulnerabilities
+- Use non-root user in containers
+- Limit container capabilities
+
+### 📈 Performance Optimization
+
+#### Resource Monitoring
+```bash
+# Check CPU usage
+top
+
+# Check memory usage
+free -h
+
+# Check disk usage
+df -h
+
+# Check network usage
+iftop
+```
+
+#### Performance Tuning
+```bash
+# Increase Docker memory limit
+sudo docker run -d -p 30011:8000 --memory=1g --name student-tracker student-tracker:latest
+
+# Monitor performance
+sudo docker stats student-tracker
+```
+
+### 🎉 Success Criteria
+
+Your deployment is successful when:
+
+✅ **Container is running**: `sudo docker ps` shows student-tracker  
+✅ **Health check passes**: `curl http://18.206.89.183:30011/health` returns 200  
+✅ **All endpoints work**: Health, docs, students, metrics all accessible  
+✅ **External access**: Application accessible from internet  
+✅ **Logs are clean**: No errors in container logs  
+✅ **GitHub Actions pass**: All workflow steps complete successfully  
+
+### 📞 Support
+
+If you encounter issues:
+
+1. **Check logs**: `sudo docker logs student-tracker`
+2. **Verify configuration**: Review this guide
+3. **Test manually**: Run deployment script step by step
+4. **Check GitHub Actions**: Review workflow logs
+5. **Contact support**: Create GitHub issue
+
+#### Useful Commands Reference
+```bash
+# Quick health check
+curl -f http://18.206.89.183:30011/health || echo "Health check failed"
+
+# Check all endpoints
+for endpoint in health docs students metrics; do
+    echo "Testing $endpoint..."
+    curl -I http://18.206.89.183:30011/$endpoint
+done
+
+# Monitor real-time
+watch -n 5 'curl -s http://18.206.89.183:30011/health | jq .'
 ```
 
 ## 🎯 ArgoCD Configuration
@@ -350,22 +495,155 @@ All environments use:
 - **Retry policy**: Exponential backoff with environment-specific limits
 - **Sync options**: CreateNamespace, PrunePropagationPolicy, PruneLast
 
-## 🏗️ Architecture
+## 🏗️ Architecture & Diagrams
 
-### System Architecture
+### System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "GitHub Repository"
+        A[Source Code] --> B[GitHub Actions]
+        B --> C[CI/CD Pipeline]
+    end
+    
+    subgraph "Container Registry"
+        C --> D[GitHub Container Registry]
+        D --> E[Docker Images]
+    end
+    
+    subgraph "AWS EC2 Instance"
+        F[EC2 Instance<br/>18.206.89.183] --> G[Docker Engine]
+        G --> H[Student Tracker Container]
+        H --> I[FastAPI Application]
+        I --> J[MongoDB Database]
+    end
+    
+    subgraph "Kubernetes Cluster"
+        K[ArgoCD] --> L[Helm Charts]
+        L --> M[Kubernetes Resources]
+        M --> N[Pods/Services/Ingress]
+    end
+    
+    subgraph "External Access"
+        O[Users] --> P[Load Balancer]
+        P --> F
+        P --> K
+    end
+    
+    subgraph "Monitoring"
+        Q[Prometheus] --> R[Grafana]
+        S[Health Checks] --> T[Metrics]
+    end
+    
+    E --> G
+    B --> K
+    I --> S
+    S --> Q
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   GitHub Repo   │    │  GitHub Actions │    │   Docker Hub    │
-│                 │───▶│                 │───▶│                 │
-│  Source Code    │    │    CI/CD        │    │  Container      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│     ArgoCD      │    │   Kubernetes    │    │      EC2        │
-│                 │───▶│                 │───▶│                 │
-│   GitOps CD     │    │   Orchestration │    │   Deployment    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+
+### Deployment Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant GH as GitHub
+    participant GA as GitHub Actions
+    participant CR as Container Registry
+    participant EC2 as EC2 Instance
+    participant K8s as Kubernetes
+    participant ArgoCD as ArgoCD
+    participant App as Application
+    
+    Dev->>GH: Push Code
+    GH->>GA: Trigger CI/CD
+    GA->>GA: Run Tests
+    GA->>GA: Build Docker Image
+    GA->>CR: Push Image
+    GA->>EC2: Deploy to EC2
+    GA->>K8s: Deploy to Kubernetes
+    K8s->>ArgoCD: Sync Application
+    ArgoCD->>App: Deploy Application
+    App->>App: Health Check
+    App->>GA: Report Status
+```
+
+### Infrastructure Components
+
+```mermaid
+graph LR
+    subgraph "Frontend"
+        A[Web UI<br/>Port 30011] --> B[FastAPI Backend]
+    end
+    
+    subgraph "Backend Services"
+        B --> C[Student Management API]
+        B --> D[Progress Tracking API]
+        B --> E[Health Check API]
+        B --> F[Metrics API]
+    end
+    
+    subgraph "Data Layer"
+        C --> G[MongoDB]
+        D --> G
+        E --> H[System Metrics]
+        F --> H
+    end
+    
+    subgraph "Infrastructure"
+        I[Docker Container] --> J[EC2 Instance]
+        K[Kubernetes Pods] --> L[Cluster]
+        M[ArgoCD] --> N[GitOps]
+    end
+```
+
+### Security Architecture
+
+```mermaid
+graph TB
+    subgraph "External Access"
+        A[Internet] --> B[Security Groups]
+        B --> C[Port 30011 - App]
+        B --> D[Port 30080 - ArgoCD HTTP]
+        B --> E[Port 30443 - ArgoCD HTTPS]
+    end
+    
+    subgraph "Application Security"
+        C --> F[Input Validation]
+        F --> G[CORS Protection]
+        G --> H[Security Headers]
+        H --> I[FastAPI Security]
+    end
+    
+    subgraph "Infrastructure Security"
+        J[IAM Roles] --> K[EC2 Instance]
+        L[Network ACLs] --> M[VPC]
+        N[Container Security] --> O[Docker]
+    end
+```
+
+### Monitoring and Observability
+
+```mermaid
+graph LR
+    subgraph "Application Metrics"
+        A[FastAPI App] --> B[Prometheus Metrics]
+        B --> C[Request Count]
+        B --> D[Response Time]
+        B --> E[Error Rate]
+        B --> F[System Resources]
+    end
+    
+    subgraph "Health Monitoring"
+        G[Health Endpoint] --> H[Status Check]
+        I[Database] --> J[Connection Status]
+        K[Container] --> L[Resource Usage]
+    end
+    
+    subgraph "Alerting"
+        M[Prometheus] --> N[Alert Manager]
+        N --> O[Email/Slack]
+        P[Grafana] --> Q[Dashboards]
+    end
 ```
 
 ### Technology Stack
@@ -505,6 +783,94 @@ curl -X GET "http://18.206.89.183:30011/health" \
   "environment": "production"
 }
 ```
+
+## 📸 Screenshots & Visual Guide
+
+### 🖥️ AWS Console Setup
+
+#### 1. EC2 Instance Launch
+![EC2 Launch Instance](docs/images/ec2-launch-instance.png)
+*Launch a new EC2 instance with Amazon Linux 2*
+
+#### 2. Security Group Configuration
+![Security Group Setup](docs/images/security-group-setup.png)
+*Configure security groups to allow required ports*
+
+#### 3. Key Pair Creation
+![Key Pair Download](docs/images/key-pair-download.png)
+*Download and secure your SSH key pair*
+
+### 🔧 System Setup
+
+#### 4. SSH Connection
+![SSH Connection](docs/images/ssh-connection.png)
+*Connect to EC2 instance using SSH*
+
+#### 5. System Update
+![System Update](docs/images/system-update.png)
+*Update system packages and install dependencies*
+
+#### 6. Docker Installation
+![Docker Setup](docs/images/docker-setup.png)
+*Install and configure Docker*
+
+### 🚀 Application Deployment
+
+#### 7. Repository Clone
+![Repository Clone](docs/images/repo-clone.png)
+*Clone the Student Tracker repository*
+
+#### 8. Deployment Script Execution
+![Deploy Script](docs/images/deploy-script.png)
+*Run the deployment script*
+
+#### 9. Docker Build Process
+![Docker Build](docs/images/docker-build.png)
+*Build the Docker image*
+
+### ✅ Verification and Testing
+
+#### 10. Container Status
+![Container Status](docs/images/container-status.png)
+*Verify container is running*
+
+#### 11. Health Check
+![Health Check](docs/images/health-check.png)
+*Test application health endpoint*
+
+#### 12. Application Interface
+![Application UI](docs/images/application-ui.png)
+*Access the Student Tracker web interface*
+
+### 📱 Application Screenshots
+
+#### 13. Main Dashboard
+![Main Dashboard](docs/images/main-dashboard.png)
+*Student Tracker main interface*
+
+#### 14. Student Registration
+![Student Registration](docs/images/student-registration.png)
+*Add new students to the system*
+
+#### 15. Progress Tracking
+![Progress Tracking](docs/images/progress-tracking.png)
+*Track student progress over time*
+
+#### 16. API Documentation
+![API Docs](docs/images/api-docs.png)
+*Interactive API documentation*
+
+### 🎯 Success Indicators
+
+#### 17. Deployment Success
+![Deployment Success](docs/images/deployment-success.png)
+*All systems operational*
+
+#### 18. Health Status
+![Health Status](docs/images/health-status.png)
+*Application health metrics*
+
+---
 
 ## 📊 Monitoring
 
@@ -689,6 +1055,90 @@ Your deployment is successful when:
 - **Type Checking**: MyPy
 - **Security**: Bandit
 - **Testing**: pytest
+
+### Pull Request Template
+
+When creating a pull request, please use the following template:
+
+#### 🎯 Overview
+Brief description of what this PR accomplishes
+
+#### ✨ What's Changed
+List the main changes in this PR
+
+**Infrastructure Changes**
+- [ ] Kubernetes manifests
+- [ ] Helm charts
+- [ ] ArgoCD applications
+- [ ] CI/CD pipeline
+
+**Application Changes**
+- [ ] FastAPI endpoints
+- [ ] Database models
+- [ ] Business logic
+- [ ] Configuration
+
+**Documentation**
+- [ ] README updates
+- [ ] API documentation
+- [ ] Deployment guides
+- [ ] Configuration examples
+
+#### 🎯 Deployment URLs
+If this affects deployed services, list the access URLs:
+- 🌐 **Application**: http://18.206.89.183:30011
+- 📖 **API Docs**: http://18.206.89.183:30011/docs
+- 🩺 **Health Check**: http://18.206.89.183:30011/health
+- 🎯 **ArgoCD**: http://30.80.98.218:30080
+
+#### 🚀 How to Test
+```bash
+# Deployment
+./scripts/deploy-all.sh
+
+# Testing
+pytest app/ -v
+
+# Health check
+curl http://localhost:30011/health
+```
+
+#### 📋 Files Changed
+List the key files modified in this PR:
+- `app/` - Application code changes
+- `infra/` - Infrastructure configuration
+- `scripts/` - Deployment and utility scripts
+- `.github/` - CI/CD workflow changes
+
+#### ✅ Checklist
+
+**Before Submitting**
+- [ ] Code follows project style guidelines
+- [ ] Tests have been added/updated and pass
+- [ ] Documentation has been updated
+- [ ] CI/CD pipeline passes
+- [ ] Security considerations addressed
+
+**Deployment Verification**
+- [ ] Local deployment tested
+- [ ] Health endpoints working
+- [ ] ArgoCD sync successful
+- [ ] No breaking changes to existing APIs
+
+**Security & Quality**
+- [ ] No secrets in code
+- [ ] Vulnerability scans pass
+- [ ] Resource limits configured
+- [ ] Security contexts applied
+
+#### 🔗 Related Issues
+Link any related issues:
+- Fixes #
+- Closes #
+- Related to #
+
+#### 🎉 Additional Notes
+Any additional context or considerations for reviewers
 
 ## 📞 Support
 
