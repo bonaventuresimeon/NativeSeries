@@ -1,10 +1,9 @@
-
 from fastapi import APIRouter
 from app.crud import create_student
 
 
-
 router = APIRouter()
+
 
 @router.post("/register")
 async def register(name: str):

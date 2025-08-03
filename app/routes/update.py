@@ -2,8 +2,8 @@ from fastapi import APIRouter
 from app.crud import update_progress
 
 
-
 router = APIRouter()
+
 
 @router.post("/update/{student_id}")
 async def update(student_id: str, week: str):
