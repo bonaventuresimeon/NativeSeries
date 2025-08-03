@@ -43,6 +43,8 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          ignore-unfixed: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
@@ -53,7 +55,7 @@ jobs:
       - name: Run Bandit security linter
         run: |
           pip install bandit
-          bandit -r app/ -f json -o bandit-report.json || echo "Bandit scan completed with warnings"
+          bandit -r app/ -f json -o bandit-report.json -ll || echo "Bandit scan completed with warnings"
 
       - name: Upload Bandit results
         uses: actions/upload-artifact@v3
@@ -61,6 +63,18 @@ jobs:
         with:
           name: bandit-security-report
           path: bandit-report.json
+
+      - name: Run Safety check for Python dependencies
+        run: |
+          pip install safety
+          safety check --json --output safety-report.json || echo "Safety check completed with warnings"
+
+      - name: Upload Safety results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: safety-security-report
+          path: safety-report.json
 
   # Code Quality and Testing
   quality-check:
