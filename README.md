@@ -2,6 +2,99 @@
 
 A comprehensive student tracking application built with FastAPI, featuring modern web interfaces, REST APIs, and production-ready deployment configurations.
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        UI[Web Interface]
+        API[API Documentation]
+    end
+    
+    subgraph "Application Layer"
+        FastAPI[FastAPI Application]
+        Routes[API Routes]
+        Models[Data Models]
+        CRUD[Database Operations]
+    end
+    
+    subgraph "Data Layer"
+        MongoDB[(MongoDB)]
+        Memory[(In-Memory Storage)]
+    end
+    
+    subgraph "Infrastructure Layer"
+        Docker[Docker Container]
+        K8s[Kubernetes Cluster]
+        ArgoCD[ArgoCD GitOps]
+        EC2[EC2 Instance]
+    end
+    
+    subgraph "CI/CD Pipeline"
+        GitHub[GitHub Actions]
+        Security[Security Scanning]
+        Quality[Code Quality]
+        Build[Build & Push]
+        Deploy[Deploy]
+    end
+    
+    UI --> FastAPI
+    API --> FastAPI
+    FastAPI --> Routes
+    Routes --> CRUD
+    CRUD --> MongoDB
+    CRUD --> Memory
+    FastAPI --> Docker
+    Docker --> K8s
+    Docker --> EC2
+    K8s --> ArgoCD
+    GitHub --> Security
+    GitHub --> Quality
+    GitHub --> Build
+    Build --> Deploy
+    Deploy --> K8s
+    Deploy --> EC2
+```
+
+## 🔄 Deployment Pipeline
+
+```mermaid
+flowchart TD
+    A[Code Push] --> B[GitHub Actions Trigger]
+    B --> C[Security Scan]
+    B --> D[Code Quality Check]
+    B --> E[Helm Validation]
+    
+    C --> F{All Checks Pass?}
+    D --> F
+    E --> F
+    
+    F -->|Yes| G[Build Docker Image]
+    F -->|No| H[Fail with Details]
+    
+    G --> I[Push to Registry]
+    I --> J{Environment?}
+    
+    J -->|Main Branch| K[Deploy to Production]
+    J -->|Develop Branch| L[Deploy to Staging]
+    J -->|Manual| M[Manual Deployment]
+    
+    K --> N[Kubernetes + ArgoCD]
+    L --> O[Staging Environment]
+    M --> P[EC2 Deployment]
+    
+    N --> Q[Health Check]
+    O --> Q
+    P --> Q
+    
+    Q -->|Success| R[✅ Deployment Complete]
+    Q -->|Failure| S[❌ Rollback]
+    
+    style A fill:#e1f5fe
+    style R fill:#c8e6c9
+    style S fill:#ffcdd2
+```
+
 ## 🌟 Features
 
 - **Student Management** - Complete CRUD operations for student records
@@ -118,7 +211,8 @@ NativeSeries/
 ├── templates/             # HTML templates
 ├── deploy.sh              # Deployment script
 ├── Dockerfile             # Docker configuration
-└── requirements.txt       # Python dependencies
+├── requirements.txt       # Python dependencies
+└── LICENSE               # MIT License with additional terms
 ```
 
 ## 🔧 Configuration
@@ -308,9 +402,33 @@ journalctl -u docker.service -f
 - Update documentation
 - Use conventional commit messages
 
-## 📝 License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** with additional terms and conditions.
+
+### License Summary
+
+- **MIT License** - Standard MIT terms apply
+- **Attribution Required** - Must include "Student Tracker by Bonaventure Simeon"
+- **Educational Use** - Free for educational institutions
+- **Commercial Use** - Requires written permission
+- **Data Privacy** - Users responsible for compliance with local laws
+
+### Key License Terms
+
+1. **Attribution**: Any distribution must include attribution to the original author
+2. **Educational Use**: Free for educational purposes
+3. **Commercial Use**: Requires written permission from Bonaventure Simeon
+4. **Modifications**: Allowed with proper attribution and modification notice
+5. **Liability**: Software provided "as-is" without warranty
+
+### Contact for Licensing
+
+For questions about this license or commercial licensing:
+
+- **Email**: contact@bonaventure.org.ng
+- **GitHub**: https://github.com/bonaventuresimeon
+- **Full License**: See [LICENSE](LICENSE) file for complete terms
 
 ## 🙏 Acknowledgments
 
@@ -331,3 +449,5 @@ For support and questions:
 ---
 
 **Made with ❤️ by Bonaventure Simeon**
+
+*Student Tracker - Empowering Education Through Technology*
