@@ -66,6 +66,33 @@ argocd:
   server:
     type: LoadBalancer
     port: 80
+  urls:
+    production: "https://argocd-prod.yourdomain.com"
+    development: "https://argocd-dev.yourdomain.com"
+    staging: "https://argocd-staging.yourdomain.com"
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    hosts:
+      - host: argocd-prod.yourdomain.com
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: argocd-dev.yourdomain.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - hosts:
+          - argocd-prod.yourdomain.com
+          - argocd-dev.yourdomain.com
+        secretName: argocd-tls
 
 # Enhanced Horizontal Pod Autoscaler
 hpa:

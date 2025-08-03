@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: student-tracker-production
+  namespace: argocd
+  labels:
+    environment: production
+  annotations:
+    argocd.argoproj.io/production-url: "https://student-tracker.yourdomain.com"
+    argocd.argoproj.io/argocd-url: "https://argocd-prod.yourdomain.com"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries.git
+    targetRevision: main
+    path: helm-chart
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: app.image.tag
+          value: latest
+        - name: app.image.repository
+          value: ghcr.io/bonaventuresimeon/NativeSeries/student-tracker
+        - name: app.env[0].value
+          value: "production"
+        - name: ingress.hosts[0].host
+          value: "student-tracker.yourdomain.com"
+        - name: argocd.urls.production
+          value: "https://argocd-prod.yourdomain.com"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-tracker-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+  info:
+    - name: 'Production URL'
+      value: 'https://student-tracker.yourdomain.com'
+    - name: 'ArgoCD URL'
+      value: 'https://argocd-prod.yourdomain.com'
+    - name: 'Environment'
+      value: 'production'

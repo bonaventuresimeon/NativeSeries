@@ -47,7 +47,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -58,7 +58,7 @@ jobs:
           bandit -r app/ -f json -o bandit-report.json -ll || echo "Bandit scan completed with warnings"
 
       - name: Upload Bandit results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bandit-security-report
@@ -70,7 +70,7 @@ jobs:
           safety check --json --output safety-report.json || echo "Safety check completed with warnings"
 
       - name: Upload Safety results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: safety-security-report
@@ -120,7 +120,7 @@ jobs:
       - name: Run basic tests
         run: |
           if [ -f "app/test_basic.py" ]; then
-            python app/test_basic.py || echo "Basic tests failed, continuing..."
+            cd app && python test_basic.py || echo "Basic tests failed, continuing..."
           else
             echo "⚠️ test_basic.py not found, skipping basic tests"
           fi
@@ -283,11 +283,12 @@ jobs:
         run: |
           echo "🚀 Deploying to staging environment..."
           # Update ArgoCD application with staging values
-          kubectl apply -f ${{ env.ARGOCD_APP_PATH }} || echo "ArgoCD application apply failed, continuing..."
-          argocd app sync student-tracker --prune --force || echo "ArgoCD sync failed, continuing..."
+          kubectl apply -f argocd/application-staging.yaml || echo "ArgoCD application apply failed, continuing..."
+          argocd app sync student-tracker-staging --prune --force || echo "ArgoCD sync failed, continuing..."
           
           echo "✅ Staging deployment completed!"
-          echo "🌐 Access your application at: http://staging-student-tracker.yourdomain.com"
+          echo "🌐 Access your application at: https://staging-student-tracker.yourdomain.com"
+          echo "🔧 Access ArgoCD at: https://argocd-staging.yourdomain.com"
 
   # Deploy to Production
   deploy-production:
@@ -314,8 +315,9 @@ jobs:
         run: |
           echo "🚀 Deploying to production environment..."
           # Update ArgoCD application with production values
-          kubectl apply -f ${{ env.ARGOCD_APP_PATH }} || echo "ArgoCD application apply failed, continuing..."
-          argocd app sync student-tracker --prune --force || echo "ArgoCD sync failed, continuing..."
+          kubectl apply -f argocd/application-production.yaml || echo "ArgoCD application apply failed, continuing..."
+          argocd app sync student-tracker-production --prune --force || echo "ArgoCD sync failed, continuing..."
           
           echo "✅ Production deployment completed!"
           echo "🌐 Access your application at: https://student-tracker.yourdomain.com"
+          echo "🔧 Access ArgoCD at: https://argocd-prod.yourdomain.com"

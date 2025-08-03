@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: student-tracker-staging
+  namespace: argocd
+  labels:
+    environment: staging
+  annotations:
+    argocd.argoproj.io/staging-url: "https://staging-student-tracker.yourdomain.com"
+    argocd.argoproj.io/argocd-url: "https://argocd-staging.yourdomain.com"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries.git
+    targetRevision: develop
+    path: helm-chart
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: app.image.tag
+          value: staging
+        - name: app.image.repository
+          value: ghcr.io/bonaventuresimeon/NativeSeries/student-tracker
+        - name: app.env[0].value
+          value: "staging"
+        - name: ingress.hosts[0].host
+          value: "staging-student-tracker.yourdomain.com"
+        - name: argocd.urls.staging
+          value: "https://argocd-staging.yourdomain.com"
+        - name: hpa.minReplicas
+          value: "2"
+        - name: hpa.maxReplicas
+          value: "5"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: student-tracker-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
+  revisionHistoryLimit: 7
+  info:
+    - name: 'Staging URL'
+      value: 'https://staging-student-tracker.yourdomain.com'
+    - name: 'ArgoCD URL'
+      value: 'https://argocd-staging.yourdomain.com'
+    - name: 'Environment'
+      value: 'staging'
