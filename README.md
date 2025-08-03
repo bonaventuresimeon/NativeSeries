@@ -564,6 +564,196 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 | `HOST` | Application host | `0.0.0.0` |
 | `PORT` | Application port | `8000` |
 
+### 🚀 Complete Deployment Options Guide
+
+The `./scripts/deploy.sh` script provides comprehensive deployment options for different scenarios:
+
+#### **Command Line Options**
+
+```bash
+# Show help and all available options
+./scripts/deploy.sh --help
+
+# Deploy with automatic machine pruning (recommended for clean environments)
+./scripts/deploy.sh --force-prune
+
+# Deploy without any pruning (preserves existing resources)
+./scripts/deploy.sh --skip-prune
+
+# Interactive deployment with pruning prompt
+./scripts/deploy.sh
+```
+
+#### **Environment Variables for Deployment**
+
+```bash
+# Set Docker Hub username for production deployment
+export DOCKER_USERNAME="your-dockerhub-username"
+
+# Override production host and port
+export PRODUCTION_HOST="your-server-ip"
+export PRODUCTION_PORT="30011"
+
+# Enable automatic image pushing
+export PUSH_IMAGE="true"
+```
+
+#### **Deployment Options (When Kubernetes Cluster is Available)**
+
+When you have a Kubernetes cluster running, the script offers 6 deployment options:
+
+**Option 1: Complete ArgoCD + Application Deployment**
+```bash
+# Installs ArgoCD, builds Docker image, deploys Helm chart, and sets up ArgoCD application
+# Best for: Fresh Kubernetes environments
+./scripts/deploy.sh --skip-prune
+# Then select option 1 when prompted
+```
+
+**Option 2: Application Deployment Only (ArgoCD Already Installed)**
+```bash
+# Builds Docker image, deploys Helm chart, and sets up ArgoCD application
+# Best for: Environments with existing ArgoCD installation
+./scripts/deploy.sh --skip-prune
+# Then select option 2 when prompted
+```
+
+**Option 3: Docker Image Build Only**
+```bash
+# Builds and optionally pushes Docker image without deployment
+# Best for: CI/CD pipelines or when you want to build images separately
+./scripts/deploy.sh --skip-prune
+# Then select option 3 when prompted
+```
+
+**Option 4: Configuration Validation Only**
+```bash
+# Validates Helm charts, ArgoCD configuration, and Dockerfile
+# Best for: Testing configuration before deployment
+./scripts/deploy.sh --skip-prune
+# Then select option 4 when prompted
+```
+
+**Option 5: Monitoring-Enabled Deployment**
+```bash
+# Installs Prometheus CRDs and deploys with monitoring capabilities
+# Best for: Production environments requiring monitoring
+./scripts/deploy.sh --skip-prune
+# Then select option 5 when prompted
+```
+
+**Option 6: Production Docker Deployment**
+```bash
+# Deploys directly to production server using Docker
+# Best for: Simple production deployments without Kubernetes
+./scripts/deploy.sh --skip-prune
+# Then select option 6 when prompted
+```
+
+#### **Deployment Options (When No Kubernetes Cluster is Available)**
+
+When no Kubernetes cluster is detected, the script offers 3 simplified options:
+
+**Option 1: Configuration Validation Only**
+```bash
+# Validates all configuration files without deployment
+# Best for: Development environments or configuration testing
+./scripts/deploy.sh --skip-prune
+# Then select option 1 when prompted
+```
+
+**Option 2: Local Docker Build**
+```bash
+# Validates configuration and builds Docker image locally
+# Best for: Development or testing Docker builds
+./scripts/deploy.sh --skip-prune
+# Then select option 2 when prompted
+```
+
+**Option 3: Production Docker Deployment (Recommended)**
+```bash
+# Validates configuration and deploys to production server
+# Best for: Production deployments without Kubernetes complexity
+./scripts/deploy.sh --skip-prune
+# Then select option 3 when prompted
+```
+
+#### **Prerequisites for Each Option**
+
+| Option | Requires | Description |
+|--------|----------|-------------|
+| 1-5 (K8s) | kubectl, helm, docker | Full Kubernetes deployment |
+| 6 (Production) | docker, docker login | Direct production deployment |
+| 1-2 (No K8s) | None | Configuration validation only |
+| 3 (No K8s) | docker | Local Docker build |
+
+#### **Troubleshooting Common Issues**
+
+**Issue: kubectl not found**
+```bash
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl
+sudo mv kubectl /usr/local/bin/
+```
+
+**Issue: Helm not found**
+```bash
+# Install Helm
+curl -fsSL -o helm.tar.gz https://get.helm.sh/helm-v3.13.3-linux-amd64.tar.gz
+tar -xzf helm.tar.gz
+sudo mv linux-amd64/helm /usr/local/bin/
+rm -rf linux-amd64 helm.tar.gz
+```
+
+**Issue: Docker not running**
+```bash
+# Start Docker service
+sudo systemctl start docker
+sudo systemctl enable docker
+```
+
+**Issue: ArgoCD CLI not found**
+```bash
+# The script will automatically install ArgoCD CLI if missing
+# Manual installation:
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
+```
+
+#### **Deployment Process Flow**
+
+1. **Prerequisites Check**: Validates kubectl, helm, docker, and argocd availability
+2. **Machine Pruning** (optional): Cleans Docker and Kubernetes resources
+3. **Cluster Detection**: Determines if Kubernetes cluster is available
+4. **Option Selection**: Presents appropriate deployment options
+5. **Validation**: Validates Helm charts and ArgoCD configuration
+6. **Build**: Builds Docker image with proper tagging
+7. **Deploy**: Deploys to Kubernetes or production server
+8. **Health Check**: Verifies deployment success and application health
+
+#### **Production Deployment Example**
+
+```bash
+# Set up environment
+export DOCKER_USERNAME="your-username"
+export PRODUCTION_HOST="your-server-ip"
+export PRODUCTION_PORT="30011"
+
+# Deploy to production
+./scripts/deploy.sh --force-prune
+# Select option 6 for production Docker deployment
+```
+
+#### **Development Deployment Example**
+
+```bash
+# Quick validation and build
+./scripts/deploy.sh --skip-prune
+# Select option 4 for validation only, or option 2 for local build
+```
+
 ---
 
 ## 📊 Monitoring

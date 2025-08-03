@@ -72,6 +72,7 @@ NAMESPACE="student-tracker"
 ARGOCD_NAMESPACE="argocd"
 HELM_CHART_PATH="./helm-chart"
 ARGOCD_APP_PATH="./argocd"
+PUSH_IMAGE="${PUSH_IMAGE:-false}"
 
 # Production configuration (can be overridden via environment variables)
 PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
