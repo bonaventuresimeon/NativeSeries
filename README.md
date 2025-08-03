@@ -789,85 +789,85 @@ curl -X GET "http://18.206.89.183:30011/health" \
 ### 🖥️ AWS Console Setup
 
 #### 1. EC2 Instance Launch
-![EC2 Launch Instance](docs/images/ec2-launch-instance.png)
+![EC2 Launch Instance](docs/images/ec2-launch-instance.svg)
 *Launch a new EC2 instance with Amazon Linux 2*
 
 #### 2. Security Group Configuration
-![Security Group Setup](docs/images/security-group-setup.png)
+![Security Group Setup](docs/images/security-group-setup.svg)
 *Configure security groups to allow required ports*
 
 #### 3. Key Pair Creation
-![Key Pair Download](docs/images/key-pair-download.png)
+![Key Pair Download](docs/images/key-pair-download.svg)
 *Download and secure your SSH key pair*
 
 ### 🔧 System Setup
 
 #### 4. SSH Connection
-![SSH Connection](docs/images/ssh-connection.png)
+![SSH Connection](docs/images/ssh-connection.svg)
 *Connect to EC2 instance using SSH*
 
 #### 5. System Update
-![System Update](docs/images/system-update.png)
+![System Update](docs/images/system-update.svg)
 *Update system packages and install dependencies*
 
 #### 6. Docker Installation
-![Docker Setup](docs/images/docker-setup.png)
+![Docker Setup](docs/images/docker-setup.svg)
 *Install and configure Docker*
 
 ### 🚀 Application Deployment
 
 #### 7. Repository Clone
-![Repository Clone](docs/images/repo-clone.png)
+![Repository Clone](docs/images/repo-clone.svg)
 *Clone the Student Tracker repository*
 
 #### 8. Deployment Script Execution
-![Deploy Script](docs/images/deploy-script.png)
+![Deploy Script](docs/images/deploy-script.svg)
 *Run the deployment script*
 
 #### 9. Docker Build Process
-![Docker Build](docs/images/docker-build.png)
+![Docker Build](docs/images/docker-build.svg)
 *Build the Docker image*
 
 ### ✅ Verification and Testing
 
 #### 10. Container Status
-![Container Status](docs/images/container-status.png)
+![Container Status](docs/images/container-status.svg)
 *Verify container is running*
 
 #### 11. Health Check
-![Health Check](docs/images/health-check.png)
+![Health Check](docs/images/health-check.svg)
 *Test application health endpoint*
 
 #### 12. Application Interface
-![Application UI](docs/images/application-ui.png)
+![Application UI](docs/images/application-ui.svg)
 *Access the Student Tracker web interface*
 
 ### 📱 Application Screenshots
 
 #### 13. Main Dashboard
-![Main Dashboard](docs/images/main-dashboard.png)
+![Main Dashboard](docs/images/main-dashboard.svg)
 *Student Tracker main interface*
 
 #### 14. Student Registration
-![Student Registration](docs/images/student-registration.png)
+![Student Registration](docs/images/student-registration.svg)
 *Add new students to the system*
 
 #### 15. Progress Tracking
-![Progress Tracking](docs/images/progress-tracking.png)
+![Progress Tracking](docs/images/progress-tracking.svg)
 *Track student progress over time*
 
 #### 16. API Documentation
-![API Docs](docs/images/api-docs.png)
+![API Docs](docs/images/api-docs.svg)
 *Interactive API documentation*
 
 ### 🎯 Success Indicators
 
 #### 17. Deployment Success
-![Deployment Success](docs/images/deployment-success.png)
+![Deployment Success](docs/images/deployment-success.svg)
 *All systems operational*
 
 #### 18. Health Status
-![Health Status](docs/images/health-status.png)
+![Health Status](docs/images/health-status.svg)
 *Application health metrics*
 
 ---

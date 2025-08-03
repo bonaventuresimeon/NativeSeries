@@ -1,0 +1,196 @@
+name: Screenshot Generation and Documentation Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - 'scripts/generate-screenshots.sh'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'scripts/generate-screenshots.sh'
+  workflow_dispatch:
+
+jobs:
+  generate-screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - name: Generate screenshots
+        run: |
+          chmod +x scripts/generate-screenshots.sh
+          ./scripts/generate-screenshots.sh
+
+      - name: List generated screenshots
+        run: |
+          echo "📸 Generated screenshots:"
+          ls -la docs/images/*.svg | wc -l
+          echo "SVG files:"
+          ls -la docs/images/*.svg
+          echo ""
+          echo "PNG files (if any):"
+          ls -la docs/images/*.png 2>/dev/null || echo "No PNG files generated"
+
+      - name: Upload screenshots as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-screenshots
+          path: docs/images/
+          retention-days: 30
+
+  validate-documentation:
+    runs-on: ubuntu-latest
+    needs: generate-screenshots
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-screenshots
+          path: docs/images/
+
+      - name: Validate screenshot references
+        run: |
+          echo "🔍 Validating screenshot references in documentation..."
+          
+          # Check README.md
+          echo "Checking README.md..."
+          missing_screenshots=()
+          for screenshot in docs/images/*.svg; do
+            if [ -f "$screenshot" ]; then
+              filename=$(basename "$screenshot")
+              if ! grep -q "$filename" README.md; then
+                missing_screenshots+=("$filename")
+              fi
+            fi
+          done
+          
+          if [ ${#missing_screenshots[@]} -gt 0 ]; then
+            echo "⚠️  Screenshots not referenced in README.md:"
+            printf '%s\n' "${missing_screenshots[@]}"
+          else
+            echo "✅ All screenshots are referenced in README.md"
+          fi
+          
+          # Check docs/screenshots.md
+          echo "Checking docs/screenshots.md..."
+          missing_screenshots=()
+          for screenshot in docs/images/*.svg; do
+            if [ -f "$screenshot" ]; then
+              filename=$(basename "$screenshot")
+              if ! grep -q "$filename" docs/screenshots.md; then
+                missing_screenshots+=("$filename")
+              fi
+            fi
+          done
+          
+          if [ ${#missing_screenshots[@]} -gt 0 ]; then
+            echo "⚠️  Screenshots not referenced in docs/screenshots.md:"
+            printf '%s\n' "${missing_screenshots[@]}"
+          else
+            echo "✅ All screenshots are referenced in docs/screenshots.md"
+          fi
+
+      - name: Check for broken image links
+        run: |
+          echo "🔍 Checking for broken image links..."
+          
+          # Check README.md
+          echo "Checking README.md for broken links..."
+          broken_links=()
+          while IFS= read -r line; do
+            if [[ $line =~ \[.*\]\(images/(.*)\) ]]; then
+              image_file="docs/images/${BASH_REMATCH[1]}"
+              if [ ! -f "$image_file" ]; then
+                broken_links+=("$image_file")
+              fi
+            fi
+          done < README.md
+          
+          if [ ${#broken_links[@]} -gt 0 ]; then
+            echo "❌ Broken image links in README.md:"
+            printf '%s\n' "${broken_links[@]}"
+            exit 1
+          else
+            echo "✅ No broken image links in README.md"
+          fi
+          
+          # Check docs/screenshots.md
+          echo "Checking docs/screenshots.md for broken links..."
+          broken_links=()
+          while IFS= read -r line; do
+            if [[ $line =~ \[.*\]\(images/(.*)\) ]]; then
+              image_file="docs/images/${BASH_REMATCH[1]}"
+              if [ ! -f "$image_file" ]; then
+                broken_links+=("$image_file")
+              fi
+            fi
+          done < docs/screenshots.md
+          
+          if [ ${#broken_links[@]} -gt 0 ]; then
+            echo "❌ Broken image links in docs/screenshots.md:"
+            printf '%s\n' "${broken_links[@]}"
+            exit 1
+          else
+            echo "✅ No broken image links in docs/screenshots.md"
+          fi
+
+      - name: Validate markdown syntax
+        run: |
+          echo "🔍 Validating markdown syntax..."
+          
+          # Check for common markdown issues
+          echo "Checking README.md..."
+          if grep -q "\[.*\]\(.*\.png\)" README.md; then
+            echo "❌ Found PNG references in README.md (should be SVG)"
+            exit 1
+          fi
+          
+          echo "Checking docs/screenshots.md..."
+          if grep -q "\[.*\]\(.*\.png\)" docs/screenshots.md; then
+            echo "❌ Found PNG references in docs/screenshots.md (should be SVG)"
+            exit 1
+          fi
+          
+          echo "✅ No PNG references found"
+
+  commit-screenshots:
+    runs-on: ubuntu-latest
+    needs: [generate-screenshots, validate-documentation]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download screenshots
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-screenshots
+          path: docs/images/
+
+      - name: Commit and push screenshots
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Check if there are changes to commit
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add docs/images/
+            git commit -m "📸 Update documentation screenshots [skip ci]"
+            git push
+          fi

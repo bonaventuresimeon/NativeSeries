@@ -171,7 +171,7 @@ jobs:
   deploy-to-ec2:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.EC2_HOST != '' && secrets.EC2_SSH_KEY != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -242,3 +242,22 @@ jobs:
         run: |
           sleep 60
           curl -f http://${{ secrets.EC2_HOST }}:30011/health || echo "Deployment verification failed"
+
+  # Fallback job when EC2 secrets are not available
+  deploy-skip-ec2:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (secrets.EC2_HOST == '' || secrets.EC2_SSH_KEY == '')
+    steps:
+      - name: Skip EC2 deployment
+        run: |
+          echo "⚠️  EC2 deployment skipped - missing secrets"
+          echo "📝 To enable EC2 deployment, add the following secrets to your repository:"
+          echo "   - EC2_HOST: Your EC2 instance public IP or domain"
+          echo "   - EC2_SSH_KEY: Your private SSH key content"
+          echo ""
+          echo "🔗 Repository secrets can be configured at:"
+          echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+          echo ""
+          echo "✅ Docker image built and pushed successfully!"
+          echo "📦 Image: ${{ env.REGISTRY }}/${{ github.repository }}/${{ env.IMAGE_NAME }}:latest"
