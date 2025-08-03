@@ -2,6 +2,99 @@
 
 A comprehensive student tracking application built with FastAPI, featuring modern web interfaces, REST APIs, and production-ready deployment configurations.
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        UI[Web Interface]
+        API[API Documentation]
+    end
+    
+    subgraph "Application Layer"
+        FastAPI[FastAPI Application]
+        Routes[API Routes]
+        Models[Data Models]
+        CRUD[Database Operations]
+    end
+    
+    subgraph "Data Layer"
+        MongoDB[(MongoDB)]
+        Memory[(In-Memory Storage)]
+    end
+    
+    subgraph "Infrastructure Layer"
+        Docker[Docker Container]
+        K8s[Kubernetes Cluster]
+        ArgoCD[ArgoCD GitOps]
+        EC2[EC2 Instance]
+    end
+    
+    subgraph "CI/CD Pipeline"
+        GitHub[GitHub Actions]
+        Security[Security Scanning]
+        Quality[Code Quality]
+        Build[Build & Push]
+        Deploy[Deploy]
+    end
+    
+    UI --> FastAPI
+    API --> FastAPI
+    FastAPI --> Routes
+    Routes --> CRUD
+    CRUD --> MongoDB
+    CRUD --> Memory
+    FastAPI --> Docker
+    Docker --> K8s
+    Docker --> EC2
+    K8s --> ArgoCD
+    GitHub --> Security
+    GitHub --> Quality
+    GitHub --> Build
+    Build --> Deploy
+    Deploy --> K8s
+    Deploy --> EC2
+```
+
+## 🔄 Deployment Pipeline
+
+```mermaid
+flowchart TD
+    A[Code Push] --> B[GitHub Actions Trigger]
+    B --> C[Security Scan]
+    B --> D[Code Quality Check]
+    B --> E[Helm Validation]
+    
+    C --> F{All Checks Pass?}
+    D --> F
+    E --> F
+    
+    F -->|Yes| G[Build Docker Image]
+    F -->|No| H[Fail with Details]
+    
+    G --> I[Push to Registry]
+    I --> J{Environment?}
+    
+    J -->|Main Branch| K[Deploy to Production]
+    J -->|Develop Branch| L[Deploy to Staging]
+    J -->|Manual| M[Manual Deployment]
+    
+    K --> N[Kubernetes + ArgoCD]
+    L --> O[Staging Environment]
+    M --> P[EC2 Deployment]
+    
+    N --> Q[Health Check]
+    O --> Q
+    P --> Q
+    
+    Q -->|Success| R[✅ Deployment Complete]
+    Q -->|Failure| S[❌ Rollback]
+    
+    style A fill:#e1f5fe
+    style R fill:#c8e6c9
+    style S fill:#ffcdd2
+```
+
 ## 🌟 Features
 
 - **Student Management** - Complete CRUD operations for student records
