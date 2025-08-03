@@ -378,6 +378,11 @@ deploy_docker() {
         build_docker_image
     fi
     
+    # Stop and remove existing container if it exists
+    print_status "🔄 Stopping existing container..."
+    sudo docker stop ${APP_NAME} 2>/dev/null || true
+    sudo docker rm ${APP_NAME} 2>/dev/null || true
+    
     # Run the application container
     print_status "🚀 Starting application container..."
     sudo docker run -d \
