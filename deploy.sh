@@ -72,6 +72,7 @@ show_usage() {
     echo "  kubernetes       Full Kubernetes deployment with ArgoCD"
     echo "  helm-fix         Fix Helm deployment issues"
     echo "  validate         Validate configuration only"
+    echo "  ec2-validate     Comprehensive EC2 deployment validation"
     echo "  build            Build Docker image only"
     echo "  argocd           Install ArgoCD only"
     echo "  monitoring       Deploy with Prometheus monitoring"
@@ -85,6 +86,7 @@ show_usage() {
     echo "  ./deploy.sh ec2           # Full EC2 setup and deployment"
     echo "  ./deploy.sh kubernetes    # Full K8s deployment"
     echo "  ./deploy.sh validate      # Validate configuration"
+    echo "  ./deploy.sh ec2-validate  # Validate EC2 deployment"
     echo ""
     echo "PRODUCTION URLS:"
     echo "  Application: ${PRODUCTION_URL}"
@@ -98,6 +100,34 @@ show_usage() {
 # Function to check prerequisites
 check_prerequisites() {
     print_status "Checking prerequisites..."
+    
+    # Check if running on EC2
+    if [ "$1" = "ec2" ]; then
+        print_status "🔍 Checking EC2-specific prerequisites..."
+        
+        # Check if we can access EC2 metadata
+        if curl -s http://169.254.169.254/latest/meta-data/instance-id >/dev/null 2>&1; then
+            print_success "✅ EC2 metadata service accessible"
+        else
+            print_warning "⚠️  EC2 metadata service not accessible (may not be on EC2)"
+        fi
+        
+        # Check security group configuration
+        print_status "🔍 Checking security group configuration..."
+        if command_exists netstat; then
+            OPEN_PORTS=$(sudo netstat -tlnp | grep LISTEN | awk '{print $4}' | cut -d: -f2 | sort -u)
+            print_info "Currently listening ports: ${OPEN_PORTS}"
+        fi
+        
+        # Check if required ports are available
+        for port in 30011 30080 30443; do
+            if sudo netstat -tlnp | grep ":$port " >/dev/null 2>&1; then
+                print_warning "⚠️  Port $port is already in use"
+            else
+                print_success "✅ Port $port is available"
+            fi
+        done
+    fi
     
     # Basic tools
     local missing_tools=()
@@ -137,34 +167,79 @@ setup_ec2_environment() {
         print_warning "⚠️  This script is designed to run as ${EC2_USER}"
         print_info "Current user: $(whoami)"
         print_info "You may need to run: sudo su - ${EC2_USER}"
+        print_info "Or continue with current user (some features may not work)"
+    fi
+    
+    # Check if we're on an EC2 instance
+    if curl -s http://169.254.169.254/latest/meta-data/instance-id >/dev/null 2>&1; then
+        print_success "✅ Running on EC2 instance"
+        INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+        print_info "Instance ID: ${INSTANCE_ID}"
+    else
+        print_warning "⚠️  Not running on EC2 instance (or metadata service unavailable)"
     fi
     
     # Update system packages
     print_status "📦 Updating system packages..."
-    sudo yum update -y
+    if command_exists yum; then
+        sudo yum update -y
+    elif command_exists apt-get; then
+        sudo apt-get update && sudo apt-get upgrade -y
+    else
+        print_error "❌ Unsupported package manager"
+        exit 1
+    fi
     
     # Install required packages
     print_status "📦 Installing required packages..."
-    sudo yum install -y \
-        docker \
-        git \
-        curl \
-        wget \
-        unzip \
-        python3 \
-        python3-pip
+    if command_exists yum; then
+        sudo yum install -y \
+            docker \
+            git \
+            curl \
+            wget \
+            unzip \
+            python3 \
+            python3-pip \
+            htop \
+            jq
+    elif command_exists apt-get; then
+        sudo apt-get install -y \
+            docker.io \
+            git \
+            curl \
+            wget \
+            unzip \
+            python3 \
+            python3-pip \
+            htop \
+            jq
+    fi
     
     # Start and enable Docker
     print_status "🐳 Setting up Docker..."
-    sudo systemctl start docker
-    sudo systemctl enable docker
+    if command_exists systemctl; then
+        sudo systemctl start docker
+        sudo systemctl enable docker
+    else
+        print_warning "⚠️  systemctl not available, starting Docker manually"
+        sudo service docker start
+    fi
+    
+    # Add user to docker group
     sudo usermod -aG docker ${EC2_USER}
+    print_info "Added ${EC2_USER} to docker group"
+    print_info "You may need to logout and login again for changes to take effect"
     
     # Install Docker Compose
     print_status "📦 Installing Docker Compose..."
     if ! command_exists docker-compose; then
-        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        DOCKER_COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+        sudo curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
         sudo chmod +x /usr/local/bin/docker-compose
+        print_success "✅ Docker Compose ${DOCKER_COMPOSE_VERSION} installed"
+    else
+        print_info "✅ Docker Compose already installed"
     fi
     
     # Verify Docker installation
@@ -172,8 +247,21 @@ setup_ec2_environment() {
     if ! sudo docker info &> /dev/null; then
         print_error "❌ Docker is not running. Please start Docker manually."
         print_info "Run: sudo systemctl start docker"
+        print_info "Or: sudo service docker start"
         exit 1
     fi
+    
+    # Check Docker version
+    DOCKER_VERSION=$(sudo docker --version)
+    print_success "✅ Docker installed: ${DOCKER_VERSION}"
+    
+    # Check available disk space
+    DISK_SPACE=$(df -h / | awk 'NR==2 {print $4}')
+    print_info "Available disk space: ${DISK_SPACE}"
+    
+    # Check available memory
+    MEMORY=$(free -h | awk 'NR==2 {print $7}')
+    print_info "Available memory: ${MEMORY}"
     
     print_success "✅ EC2 environment setup completed"
 }
@@ -667,24 +755,92 @@ run_validation() {
 
 # Function to check deployment health
 check_health() {
-    print_status "Checking deployment health..."
+    print_status "🔍 Checking deployment health..."
     
     # Check Docker deployment
     if command_exists docker && sudo docker ps --filter "name=${APP_NAME}" --format "table {{.Names}}\t{{.Status}}" | grep -q "${APP_NAME}"; then
         print_success "✅ Docker container is running"
         
-        # Test endpoints
-        if curl -f "${PRODUCTION_URL}/health" >/dev/null 2>&1; then
-            print_success "✅ Application is responding"
+        # Get container details
+        CONTAINER_ID=$(sudo docker ps | grep "${APP_NAME}" | awk '{print $1}')
+        CONTAINER_STATUS=$(sudo docker inspect --format='{{.State.Status}}' "${APP_NAME}" 2>/dev/null)
+        print_info "Container ID: ${CONTAINER_ID}"
+        print_info "Container Status: ${CONTAINER_STATUS}"
+        
+        # Check port mapping
+        if sudo docker port "${APP_NAME}" | grep -q "30011"; then
+            print_success "✅ Port 30011 is exposed"
         else
-            print_error "❌ Application is not responding"
+            print_warning "⚠️ Port 30011 is not exposed"
+            print_info "Container port mapping:"
+            sudo docker port "${APP_NAME}"
         fi
+        
+        # Test health endpoint
+        print_status "🔍 Testing health endpoint..."
+        if curl -f "${PRODUCTION_URL}/health" >/dev/null 2>&1; then
+            print_success "✅ Health endpoint is responding"
+            
+            # Get health response details
+            HEALTH_RESPONSE=$(curl -s "${PRODUCTION_URL}/health" 2>/dev/null)
+            if command_exists jq; then
+                STATUS=$(echo "$HEALTH_RESPONSE" | jq -r '.status' 2>/dev/null)
+                UPTIME=$(echo "$HEALTH_RESPONSE" | jq -r '.uptime_seconds' 2>/dev/null)
+                REQUEST_COUNT=$(echo "$HEALTH_RESPONSE" | jq -r '.request_count' 2>/dev/null)
+                
+                if [ "$STATUS" = "healthy" ]; then
+                    print_success "✅ Application status: ${STATUS}"
+                    print_info "Uptime: ${UPTIME} seconds"
+                    print_info "Request count: ${REQUEST_COUNT}"
+                else
+                    print_warning "⚠️ Application status: ${STATUS}"
+                fi
+            else
+                print_info "Health response: ${HEALTH_RESPONSE}"
+            fi
+        else
+            print_error "❌ Health endpoint is not responding"
+            print_info "Testing with verbose output:"
+            curl -v "${PRODUCTION_URL}/health" 2>&1 | head -10
+        fi
+        
+        # Test all endpoints
+        print_status "🔍 Testing all endpoints..."
+        ENDPOINTS=("docs" "students" "metrics")
+        for endpoint in "${ENDPOINTS[@]}"; do
+            if curl -f "${PRODUCTION_URL}/${endpoint}" >/dev/null 2>&1; then
+                print_success "✅ ${endpoint} endpoint is responding"
+            else
+                print_warning "⚠️ ${endpoint} endpoint is not responding"
+            fi
+        done
+        
+        # Check system resources
+        print_status "🔍 Checking system resources..."
+        if command_exists htop; then
+            CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1 2>/dev/null || echo "N/A")
+            print_info "CPU Usage: ${CPU_USAGE}%"
+        fi
+        
+        MEMORY_USAGE=$(free | awk 'NR==2{printf "%.1f%%", $3*100/$2}' 2>/dev/null || echo "N/A")
+        print_info "Memory Usage: ${MEMORY_USAGE}"
+        
+        DISK_USAGE=$(df -h / | awk 'NR==2{print $5}' 2>/dev/null || echo "N/A")
+        print_info "Disk Usage: ${DISK_USAGE}"
+        
+        # Check Docker resources
+        print_status "🔍 Checking Docker resources..."
+        sudo docker stats --no-stream "${APP_NAME}" 2>/dev/null || print_warning "⚠️ Could not get Docker stats"
+        
     else
         print_warning "⚠️ Docker container not found"
+        print_info "Available containers:"
+        sudo docker ps -a 2>/dev/null || print_error "❌ Docker not available"
     fi
     
     # Check Kubernetes deployment if available
     if command_exists kubectl && kubectl cluster-info >/dev/null 2>&1; then
+        print_status "🔍 Checking Kubernetes deployment..."
         if kubectl get deployment "$APP_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
             print_success "✅ Kubernetes deployment exists"
             
@@ -693,11 +849,15 @@ check_health() {
                 print_success "✅ Kubernetes pods are running"
             else
                 print_warning "⚠️ Kubernetes pods are not running"
+                print_info "Pod status:"
+                kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name="$APP_NAME" 2>/dev/null
             fi
         else
             print_warning "⚠️ Kubernetes deployment not found"
         fi
     fi
+    
+    print_success "✅ Health check completed"
 }
 
 # Function to show deployment status
@@ -828,6 +988,15 @@ main() {
         "validate")
             check_prerequisites
             run_validation
+            ;;
+        "ec2-validate")
+            check_prerequisites
+            if [ -f "scripts/ec2-validation.sh" ]; then
+                ./scripts/ec2-validation.sh
+            else
+                print_error "EC2 validation script not found"
+                exit 1
+            fi
             ;;
         "build")
             check_prerequisites
