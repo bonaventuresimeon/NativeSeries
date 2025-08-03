@@ -5,6 +5,7 @@ set -e
 # Parse command line arguments
 FORCE_PRUNE=false
 SKIP_PRUNE=false
+INSTALL_TOOLS_ONLY=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -16,13 +17,25 @@ while [[ $# -gt 0 ]]; do
             SKIP_PRUNE=true
             shift
             ;;
+        --install-tools)
+            INSTALL_TOOLS_ONLY=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --force-prune    Automatically perform complete machine pruning without asking"
             echo "  --skip-prune     Skip machine pruning entirely"
+            echo "  --install-tools  Install all required tools without pruning"
             echo "  --help, -h       Show this help message"
+            echo ""
+            echo "Machine Pruning:"
+            echo "  When pruning is enabled, the script will:"
+            echo "  • Clean all Docker resources (containers, images, volumes, networks)"
+            echo "  • Remove Kubernetes namespaces and resources"
+            echo "  • Clean temporary files and system cache"
+            echo "  • Automatically install all required tools (kubectl, helm, docker, argocd, etc.)"
             echo ""
             echo "Environment Variables:"
             echo "  DOCKER_USERNAME  Your Docker Hub username (for option 6)"
@@ -31,8 +44,9 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Examples:"
             echo "  $0                              # Interactive deployment with pruning prompt"
-            echo "  $0 --force-prune                # Deploy with automatic pruning"
+            echo "  $0 --force-prune                # Deploy with automatic pruning and tool installation"
             echo "  $0 --skip-prune                 # Deploy without pruning"
+            echo "  $0 --install-tools              # Install all tools without pruning"
             echo "  DOCKER_USERNAME=biwunor $0      # Deploy with Docker Hub (skip username prompt)"
             exit 0
             ;;
@@ -104,6 +118,216 @@ print_info() {
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Function to install all required tools
+install_all_tools() {
+    print_status "Installing all required tools after system pruning..."
+    
+    # Update package list
+    print_info "Updating package list..."
+    sudo apt update -y || {
+        print_warning "Failed to update package list, continuing..."
+    }
+    
+    # Install basic dependencies
+    print_info "Installing basic dependencies..."
+    sudo apt install -y curl wget apt-transport-https ca-certificates gnupg lsb-release || {
+        print_error "Failed to install basic dependencies"
+        exit 1
+    }
+    
+    # Install kubectl
+    if ! command_exists kubectl; then
+        print_status "Installing kubectl..."
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" || {
+            print_error "Failed to download kubectl"
+            exit 1
+        }
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+        rm kubectl
+        print_status "✅ kubectl installed successfully"
+    fi
+    
+    # Install Helm
+    if ! command_exists helm; then
+        print_status "Installing Helm..."
+        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+        sudo apt update
+        sudo apt install -y helm || {
+            print_warning "Failed to install Helm via apt, trying direct download..."
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+            rm get_helm.sh
+        }
+        print_status "✅ Helm installed successfully"
+    fi
+    
+    # Install Docker
+    if ! command_exists docker; then
+        print_status "Installing Docker..."
+        
+        # Detect OS
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS=$ID
+            CODENAME=$(lsb_release -cs 2>/dev/null || echo $VERSION_CODENAME)
+        else
+            print_error "Cannot detect OS. Docker installation may fail."
+            OS="unknown"
+        fi
+        
+        # Add Docker's official GPG key
+        sudo mkdir -p /etc/apt/keyrings
+        
+        case $OS in
+            ubuntu)
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $CODENAME stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                ;;
+            debian)
+                curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $CODENAME stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                ;;
+            *)
+                # Try Ubuntu as fallback
+                curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg || {
+                    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+                }
+                echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu focal stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                print_warning "Unknown OS detected, using Ubuntu focal as fallback"
+                ;;
+        esac
+        
+        sudo apt update
+        sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || {
+            print_error "Failed to install Docker via repository method"
+            print_info "Trying alternative installation method..."
+            
+            # Alternative: install from get.docker.com
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh || {
+                print_error "Alternative Docker installation also failed"
+                rm -f get-docker.sh
+                exit 1
+            }
+            rm -f get-docker.sh
+        }
+        
+        # Add current user to docker group
+        sudo usermod -aG docker $USER
+        
+        # Start and enable Docker service (handle container environments)
+        if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            print_status "✅ Docker service started and enabled"
+        else
+            print_warning "SystemD not available or not running (container environment)"
+            print_info "Docker is installed but service management is not available"
+            print_info "In a container environment, Docker daemon should be managed by the host"
+        fi
+        
+        print_status "✅ Docker installed successfully"
+        print_warning "Note: You may need to log out and back in for Docker group membership to take effect"
+        print_info "Or run: newgrp docker"
+    fi
+    
+    # Install ArgoCD CLI
+    if ! command_exists argocd; then
+        print_status "Installing ArgoCD CLI..."
+        if curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64; then
+            sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+            rm argocd-linux-amd64
+            print_status "✅ ArgoCD CLI installed successfully"
+        else
+            print_error "Failed to download ArgoCD CLI"
+            exit 1
+        fi
+    fi
+    
+    # Install additional useful tools
+    print_status "Installing additional useful tools..."
+    
+    # Install jq for JSON processing
+    if ! command_exists jq; then
+        sudo apt install -y jq || print_warning "Failed to install jq"
+    fi
+    
+    # Install yq for YAML processing
+    if ! command_exists yq; then
+        print_info "Installing yq..."
+        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+        sudo chmod +x /usr/local/bin/yq || print_warning "Failed to install yq"
+    fi
+    
+    # Install kind (Kubernetes in Docker) for local development
+    if ! command_exists kind; then
+        print_info "Installing kind..."
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+        sudo install -o root -g root -m 0755 kind /usr/local/bin/kind
+        rm kind || print_warning "Failed to install kind"
+    fi
+    
+    # Install minikube for local Kubernetes
+    if ! command_exists minikube; then
+        print_info "Installing minikube..."
+        curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        sudo install minikube-linux-amd64 /usr/local/bin/minikube
+        rm minikube-linux-amd64 || print_warning "Failed to install minikube"
+    fi
+    
+    print_status "🎉 All tools installation completed!"
+    print_info "Installed tools: kubectl, helm, docker, argocd, jq, yq, kind, minikube"
+    
+    # Verify installations
+    print_status "Verifying tool installations..."
+    
+    local verification_failed=false
+    
+    # Check each tool
+    if command_exists kubectl; then
+        print_status "✅ kubectl: $(kubectl version --client --short 2>/dev/null || echo 'installed')"
+    else
+        print_error "❌ kubectl installation failed"
+        verification_failed=true
+    fi
+    
+    if command_exists helm; then
+        print_status "✅ helm: $(helm version --short 2>/dev/null || echo 'installed')"
+    else
+        print_error "❌ helm installation failed"
+        verification_failed=true
+    fi
+    
+    if command_exists docker; then
+        print_status "✅ docker: $(docker --version 2>/dev/null || echo 'installed')"
+    else
+        print_error "❌ docker installation failed"
+        verification_failed=true
+    fi
+    
+    if command_exists argocd; then
+        print_status "✅ argocd: $(argocd version --client --short 2>/dev/null || echo 'installed')"
+    else
+        print_error "❌ argocd installation failed"
+        verification_failed=true
+    fi
+    
+    # Check optional tools
+    command_exists jq && print_status "✅ jq: $(jq --version 2>/dev/null || echo 'installed')" || print_warning "⚠️ jq not installed"
+    command_exists yq && print_status "✅ yq: $(yq --version 2>/dev/null || echo 'installed')" || print_warning "⚠️ yq not installed"
+    command_exists kind && print_status "✅ kind: $(kind version 2>/dev/null || echo 'installed')" || print_warning "⚠️ kind not installed"
+    command_exists minikube && print_status "✅ minikube: $(minikube version --short 2>/dev/null || echo 'installed')" || print_warning "⚠️ minikube not installed"
+    
+    if [ "$verification_failed" = true ]; then
+        print_error "Some critical tools failed to install. Please check the errors above."
+        exit 1
+    fi
+    
+    print_status "🎉 All critical tools verified successfully!"
 }
 
 # Function to check prerequisites
@@ -289,6 +513,10 @@ prune_machine() {
     
     print_status "🎉 Complete machine pruning finished!"
     print_info "Freed up significant disk space and cleaned all resources"
+    
+    # Install all required tools after pruning
+    print_status "Installing all required tools after pruning..."
+    install_all_tools
 }
 
 # Function to check and fix common deployment issues
@@ -1002,6 +1230,14 @@ show_next_steps() {
 main() {
     print_status "Starting deployment process..."
     
+    # Handle tool installation only
+    if [[ "$INSTALL_TOOLS_ONLY" == "true" ]]; then
+        print_status "🔧 Installing all required tools..."
+        install_all_tools
+        print_status "✅ Tool installation completed. Exiting."
+        exit 0
+    fi
+    
     # Handle machine pruning based on command line arguments
     if [[ "$FORCE_PRUNE" == "true" ]]; then
         print_status "🧹 Force pruning enabled. Performing complete machine pruning..."
@@ -1022,8 +1258,9 @@ main() {
         echo "  • Clean up Kubernetes namespaces"
         echo "  • Remove temporary files and logs"
         echo "  • Clean package cache"
+        echo "  • Automatically install all required tools (kubectl, helm, docker, argocd, etc.)"
         echo ""
-        read -p "Do you want to perform complete machine pruning before deployment? (y/N): " prune_choice
+        read -p "Do you want to perform complete machine pruning and tool installation? (y/N): " prune_choice
         
         if [[ $prune_choice =~ ^[Yy]$ ]]; then
             prune_machine
