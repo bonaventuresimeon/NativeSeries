@@ -238,14 +238,6 @@ The main deployment script with multiple options:
 ./deploy.sh cleanup
 ```
 
-### quick-deploy-docker.sh
-
-Quick Docker deployment script for rapid development.
-
-### deploy-ec2-user.sh
-
-EC2-specific deployment script with user management.
-
 ## 🔒 Security
 
 ### Security Scanning
