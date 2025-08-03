@@ -211,7 +211,8 @@ NativeSeries/
 ├── templates/             # HTML templates
 ├── deploy.sh              # Deployment script
 ├── Dockerfile             # Docker configuration
-└── requirements.txt       # Python dependencies
+├── requirements.txt       # Python dependencies
+└── LICENSE               # MIT License with additional terms
 ```
 
 ## 🔧 Configuration
@@ -401,9 +402,33 @@ journalctl -u docker.service -f
 - Update documentation
 - Use conventional commit messages
 
-## 📝 License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** with additional terms and conditions.
+
+### License Summary
+
+- **MIT License** - Standard MIT terms apply
+- **Attribution Required** - Must include "Student Tracker by Bonaventure Simeon"
+- **Educational Use** - Free for educational institutions
+- **Commercial Use** - Requires written permission
+- **Data Privacy** - Users responsible for compliance with local laws
+
+### Key License Terms
+
+1. **Attribution**: Any distribution must include attribution to the original author
+2. **Educational Use**: Free for educational purposes
+3. **Commercial Use**: Requires written permission from Bonaventure Simeon
+4. **Modifications**: Allowed with proper attribution and modification notice
+5. **Liability**: Software provided "as-is" without warranty
+
+### Contact for Licensing
+
+For questions about this license or commercial licensing:
+
+- **Email**: contact@bonaventure.org.ng
+- **GitHub**: https://github.com/bonaventuresimeon
+- **Full License**: See [LICENSE](LICENSE) file for complete terms
 
 ## 🙏 Acknowledgments
 
@@ -424,3 +449,5 @@ For support and questions:
 ---
 
 **Made with ❤️ by Bonaventure Simeon**
+
+*Student Tracker - Empowering Education Through Technology*
