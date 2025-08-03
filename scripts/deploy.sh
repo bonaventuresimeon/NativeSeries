@@ -24,10 +24,16 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-prune     Skip machine pruning entirely"
             echo "  --help, -h       Show this help message"
             echo ""
+            echo "Environment Variables:"
+            echo "  DOCKER_USERNAME  Your Docker Hub username (for option 6)"
+            echo "  PRODUCTION_HOST  Production host IP (default: 18.206.89.183)"
+            echo "  PRODUCTION_PORT  Production port (default: 30011)"
+            echo ""
             echo "Examples:"
-            echo "  $0                    # Interactive deployment with pruning prompt"
-            echo "  $0 --force-prune      # Deploy with automatic pruning"
-            echo "  $0 --skip-prune       # Deploy without pruning"
+            echo "  $0                              # Interactive deployment with pruning prompt"
+            echo "  $0 --force-prune                # Deploy with automatic pruning"
+            echo "  $0 --skip-prune                 # Deploy without pruning"
+            echo "  DOCKER_USERNAME=biwunor $0      # Deploy with Docker Hub (skip username prompt)"
             exit 0
             ;;
         *)
@@ -72,6 +78,10 @@ PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 ARGOCD_HTTP_PORT="${ARGOCD_HTTP_PORT:-30080}"
 ARGOCD_HTTPS_PORT="${ARGOCD_HTTPS_PORT:-30443}"
+
+# Docker configuration
+DOCKER_USERNAME="${DOCKER_USERNAME:-}"
+DOCKER_REGISTRY="${DOCKER_REGISTRY:-docker.io}"
 
 # Function to print colored output
 print_status() {
@@ -446,6 +456,150 @@ build_docker_image() {
     fi
 }
 
+# Function to build and push Docker image with custom registry
+build_and_push_docker_image() {
+    print_status "Building and pushing Docker image..."
+    
+    # Ask for Docker Hub username if not provided
+    if [ -z "$DOCKER_USERNAME" ]; then
+        read -p "Enter your Docker Hub username: " DOCKER_USERNAME
+    fi
+    
+    if [ -z "$DOCKER_USERNAME" ]; then
+        print_error "Docker username is required"
+        return 1
+    fi
+    
+    # Verify Dockerfile exists
+    if [ ! -f "Dockerfile" ]; then
+        print_error "Dockerfile not found in project root"
+        return 1
+    fi
+    
+    # Check if Docker is accessible (with or without sudo)
+    DOCKER_CMD="docker"
+    if ! docker info >/dev/null 2>&1; then
+        if sudo docker info >/dev/null 2>&1; then
+            DOCKER_CMD="sudo docker"
+            print_info "Using sudo for Docker commands"
+        else
+            print_error "Docker is not available"
+            return 1
+        fi
+    fi
+    
+    # Set image names
+    DOCKER_IMAGE="$DOCKER_USERNAME/$APP_NAME"
+    APP_VERSION="1.1.0"
+    
+    print_status "Building Docker image: $DOCKER_IMAGE:$APP_VERSION"
+    
+    # Build Docker image with multiple tags
+    if $DOCKER_CMD build -t "$DOCKER_IMAGE:latest" -t "$DOCKER_IMAGE:$APP_VERSION" .; then
+        print_status "✅ Docker image built successfully"
+        
+        # Update Helm values with the new image
+        print_status "Updating Helm chart with new image repository..."
+        if [ -f "helm-chart/values.yaml" ]; then
+            # Backup original values
+            cp helm-chart/values.yaml helm-chart/values.yaml.bak
+            
+            # Update the repository in values.yaml
+            sed -i "s|repository:.*|repository: $DOCKER_IMAGE|g" helm-chart/values.yaml
+            sed -i "s|tag:.*|tag: $APP_VERSION|g" helm-chart/values.yaml
+            
+            print_status "✅ Helm chart updated with new image: $DOCKER_IMAGE:$APP_VERSION"
+        fi
+        
+        # Update ArgoCD application
+        if [ -f "argocd/application.yaml" ]; then
+            # Backup original application
+            cp argocd/application.yaml argocd/application.yaml.bak
+            
+            # Update the repository in ArgoCD application
+            sed -i "s|value: ghcr.io.*student-tracker|value: $DOCKER_IMAGE|g" argocd/application.yaml
+            sed -i "s|value: biwunor.*student-tracker|value: $DOCKER_IMAGE|g" argocd/application.yaml
+            
+            print_status "✅ ArgoCD application updated with new image: $DOCKER_IMAGE"
+        fi
+        
+        # Prompt for Docker login
+        print_status "Logging into Docker Hub..."
+        if ! $DOCKER_CMD login; then
+            print_error "Docker login failed"
+            return 1
+        fi
+        
+        # Push images
+        print_status "Pushing Docker images to Docker Hub..."
+        if $DOCKER_CMD push "$DOCKER_IMAGE:latest" && $DOCKER_CMD push "$DOCKER_IMAGE:$APP_VERSION"; then
+            print_status "✅ Docker images pushed successfully to Docker Hub"
+            print_info "Images available at:"
+            print_info "  - $DOCKER_IMAGE:latest"
+            print_info "  - $DOCKER_IMAGE:$APP_VERSION"
+        else
+            print_error "❌ Failed to push Docker images"
+            return 1
+        fi
+        
+        # Test local deployment
+        print_status "Testing local Docker deployment..."
+        
+        # Stop any existing container
+        $DOCKER_CMD stop "$APP_NAME-production" 2>/dev/null || true
+        $DOCKER_CMD rm "$APP_NAME-production" 2>/dev/null || true
+        
+        # Run new container
+        if $DOCKER_CMD run -d -p "$PRODUCTION_PORT:8000" --name "$APP_NAME-production" "$DOCKER_IMAGE:$APP_VERSION"; then
+            print_status "✅ Production container started successfully"
+            
+            # Wait for startup
+            print_info "Waiting for application to start..."
+            sleep 20
+            
+            # Test health endpoint
+            if curl -f "http://localhost:$PRODUCTION_PORT/health" >/dev/null 2>&1; then
+                print_status "✅ Application health check passed"
+                print_info "Application is running at: http://localhost:$PRODUCTION_PORT"
+                print_info "API documentation: http://localhost:$PRODUCTION_PORT/docs"
+                print_info "Health check: http://localhost:$PRODUCTION_PORT/health"
+            else
+                print_warning "⚠️ Health check failed, but container is running"
+                print_info "Check logs with: $DOCKER_CMD logs $APP_NAME-production"
+            fi
+        else
+            print_error "❌ Failed to start production container"
+            return 1
+        fi
+        
+    else
+        print_error "❌ Docker image build failed"
+        return 1
+    fi
+}
+
+# Function to deploy to production with Docker
+deploy_production_docker() {
+    print_status "Deploying to production with Docker..."
+    
+    # Check prerequisites
+    if ! command_exists docker; then
+        print_error "Docker is not installed"
+        return 1
+    fi
+    
+    # Build and push image
+    if ! build_and_push_docker_image; then
+        print_error "Failed to build and push Docker image"
+        return 1
+    fi
+    
+    print_status "✅ Production deployment completed successfully"
+    
+    # Show deployment status
+    show_production_status
+}
+
 # Function to install ArgoCD (if cluster is available)
 install_argocd() {
     print_status "Installing ArgoCD..."
@@ -686,6 +840,55 @@ show_status() {
     fi
 }
 
+# Function to show production Docker status
+show_production_status() {
+    print_status "Production Docker Deployment Status:"
+    echo "===================================="
+    
+    # Check if Docker is available
+    DOCKER_CMD="docker"
+    if ! docker info >/dev/null 2>&1; then
+        if sudo docker info >/dev/null 2>&1; then
+            DOCKER_CMD="sudo docker"
+        else
+            print_error "Docker is not available"
+            return 1
+        fi
+    fi
+    
+    echo ""
+    echo "Container Status:"
+    $DOCKER_CMD ps -a | grep "$APP_NAME-production" || echo "No production container found"
+    
+    echo ""
+    echo "Docker Images:"
+    $DOCKER_CMD images | grep "$APP_NAME" || echo "No student-tracker images found"
+    
+    echo ""
+    echo "Application URLs:"
+    echo "  - Student Tracker App: http://localhost:$PRODUCTION_PORT"
+    echo "  - API Documentation: http://localhost:$PRODUCTION_PORT/docs"
+    echo "  - Health Check: http://localhost:$PRODUCTION_PORT/health"
+    echo "  - Students Interface: http://localhost:$PRODUCTION_PORT/students/"
+    echo "  - Metrics: http://localhost:$PRODUCTION_PORT/metrics"
+    
+    echo ""
+    echo "Container Logs (last 10 lines):"
+    $DOCKER_CMD logs --tail 10 "$APP_NAME-production" 2>/dev/null || echo "No logs available"
+    
+    echo ""
+    echo "Testing Health Endpoint:"
+    if curl -f "http://localhost:$PRODUCTION_PORT/health" >/dev/null 2>&1; then
+        print_status "✅ Application is healthy and responding"
+        echo "Health Response:"
+        curl -s "http://localhost:$PRODUCTION_PORT/health" | head -c 200
+        echo "..."
+    else
+        print_warning "⚠️ Health check failed or application is starting up"
+        print_info "Try again in a few moments or check container logs"
+    fi
+}
+
 # Function to run comprehensive validation
 run_comprehensive_validation() {
     print_status "Running comprehensive validation..."
@@ -845,7 +1048,8 @@ main() {
         echo "3. Build and push Docker image only"
         echo "4. Validate configuration only"
         echo "5. Install Prometheus CRDs and deploy with monitoring"
-        read -p "Enter your choice (1-5): " choice
+        echo "6. Deploy to production with Docker Hub"
+        read -p "Enter your choice (1-6): " choice
         
         case $choice in
             1)
@@ -877,17 +1081,43 @@ main() {
                 deploy_argocd_app
                 show_status
                 ;;
+            6)
+                deploy_production_docker
+                ;;
             *)
                 print_error "Invalid choice. Exiting."
                 exit 1
                 ;;
         esac
     else
-        # No cluster available, focus on validation
-        print_warning "No Kubernetes cluster available. Running validation only."
-        run_comprehensive_validation
-        build_docker_image
-        show_next_steps
+        # No cluster available, focus on validation and Docker deployment
+        print_warning "No Kubernetes cluster available."
+        print_info "Choose deployment option:"
+        echo "1. Validate configuration only"
+        echo "2. Build Docker image locally"
+        echo "3. Deploy to production with Docker Hub (recommended)"
+        read -p "Enter your choice (1-3): " no_cluster_choice
+        
+        case $no_cluster_choice in
+            1)
+                run_comprehensive_validation
+                show_next_steps
+                ;;
+            2)
+                run_comprehensive_validation
+                build_docker_image
+                show_next_steps
+                ;;
+            3)
+                run_comprehensive_validation
+                deploy_production_docker
+                ;;
+            *)
+                print_info "Invalid choice, running validation only."
+                run_comprehensive_validation
+                show_next_steps
+                ;;
+        esac
     fi
     
     print_status "Deployment process completed!"
