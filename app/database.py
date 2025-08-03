@@ -75,7 +75,6 @@ async def init_database():
 
 async def close_database():
     """Close database connection"""
-    global client
     if client:
         client.close()
         logger.info("Database connection closed")

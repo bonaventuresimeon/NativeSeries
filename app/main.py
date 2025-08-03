@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import os
@@ -35,7 +36,7 @@ A comprehensive student tracking application built with FastAPI.
 ## Features
 
 * **Student Management** - Complete CRUD operations for student records
-* **Course Management** - Multi-course enrollment system  
+* **Course Management** - Multi-course enrollment system
 * **Progress Tracking** - Weekly progress monitoring and analytics
 * **Assignment System** - Assignment creation, submission, and grading
 * **Modern UI** - Responsive web interface

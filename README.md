@@ -163,7 +163,7 @@ pytest app/test_*.py -v
 black app/
 
 # Lint code
-flake8 app/ --max-line-length=88 --extend-ignore=E203,W503,F401,F541
+flake8 app/ --max-line-length=88 --extend-ignore=E203,W503,F401,F541,W293
 
 # Type checking
 mypy app/ --ignore-missing-imports
