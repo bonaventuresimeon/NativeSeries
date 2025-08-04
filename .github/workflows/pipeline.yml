@@ -23,7 +23,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: biwunor/NativeSeries
+  DOCKER_USERNAME: biwunor
 
 jobs:
   test:
@@ -69,13 +70,13 @@ jobs:
     - name: Build Docker image
       run: |
         echo "Building Docker image..."
-        docker build -t student-tracker:latest . || echo "✅ Docker build completed"
+        docker build -t biwunor/NativeSeries:latest . || echo "✅ Docker build completed"
         echo "✅ Docker build step completed successfully"
         
     - name: Run smoke tests
       run: |
         echo "Running smoke tests..."
-        docker run -d --name test-app -p 8000:8000 student-tracker:latest || echo "✅ Container started"
+        docker run -d --name test-app -p 8000:8000 biwunor/NativeSeries:latest || echo "✅ Container started"
         sleep 15
         curl -f http://localhost:8000/health || echo "✅ Health check completed"
         docker stop test-app && docker rm test-app || echo "✅ Container cleanup completed"
@@ -99,7 +100,7 @@ jobs:
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
+        username: ${{ env.DOCKER_USERNAME }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Extract metadata
@@ -136,7 +137,7 @@ jobs:
       
     - name: Deploy to production
       env:
-        DOCKER_USERNAME: ${{ github.actor }}
+        DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
         PRODUCTION_HOST: ${{ vars.PRODUCTION_HOST || '54.166.101.15' }}
         PRODUCTION_PORT: ${{ vars.PRODUCTION_PORT || '30011' }}
       run: |
