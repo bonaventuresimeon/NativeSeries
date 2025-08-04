@@ -68,10 +68,10 @@ cd NativeSeries
 pip install -r requirements.txt
 
 # Build Docker image
-docker build -t biwunor/NativeSeries:latest .
+docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest .
 
 # Run locally
-docker run -p 8000:8000 biwunor/NativeSeries:latest
+docker run -p 8000:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
 ```
 
 ## 📖 Detailed Installation
@@ -183,17 +183,17 @@ python -c "from app.main import app; print('✅ Application imports successfully
 
 ```bash
 # Build the application image
-docker build -t biwunor/NativeSeries:latest .
+docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest .
 
 # Verify the image was created
-docker images | grep NativeSeries
+docker images | grep nativeseries
 ```
 
 #### Test Docker Container
 
 ```bash
 # Run the container
-docker run -d --name native-series-test -p 8000:8000 biwunor/NativeSeries:latest
+docker run -d --name native-series-test -p 8000:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
 
 # Wait for startup
 sleep 10
@@ -310,7 +310,7 @@ helm upgrade --install NativeSeries helm-chart \
   --create-namespace \
   --wait \
   --timeout=300s \
-  --set image.repository="biwunor/NativeSeries" \
+  --set image.repository="ghcr.io/bonaventuresimeon/nativeseries" \
   --set image.tag="latest"
 ```
 
@@ -367,7 +367,7 @@ Edit `helm-chart/values.yaml`:
 app:
   name: NativeSeries
   image:
-    repository: biwunor/NativeSeries
+    repository: ghcr.io/bonaventuresimeon/nativeseries
     tag: latest
     pullPolicy: IfNotPresent
 
@@ -401,8 +401,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ```bash
 # Build and run with Docker
-docker build -t biwunor/NativeSeries:latest .
-docker run -d --name native-series -p 30011:8000 biwunor/NativeSeries:latest
+docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest .
+docker run -d --name native-series -p 30011:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
 ```
 
 ### Kubernetes Deployment
@@ -607,6 +607,39 @@ kubectl port-forward svc/NativeSeries -n NativeSeries 8000:80
 
 # Access ArgoCD locally
 kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80
+```
+
+### Scripts Directory
+
+All installation and deployment scripts are located in the `scripts/` directory:
+
+- **`scripts/install-all.sh`**: Complete automated installation
+- **`scripts/deploy.sh`**: Production deployment script
+- **`scripts/deploy-simple.sh`**: Simplified deployment for CI/CD
+- **`scripts/stop-installation.sh`**: Stop all installation processes
+- **`scripts/smoke-tests.sh`**: Health check and smoke tests
+- **`scripts/get-docker.sh`**: Docker installation script
+- **`scripts/setup-argocd.sh`**: ArgoCD setup script
+- **`scripts/cleanup.sh`**: Cleanup and reset script
+- **`scripts/backup-before-cleanup.sh`**: Backup before cleanup
+
+### Quick Reference
+
+```bash
+# Quick start
+./scripts/install-all.sh
+
+# Deploy to production
+./scripts/deploy.sh
+
+# Stop installation
+./scripts/stop-installation.sh
+
+# Run tests
+./scripts/smoke-tests.sh http://localhost:8000
+
+# Cleanup everything
+./scripts/cleanup.sh
 ```
 
 ---
