@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: student-tracker
+  name: NativeSeries
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -18,10 +18,10 @@ spec:
         - name: app.image.tag
           value: latest
         - name: app.image.repository
-          value: biwunor/student-tracker
+          value: biwunor/NativeSeries
   destination:
     server: https://54.166.101.15
-    namespace: student-tracker
+    namespace: NativeSeries
   syncPolicy:
     automated:
       prune: true

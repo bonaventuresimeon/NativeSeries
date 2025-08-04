@@ -1,7 +1,7 @@
-# Student Tracker API - Cloud Native Application
+# NativeSeries - Cloud Native Application
 
 [![CI/CD Pipeline](https://github.com/bonaventuresimeon/NativeSeries/workflows/Student%20Tracker%20Pipeline/badge.svg)](https://github.com/bonaventuresimeon/NativeSeries/actions)
-[![Docker Image](https://img.shields.io/docker/pulls/biwunor/student-tracker)](https://hub.docker.com/r/biwunor/student-tracker)
+[![Docker Image](https://img.shields.io/docker/pulls/biwunor/NativeSeries)](https://hub.docker.com/r/biwunor/NativeSeries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0+-green.svg)](https://fastapi.tiangolo.com/)
@@ -22,7 +22,7 @@
 
 ## 🎯 Overview
 
-The Student Tracker API is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
+The NativeSeries is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
 
 **Production URL**: [http://54.166.101.15:30011](http://54.166.101.15:30011)
 

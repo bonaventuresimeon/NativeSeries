@@ -25,14 +25,14 @@ KIND_VERSION="0.20.0"
 ARGOCD_VERSION="v2.9.3"
 
 # Application configuration - Fixed to match existing setup
-APP_NAME="student-tracker"
-NAMESPACE="student-tracker"
+APP_NAME="NativeSeries"
+NAMESPACE="NativeSeries"
 ARGOCD_NAMESPACE="argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.15}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 ARGOCD_PORT="30080"
-DOCKER_USERNAME="${DOCKER_USERNAME:-}"
-DOCKER_IMAGE="${DOCKER_USERNAME:+$DOCKER_USERNAME/}student-tracker"
+DOCKER_USERNAME="${DOCKER_USERNAME:-biwunor}"
+DOCKER_IMAGE="${DOCKER_USERNAME:+$DOCKER_USERNAME/}NativeSeries"
 
 # Repository configuration - Fixed to match actual repo
 REPO_URL="https://github.com/bonaventuresimeon/NativeSeries.git"

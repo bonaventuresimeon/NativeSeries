@@ -1,8 +1,8 @@
 # Application configuration
 app:
-  name: student-tracker
+  name: NativeSeries
   image:
-    repository: biwunor/student-tracker
+    repository: biwunor/NativeSeries
     tag: v1.1.0
     pullPolicy: IfNotPresent
   env:
