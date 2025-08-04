@@ -26,7 +26,7 @@ ARGOCD_VERSION="v2.9.3"
 
 # Application configuration - Fixed to match existing setup
 APP_NAME="NativeSeries"
-NAMESPACE="NativeSeries"
+NAMESPACE="nativeseries"
 ARGOCD_NAMESPACE="argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.15}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
