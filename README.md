@@ -1,7 +1,7 @@
 # NativeSeries - Cloud Native Application
 
 [![CI/CD Pipeline](https://github.com/bonaventuresimeon/NativeSeries/workflows/Student%20Tracker%20Pipeline/badge.svg)](https://github.com/bonaventuresimeon/NativeSeries/actions)
-[![Docker Image](https://img.shields.io/docker/pulls/biwunor/NativeSeries)](https://hub.docker.com/r/biwunor/NativeSeries)
+[![Docker Image](https://img.shields.io/docker/pulls/bonaventuresimeon/nativeseries)](https://ghcr.io/bonaventuresimeon/nativeseries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110.0+-green.svg)](https://fastapi.tiangolo.com/)
@@ -229,12 +229,12 @@ graph LR
 
 1. **Build the image**
    ```bash
-   docker build -t biwunor/NativeSeries:latest .
+   docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest .
    ```
 
 2. **Run the container**
    ```bash
-   docker run -p 8000:8000 biwunor/NativeSeries:latest
+   docker run -p 8000:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
    ```
 
 ### Kubernetes Deployment

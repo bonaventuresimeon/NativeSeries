@@ -31,8 +31,8 @@ ARGOCD_NAMESPACE="argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.15}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 ARGOCD_PORT="30080"
-DOCKER_USERNAME="${DOCKER_USERNAME:-biwunor}"
-DOCKER_IMAGE="${DOCKER_USERNAME:+$DOCKER_USERNAME/}NativeSeries"
+DOCKER_USERNAME="${DOCKER_USERNAME:-bonaventuresimeon}"
+DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
 
 # Repository configuration - Fixed to match actual repo
 REPO_URL="https://github.com/bonaventuresimeon/NativeSeries.git"
