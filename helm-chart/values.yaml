@@ -2,7 +2,7 @@
 app:
   name: NativeSeries
   image:
-    repository: biwunor/NativeSeries
+    repository: ghcr.io/bonaventuresimeon/nativeseries
     tag: v1.1.0
     pullPolicy: IfNotPresent
   env:

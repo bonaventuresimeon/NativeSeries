@@ -23,8 +23,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: biwunor/NativeSeries
-  DOCKER_USERNAME: biwunor
+  IMAGE_NAME: bonaventuresimeon/nativeseries
+  DOCKER_USERNAME: bonaventuresimeon
 
 jobs:
   test:
@@ -70,13 +70,13 @@ jobs:
     - name: Build Docker image
       run: |
         echo "Building Docker image..."
-        docker build -t biwunor/NativeSeries:latest . || echo "✅ Docker build completed"
+        docker build -t bonaventuresimeon/nativeseries:latest . || echo "✅ Docker build completed"
         echo "✅ Docker build step completed successfully"
         
     - name: Run smoke tests
       run: |
         echo "Running smoke tests..."
-        docker run -d --name test-app -p 8000:8000 biwunor/NativeSeries:latest || echo "✅ Container started"
+        docker run -d --name test-app -p 8000:8000 bonaventuresimeon/nativeseries:latest || echo "✅ Container started"
         sleep 15
         curl -f http://localhost:8000/health || echo "✅ Health check completed"
         docker stop test-app && docker rm test-app || echo "✅ Container cleanup completed"
@@ -109,7 +109,7 @@ jobs:
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
-        username: ${{ env.DOCKER_USERNAME }}
+        username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Extract metadata
