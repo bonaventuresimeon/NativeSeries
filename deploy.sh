@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# Comprehensive Student Tracker Deployment Script
-# Merged from: deploy-to-production.sh, get-docker.sh, scripts/deploy.sh, scripts/setup-kind.sh, scripts/install-all.sh, scripts/setup-argocd.sh
+# Student Tracker Deployment Script
 # Version: 3.0.0 - Unified Deployment Script
-# Build Date: $(date +%Y-%m-%d)
+# Merged from: deploy-to-production.sh, get-docker.sh, scripts/deploy.sh, scripts/setup-kind.sh, scripts/install-all.sh, scripts/setup-argocd.sh
 
 set -euo pipefail
 
@@ -13,15 +12,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Configuration
 APP_NAME="student-tracker"
 NAMESPACE="student-tracker"
 ARGOCD_NAMESPACE="argocd"
-HELM_CHART_PATH="./helm-chart"
-ARGOCD_APP_PATH="./argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 DOCKER_USERNAME="${DOCKER_USERNAME:-}"
@@ -30,39 +26,20 @@ PYTHON_VERSION="3.11"
 ARGOCD_VERSION="v2.9.3"
 TARGET_IP="18.208.149.195"
 TARGET_PORT="8011"
-ARGOCD_PORT="30080"
 
-# Function to print colored output
-print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
+# Output functions
+print_status() { echo -e "${GREEN}[INFO]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 print_header() {
-    echo ""
-    echo -e "${PURPLE}================================${NC}"
+    echo -e "\n${PURPLE}================================${NC}"
     echo -e "${PURPLE}🚀 $1${NC}"
-    echo -e "${PURPLE}================================${NC}"
-    echo ""
+    echo -e "${PURPLE}================================${NC}\n"
 }
 
-# Function to check if command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
+# Utility functions
+command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-# Function to detect OS
 detect_os() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
@@ -76,7 +53,7 @@ detect_os() {
     fi
 }
 
-# Function to install Docker (from get-docker.sh)
+# Docker installation
 install_docker() {
     print_header "🐳 Installing Docker"
     
@@ -87,14 +64,11 @@ install_docker() {
     fi
     
     print_status "Installing Docker..."
-    
-    # Download and run Docker installation script
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
     sudo usermod -a -G docker $USER
     rm get-docker.sh
     
-    # Start Docker service
     if command_exists systemctl; then
         sudo systemctl start docker
         sudo systemctl enable docker
@@ -104,7 +78,7 @@ install_docker() {
     print_warning "You may need to log out and back in for Docker group membership to take effect"
 }
 
-# Function to install tools based on OS
+# Tool installation
 install_tools() {
     local os=$(detect_os)
     print_status "Installing tools for $os..."
@@ -123,14 +97,10 @@ install_tools() {
     esac
 }
 
-# Install tools for Amazon Linux
 install_tools_amazon() {
     print_status "Installing tools for Amazon Linux..."
     
-    # Update system
     sudo yum update -y || print_warning "Failed to update system"
-    
-    # Install basic dependencies
     sudo yum install -y curl wget jq git || {
         print_error "Failed to install basic dependencies"
         return 1
@@ -163,7 +133,7 @@ install_tools_amazon() {
         rm argocd-linux-amd64
     fi
     
-    # Install additional tools
+    # Install yq
     if ! command_exists yq; then
         print_status "Installing yq..."
         sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
@@ -173,14 +143,10 @@ install_tools_amazon() {
     print_status "✅ Tools installation completed"
 }
 
-# Install tools for Ubuntu/Debian
 install_tools_ubuntu() {
     print_status "Installing tools for Ubuntu/Debian..."
     
-    # Update system
     sudo apt update -y || print_warning "Failed to update system"
-    
-    # Install basic dependencies
     sudo apt install -y curl wget jq git apt-transport-https ca-certificates gnupg lsb-release || {
         print_error "Failed to install basic dependencies"
         return 1
@@ -216,7 +182,7 @@ install_tools_ubuntu() {
         rm argocd-linux-amd64
     fi
     
-    # Install additional tools
+    # Install yq
     if ! command_exists yq; then
         print_status "Installing yq..."
         sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
@@ -226,7 +192,7 @@ install_tools_ubuntu() {
     print_status "✅ Tools installation completed"
 }
 
-# Function to install Python and setup environment
+# Python environment setup
 install_python_env() {
     print_header "🐍 Installing Python ${PYTHON_VERSION}"
     
@@ -256,7 +222,7 @@ install_python_env() {
     print_status "Activating virtual environment..."
     source venv/bin/activate
     
-    # Upgrade pip and install requirements
+    # Install requirements
     pip install --upgrade pip
     if [ -f "requirements.txt" ]; then
         pip install -r requirements.txt
@@ -267,7 +233,7 @@ install_python_env() {
     print_status "✅ Python environment ready"
 }
 
-# Function to install Kind
+# Kubernetes cluster setup
 install_kind() {
     print_header "🔧 Installing Kind"
     
@@ -286,7 +252,6 @@ install_kind() {
     kind version
 }
 
-# Function to create Kind cluster
 create_kind_cluster() {
     print_header "🚀 Creating Kind Cluster"
     
@@ -360,7 +325,7 @@ EOF
     kubectl cluster-info
 }
 
-# Function to install ArgoCD
+# ArgoCD installation
 install_argocd() {
     print_header "🎯 Installing ArgoCD"
     
@@ -416,13 +381,13 @@ EOF
     echo "$ARGOCD_PASSWORD" > .argocd-password
     
     print_status "✅ ArgoCD installed successfully"
-    print_info "ArgoCD admin password saved to .argocd-password"
-    print_info "ArgoCD UI will be available at: http://localhost:8080"
-    print_info "Username: admin"
-    print_info "Password: $ARGOCD_PASSWORD"
+    print_status "ArgoCD admin password saved to .argocd-password"
+    print_status "ArgoCD UI will be available at: http://localhost:8080"
+    print_status "Username: admin"
+    print_status "Password: $ARGOCD_PASSWORD"
 }
 
-# Function to build Docker image
+# Docker image building
 build_docker_image() {
     print_header "🐳 Building Docker Image"
     
@@ -440,7 +405,7 @@ build_docker_image() {
         # Check if we're in a container environment
         if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
             print_warning "Running in container environment - Docker daemon may not be available"
-            print_info "Docker build will be skipped in container environment"
+            print_status "Docker build will be skipped in container environment"
             return 1
         fi
         
@@ -456,10 +421,10 @@ build_docker_image() {
         # Try again
         if ! docker info >/dev/null 2>&1; then
             print_warning "Docker daemon still not accessible"
-            print_info "You may need to:"
-            print_info "1. Log out and back in (for group membership)"
-            print_info "2. Start Docker manually: sudo systemctl start docker"
-            print_info "3. Or run: newgrp docker"
+            print_status "You may need to:"
+            print_status "1. Log out and back in (for group membership)"
+            print_status "2. Start Docker manually: sudo systemctl start docker"
+            print_status "3. Or run: newgrp docker"
             return 1
         fi
     fi
@@ -480,7 +445,7 @@ build_docker_image() {
     fi
 }
 
-# Function to deploy to production (from deploy-to-production.sh)
+# Production deployment
 deploy_production() {
     print_header "🚀 Deploying to Production"
     
@@ -563,7 +528,7 @@ deploy_production() {
     print_status "🌐 Your Student Tracker application is now live at: ${PRODUCTION_URL}"
 }
 
-# Function to create validation report
+# Validation report
 create_validation_report() {
     print_status "Creating validation report..."
     
@@ -627,7 +592,7 @@ create_validation_report() {
     print_status "✅ Validation report created: $report_file"
 }
 
-# Function to show help
+# Help function
 show_help() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
@@ -644,16 +609,6 @@ show_help() {
     echo "  DOCKER_USERNAME      Your Docker Hub username"
     echo "  PRODUCTION_HOST      Production host IP (default: 18.206.89.183)"
     echo "  PRODUCTION_PORT      Production port (default: 30011)"
-    echo ""
-    echo "What This Script Does:"
-    echo "  1. Installs required tools (Docker, kubectl, Helm, ArgoCD, etc.)"
-    echo "  2. Sets up Python environment with virtual environment"
-    echo "  3. Creates Kubernetes cluster (kind) if requested"
-    echo "  4. Installs ArgoCD with proper configuration"
-    echo "  5. Builds Docker image (when Docker available)"
-    echo "  6. Deploys application to Kubernetes cluster"
-    echo "  7. Deploys to production server"
-    echo "  8. Generates detailed validation report"
     echo ""
     echo "Examples:"
     echo "  $0                              # Standard deployment"
@@ -723,8 +678,8 @@ main() {
     if [[ "$ARGOCD_PORTFORWARD" == "true" ]]; then
         if kubectl get namespace argocd >/dev/null 2>&1; then
             print_status "Starting ArgoCD port-forward..."
-            print_info "ArgoCD UI will be available at: http://localhost:8080"
-            print_info "Press Ctrl+C to stop the port-forward"
+            print_status "ArgoCD UI will be available at: http://localhost:8080"
+            print_status "Press Ctrl+C to stop the port-forward"
             kubectl port-forward svc/argocd-server -n argocd 8080:443
         else
             print_error "ArgoCD not installed"
