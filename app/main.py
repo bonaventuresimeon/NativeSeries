@@ -87,7 +87,7 @@ app.add_middleware(
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["18.206.89.183", "localhost", "127.0.0.1", "*"]
+    allowed_hosts=["54.166.101.15", "localhost", "127.0.0.1", "*"]
 )
 
 # Template configuration

@@ -18,7 +18,7 @@ OS: ubuntu
 ✅ yq - Installed
 
 === Environment ===
-Production Host: 18.206.89.183
+Production Host: 54.166.101.15
 Production Port: 30011
 Docker Username: Not set
 
