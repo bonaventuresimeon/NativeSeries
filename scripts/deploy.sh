@@ -690,74 +690,74 @@ create_validation_report() {
     print_status "✅ Validation report created: $report_file"
 }
 
-# Parse command line arguments
-SETUP_CLUSTER=false
-ARGOCD_PORTFORWARD=false
-
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --setup-cluster)
-            SETUP_CLUSTER=true
-            shift
-            ;;
-        --argocd-portforward)
-            ARGOCD_PORTFORWARD=true
-            shift
-            ;;
-        --help|-h)
-            echo "Usage: $0 [OPTIONS]"
-            echo ""
-            echo "Options:"
-            echo "  --setup-cluster      Create Kubernetes cluster and install ArgoCD"
-            echo "  --argocd-portforward Start ArgoCD port-forward for UI access"
-            echo "  --help, -h          Show this help message"
-            echo ""
-            echo "Environment Variables:"
-            echo "  DOCKER_USERNAME      Your Docker Hub username"
-            echo "  PRODUCTION_HOST      Production host IP (default: 18.206.89.183)"
-            echo "  PRODUCTION_PORT      Production port (default: 30011)"
-            echo ""
-            echo "What This Script Does:"
-            echo "  1. Validates project structure and prerequisites"
-            echo "  2. Installs required tools (kubectl, helm, docker, argocd, jq, yq)"
-            echo "  3. Sets up Docker access and group membership"
-            echo "  4. Creates Kubernetes cluster (kind/minikube) if requested"
-            echo "  5. Installs ArgoCD with proper configuration"
-            echo "  6. Builds Docker image (when Docker available)"
-            echo "  7. Deploys application to Kubernetes cluster"
-            echo "  8. Prepares production deployment configuration"
-            echo "  9. Generates detailed validation report"
-            echo ""
-            echo "Cluster Creation Features:"
-            echo "  • Automatic kind/minikube installation"
-            echo "  • Container environment detection"
-            echo "  • Existing cluster detection"
-            echo "  • Graceful fallback options"
-            echo "  • ArgoCD automatic installation"
-            echo ""
-            echo "Examples:"
-            echo "  $0                              # Standard deployment"
-            echo "  $0 --setup-cluster              # Create cluster and install ArgoCD"
-            echo "  $0 --argocd-portforward         # Start ArgoCD port-forward"
-            echo "  DOCKER_USERNAME=user $0         # Deploy with Docker Hub"
-            echo ""
-            echo "Troubleshooting:"
-            echo "  • If Docker not available: Script continues with validation"
-            echo "  • If cluster creation fails: Provides alternative options"
-            echo "  • Container environments: Detected and handled gracefully"
-            echo "  • Validation reports: Generated for troubleshooting"
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo "Use --help for usage information"
-            exit 1
-            ;;
-    esac
-done
-
 # Main function
 main() {
+    # Parse command line arguments
+    local SETUP_CLUSTER=false
+    local ARGOCD_PORTFORWARD=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --setup-cluster)
+                SETUP_CLUSTER=true
+                shift
+                ;;
+            --argocd-portforward)
+                ARGOCD_PORTFORWARD=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: $0 [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --setup-cluster      Create Kubernetes cluster and install ArgoCD"
+                echo "  --argocd-portforward Start ArgoCD port-forward for UI access"
+                echo "  --help, -h          Show this help message"
+                echo ""
+                echo "Environment Variables:"
+                echo "  DOCKER_USERNAME      Your Docker Hub username"
+                echo "  PRODUCTION_HOST      Production host IP (default: 18.206.89.183)"
+                echo "  PRODUCTION_PORT      Production port (default: 30011)"
+                echo ""
+                echo "What This Script Does:"
+                echo "  1. Validates project structure and prerequisites"
+                echo "  2. Installs required tools (kubectl, helm, docker, argocd, jq, yq)"
+                echo "  3. Sets up Docker access and group membership"
+                echo "  4. Creates Kubernetes cluster (kind/minikube) if requested"
+                echo "  5. Installs ArgoCD with proper configuration"
+                echo "  6. Builds Docker image (when Docker available)"
+                echo "  7. Deploys application to Kubernetes cluster"
+                echo "  8. Prepares production deployment configuration"
+                echo "  9. Generates detailed validation report"
+                echo ""
+                echo "Cluster Creation Features:"
+                echo "  • Automatic kind/minikube installation"
+                echo "  • Container environment detection"
+                echo "  • Existing cluster detection"
+                echo "  • Graceful fallback options"
+                echo "  • ArgoCD automatic installation"
+                echo ""
+                echo "Examples:"
+                echo "  $0                              # Standard deployment"
+                echo "  $0 --setup-cluster              # Create cluster and install ArgoCD"
+                echo "  $0 --argocd-portforward         # Start ArgoCD port-forward"
+                echo "  DOCKER_USERNAME=user $0         # Deploy with Docker Hub"
+                echo ""
+                echo "Troubleshooting:"
+                echo "  • If Docker not available: Script continues with validation"
+                echo "  • If cluster creation fails: Provides alternative options"
+                echo "  • Container environments: Detected and handled gracefully"
+                echo "  • Validation reports: Generated for troubleshooting"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+
     print_status "Starting deployment process..."
     
     # Get script directory and change to project root
