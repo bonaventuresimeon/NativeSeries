@@ -23,17 +23,15 @@
 ## 📋 Table of Contents
 
 - [🎯 Overview](#-overview)
-- [✅ Current Status](#-current-status)
 - [🏗️ Architecture](#️-architecture)
 - [🚀 Quick Start](#-quick-start)
-- [📦 Installation](#-installation)
-- [🔧 Deployment](#-deployment)
-- [📊 Monitoring](#-monitoring)
+- [📦 Installation & Deployment](#-installation--deployment)
+- [🔧 Development Environment](#-development-environment)
+- [📊 Monitoring & Health](#-monitoring--health)
 - [🔒 Security](#-security)
 - [📚 API Documentation](#-api-documentation)
-- [🛠️ Development](#️-development)
+- [🛠️ Troubleshooting](#️-troubleshooting)
 - [🤝 Contributing](#-contributing)
-- [🔧 Troubleshooting](#-troubleshooting)
 - [📄 License](#-license)
 
 ---
@@ -69,188 +67,6 @@ Student Tracker is a modern, cloud-native student management platform built with
 | **ArgoCD UI (HTTP)** | [http://18.206.89.183:30080](http://18.206.89.183:30080) | GitOps management | ✅ Live |
 | **ArgoCD UI (HTTPS)** | [https://18.206.89.183:30443](https://18.206.89.183:30443) | Secure GitOps access | ✅ Live |
 
-> **Note**: The application uses NodePort 30011 (valid Kubernetes range: 30000-32767) for external access. All endpoints are fully functional and tested.
-
----
-
-## ✅ Current Status
-
-### 🎯 **All Components Working Perfectly**
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| **Docker Deployment** | ✅ **LIVE** | Container running on port 30011 |
-| **Health Check** | ✅ **HEALTHY** | All endpoints responding |
-| **API Endpoints** | ✅ **FUNCTIONAL** | RESTful API fully operational |
-| **Web Interface** | ✅ **RESPONSIVE** | Modern templates with CSS |
-| **ArgoCD Config** | ✅ **VALID** | GitOps ready for Kubernetes |
-| **Helm Charts** | ✅ **VALID** | All templates pass validation |
-| **Templates** | ✅ **WORKING** | All HTML templates functional |
-| **Security** | ✅ **SECURE** | Non-root containers, proper permissions |
-
-### 🧪 **Testing Results**
-
-```bash
-# Health Check - ✅ PASSING
-curl http://18.206.89.183:30011/health
-# Response: {"status":"healthy","version":"1.1.0"}
-
-# API Documentation - ✅ WORKING
-curl http://18.206.89.183:30011/docs
-# Response: Swagger UI interface
-
-# Students Interface - ✅ FUNCTIONAL
-curl http://18.206.89.183:30011/students/
-# Response: Template-based student management interface
-
-# Metrics - ✅ COLLECTING
-curl http://18.206.89.183:30011/metrics
-# Response: Prometheus format metrics
-```
-
-### 🚀 **Deployment Methods**
-
-1. **Docker Deployment** (Currently Active)
-   ```bash
-   ./deploy-to-production.sh
-   ```
-
-2. **Kubernetes + ArgoCD** (Ready for Production)
-   ```bash
-   ./scripts/deploy.sh
-   ```
-
-### 🔧 **Recent Fixes Applied**
-
-- ✅ **Docker Permission Issues**: Fixed Docker daemon startup and permission handling
-- ✅ **EC2 User Security**: Updated Dockerfile with non-root user (UID 1000)
-- ✅ **Script Improvements**: Enhanced Docker detection and error handling
-- ✅ **Security Hardening**: Proper file permissions and ownership
-- ✅ **Prerequisites Installation**: Automated kubectl, helm, and Docker installation
-
-## 🛠️ **Comprehensive Deployment Fixes Documentation**
-
-### 🔧 **All Issues Resolved Successfully**
-
-During the deployment process, several critical issues were identified and resolved:
-
-#### **1. ✅ Permissions and Prerequisites Fixed**
-- **Issue**: Missing kubectl, helm, and Docker installations
-- **Solution**: Automated installation of all prerequisites
-- **Commands Applied**:
-  ```bash
-  # Install kubectl
-  curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-  sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-  
-  # Install Helm
-  curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg
-  sudo apt-get install helm --yes
-  
-  # Install Docker
-  sudo apt-get install -y docker.io
-  sudo systemctl start docker
-  ```
-
-#### **2. ✅ Docker Configuration Issues Fixed**
-- **Issue**: Docker daemon not running properly in containerized environment
-- **Solution**: Started Docker daemon manually and configured proper permissions
-- **Fix Applied**:
-  ```bash
-  sudo dockerd &
-  sudo docker info  # Verified working
-  ```
-
-#### **3. ✅ Helm Chart Configuration Fixed**
-- **Issue**: ReadOnlyRootFilesystem conflict with logging requirements
-- **Solution**: Added proper volume mounts for writable logs directory
-- **Changes Made**:
-  ```yaml
-  # Added to deployment.yaml
-  volumeMounts:
-    - name: logs
-      mountPath: /app/logs
-      readOnly: false
-  volumes:
-    - name: logs
-      emptyDir: {}
-  ```
-
-#### **4. ✅ Application Logging Fixed**
-- **Issue**: Application tried to write logs to read-only filesystem
-- **Solution**: Updated logging configuration to use mounted volumes
-- **Code Fix**:
-  ```python
-  # Updated logging in main.py
-  logs_dir = "/app/logs" if os.path.exists("/app/logs") else "logs"
-  try:
-      if not os.path.exists(logs_dir):
-          os.makedirs(logs_dir, exist_ok=True)
-      log_handlers.append(logging.FileHandler(os.path.join(logs_dir, "app.log")))
-  except (OSError, PermissionError):
-      # Fall back to stdout only if we can't write to logs
-      pass
-  ```
-
-#### **5. ✅ Docker Image Build and Test**
-- **Issue**: Initial image had logging conflicts
-- **Solution**: Rebuilt image with proper logging configuration
-- **Results**:
-  ```bash
-  # Successfully built and tested
-  docker build -t student-tracker:latest .
-  docker run -p 8000:8000 student-tracker:latest
-  curl http://localhost:8000/health  # ✅ Working
-  ```
-
-#### **6. ✅ Kubernetes Cluster Setup Attempts**
-- **Issue**: Local Kubernetes cluster setup challenges in containerized environment
-- **Attempted Solutions**:
-  - Kind cluster (failed due to Docker-in-Docker limitations)
-  - Minikube with Docker driver (failed due to storage driver issues)
-  - Minikube with none driver (missing conntrack and crictl)
-- **Final Approach**: Focus on validation and production-ready configurations
-
-#### **7. ✅ Comprehensive Validation Completed**
-- **Python Code**: ✅ All syntax and imports validated
-- **Helm Charts**: ✅ Templates and linting passed
-- **ArgoCD Configuration**: ✅ YAML syntax and structure valid
-- **Docker Image**: ✅ Built and tested successfully
-- **Application**: ✅ Health endpoints working
-- **API Documentation**: ✅ Swagger UI accessible
-
-### 🎯 **Validation Results Summary**
-
-```bash
-# All validation tests passed
-✅ Python code validation: 3/3 tests passed
-✅ Helm chart linting: 0 errors found
-✅ Docker image build: Successfully tagged student-tracker:latest
-✅ Application health check: {"status":"healthy","version":"1.1.0"}
-✅ API documentation: Interactive Swagger UI working
-✅ Template rendering: All Helm templates valid
-```
-
-### 🚀 **Production Readiness Achieved**
-
-The application is now **fully production-ready** with:
-
-1. **✅ Secure Containers**: Non-root user (UID 1000), read-only filesystem with proper volume mounts
-2. **✅ Validated Configurations**: All Helm charts and ArgoCD applications tested
-3. **✅ Working Application**: Health checks, API endpoints, and documentation functional
-4. **✅ GitOps Ready**: ArgoCD configuration ready for Kubernetes deployment
-5. **✅ Monitoring Enabled**: Metrics collection and health monitoring implemented
-6. **✅ Security Hardened**: Security contexts, resource limits, and proper permissions
-
-### 🔄 **Deployment Script Enhancements**
-
-The deployment script now includes:
-- **Machine Pruning**: Complete cleanup of Docker and Kubernetes resources
-- **Prerequisites Validation**: Automatic installation of required tools
-- **Comprehensive Testing**: Multi-level validation and health checks
-- **Error Handling**: Graceful fallbacks and detailed error messages
-- **Security Validation**: Proper permissions and security contexts
-
 ---
 
 ## 🏗️ Architecture
@@ -260,236 +76,221 @@ The deployment script now includes:
 ```mermaid
 graph TB
     subgraph "Client Layer"
-        A[Web Browser] --> B[Load Balancer]
-        A --> C[Mobile App]
+        A[Web Browser]
+        B[API Client]
+    end
+    
+    subgraph "Load Balancer"
+        C[NGINX/HAProxy]
     end
     
     subgraph "Kubernetes Cluster"
-        subgraph "Ingress Layer"
-            B --> D[NodePort Service :30011]
-        end
-        
         subgraph "Application Layer"
-            D --> E[Student Tracker Pod]
-            E --> F[FastAPI Application]
+            D[Student Tracker App]
+            E[FastAPI Container]
         end
         
         subgraph "Data Layer"
-            F --> G[MongoDB]
-            F --> H[Redis Cache]
-            F --> I[Vault Secrets]
+            F[MongoDB Database]
+            G[Persistent Volume]
+        end
+        
+        subgraph "GitOps Layer"
+            H[ArgoCD Controller]
+            I[Helm Charts]
         end
         
         subgraph "Monitoring"
-            E --> J[Prometheus]
-            J --> K[Grafana]
+            J[Prometheus]
+            K[Health Checks]
         end
-        
-        subgraph "GitOps"
-            L[GitHub Repository] --> M[ArgoCD]
-            M --> E
-        end
-    end
-    
-    subgraph "CI/CD Pipeline"
-        N[GitHub Actions] --> O[Docker Build]
-        O --> P[Image Registry]
-        P --> M
-    end
-```
-
-### Component Architecture
-
-```mermaid
-graph LR
-    subgraph "Frontend"
-        A[HTML Templates]
-        B[JavaScript]
-    end
-    
-    subgraph "Backend"
-        C[FastAPI App]
-        D[CRUD Operations]
-        E[Database Layer]
     end
     
     subgraph "Infrastructure"
-        F[Kubernetes]
-        G[Helm Charts]
-        H[ArgoCD]
-    end
-    
-    subgraph "Data Stores"
-        I[MongoDB]
-        J[Redis]
-        K[Vault]
+        L[AWS EC2]
+        M[Docker Engine]
+        N[Kubernetes]
     end
     
     A --> C
     B --> C
     C --> D
     D --> E
-    E --> I
-    E --> J
-    E --> K
+    E --> F
     F --> G
-    G --> H
+    H --> I
+    I --> D
+    J --> K
+    K --> D
+    D --> L
+    L --> M
+    M --> N
+```
+
+### Deployment Flow
+
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant Git as GitHub
+    participant ArgoCD as ArgoCD
+    participant K8s as Kubernetes
+    participant App as Application
+    
+    Dev->>Git: Push code changes
+    Git->>ArgoCD: Trigger sync
+    ArgoCD->>K8s: Apply Helm charts
+    K8s->>App: Deploy new version
+    App->>K8s: Health check
+    K8s->>ArgoCD: Status update
+    ArgoCD->>Git: Sync status
 ```
 
 ### Technology Stack
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Frontend** | HTML5, CSS3, JavaScript | User interface |
-| **Backend** | FastAPI, Python 3.11 | REST API and business logic |
-| **Database** | MongoDB | Primary data storage |
-| **Cache** | Redis | Session and data caching |
-| **Container** | Docker | Application containerization |
-| **Orchestration** | Kubernetes | Container orchestration |
-| **Package Manager** | Helm | Kubernetes application management |
-| **GitOps** | ArgoCD | Continuous deployment |
-| **CI/CD** | GitHub Actions | Automated build and test |
-| **Monitoring** | Prometheus, Grafana | Metrics and monitoring |
-| **Security** | Vault | Secret management |
+```mermaid
+graph LR
+    subgraph "Frontend"
+        A[HTML Templates]
+        B[CSS Styling]
+        C[JavaScript]
+    end
+    
+    subgraph "Backend"
+        D[FastAPI]
+        E[Python 3.9+]
+        F[Uvicorn]
+    end
+    
+    subgraph "Database"
+        G[MongoDB]
+        H[Data Persistence]
+    end
+    
+    subgraph "Infrastructure"
+        I[Docker]
+        J[Kubernetes]
+        K[Helm]
+        L[ArgoCD]
+    end
+    
+    subgraph "Monitoring"
+        M[Prometheus]
+        N[Health Checks]
+        O[Logging]
+    end
+    
+    A --> D
+    B --> D
+    C --> D
+    D --> E
+    E --> F
+    D --> G
+    G --> H
+    D --> I
+    I --> J
+    J --> K
+    K --> L
+    D --> M
+    M --> N
+    N --> O
+```
 
 ---
 
 ## 🚀 Quick Start
 
-### Option 1: Docker Deployment (Recommended for Testing)
+### Prerequisites
 
-**Prerequisites:**
-- **Docker** installed and running
-- **Git**
+- **Docker**: For containerized deployment
+- **Kubernetes**: For orchestration (optional)
+- **Helm**: For package management (optional)
+- **ArgoCD**: For GitOps (optional)
 
-**One-Command Docker Deployment:**
-
-```bash
-# Clone the repository
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
-
-# Make deployment script executable
-chmod +x deploy-to-production.sh
-
-# Run Docker deployment
-./deploy-to-production.sh
-```
-
-**🎉 Your application will be live at http://localhost:30011 in minutes!**
-
-### Option 2: Kubernetes + ArgoCD Deployment (Production)
-
-**Prerequisites:**
-- **Kubernetes Cluster** (minikube, kind, or cloud provider)
-- **kubectl** configured and connected to your cluster
-- **Helm** v3.12.0+
-- **Docker** (for image building)
-- **Git**
-
-**One-Command Kubernetes Deployment:**
+### One-Command Deployment
 
 ```bash
 # Clone the repository
 git clone https://github.com/bonaventuresimeon/NativeSeries.git
 cd NativeSeries
 
-# Make deployment script executable
-chmod +x scripts/deploy.sh
-
-# Run deployment (interactive menu with pruning option)
+# Run the deployment script
 ./scripts/deploy.sh
 
-# Or run with automatic pruning (cleans everything before deployment)
-./scripts/deploy.sh --force-prune
-
-# Or skip pruning entirely
-./scripts/deploy.sh --skip-prune
+# Or create a complete Kubernetes environment
+./scripts/deploy.sh --setup-cluster
 ```
 
-### 🧹 Machine Pruning
-
-The deployment script includes comprehensive machine pruning capabilities:
-
-**What gets cleaned:**
-- All Docker containers, images, volumes, and networks
-- Kubernetes namespaces and resources
-- Temporary files and old logs
-- Package cache and build artifacts
-- Helm cache and repositories
-
-**Pruning Options:**
-- **Interactive**: `./scripts/deploy.sh` (asks before pruning)
-- **Automatic**: `./scripts/deploy.sh --force-prune` (prunes without asking)
-- **Skip**: `./scripts/deploy.sh --skip-prune` (skips pruning entirely)
-
-**Benefits:**
-- Frees up significant disk space
-- Ensures clean deployment environment
-- Removes conflicting resources
-- Improves deployment reliability
-
-### Quick Test
-
-After deployment, test your application:
+### Manual Docker Deployment
 
 ```bash
-# Health check
-curl http://localhost:30011/health
+# Build and run with Docker
+docker build -t student-tracker .
+docker run -p 30011:8000 student-tracker
 
-# API documentation
-open http://localhost:30011/docs
-
-# Students interface
-curl http://localhost:30011/students/
-
-# Metrics
-curl http://localhost:30011/metrics
+# Access the application
+open http://localhost:30011
 ```
-
-**✅ All endpoints are tested and working!**
 
 ---
 
-## 📦 Installation
+## 📦 Installation & Deployment
 
-### System Requirements
+### Automated Deployment Script
 
-- **Operating System**: Linux, macOS, or Windows (with WSL2)
-- **Python**: 3.11 or higher
-- **Docker**: 20.10 or higher
-- **Kubernetes**: 1.24 or higher (for production deployment)
-- **Memory**: 4GB RAM minimum, 8GB recommended
-- **Storage**: 10GB free space
+Our comprehensive `deploy.sh` script handles everything automatically:
 
-### Development Environment Setup
+#### Features
+- ✅ **Tool Installation**: kubectl, helm, docker, argocd, jq, yq
+- ✅ **Cluster Creation**: kind/minikube with automatic fallback
+- ✅ **ArgoCD Setup**: Complete GitOps environment
+- ✅ **Docker Management**: Automatic daemon setup and group configuration
+- ✅ **Validation**: Comprehensive project structure and prerequisite checks
+- ✅ **Error Handling**: Graceful fallbacks for container environments
+- ✅ **Reporting**: Detailed validation reports for troubleshooting
+
+#### Usage Options
 
 ```bash
-# Clone the repository
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
+# Standard deployment
+./scripts/deploy.sh
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Create Kubernetes cluster and install ArgoCD
+./scripts/deploy.sh --setup-cluster
 
-# Install dependencies
-pip install -r requirements.txt
+# Start ArgoCD port-forward for UI access
+./scripts/deploy.sh --argocd-portforward
 
-# Install development dependencies
-pip install -r requirements-dev.txt
+# With Docker Hub username
+DOCKER_USERNAME=yourusername ./scripts/deploy.sh
 
-# Set up pre-commit hooks
-pre-commit install
+# With custom production host
+PRODUCTION_HOST=your-host-ip ./scripts/deploy.sh
 ```
 
-### Production Environment Setup
+#### What the Script Does
 
+1. **Validates Project Structure**: Checks for required files
+2. **Installs Tools**: kubectl, helm, docker, argocd, jq, yq
+3. **Sets Up Docker**: Configures access and group membership
+4. **Creates Kubernetes Cluster**: kind/minikube with ArgoCD
+5. **Builds Docker Image**: Creates application container
+6. **Deploys Application**: Kubernetes deployment with Helm
+7. **Prepares Production**: Production deployment configuration
+8. **Generates Reports**: Detailed validation and status reports
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCKER_USERNAME` | - | Your Docker Hub username |
+| `PRODUCTION_HOST` | 18.206.89.183 | Production server IP |
+| `PRODUCTION_PORT` | 30011 | Production server port |
+
+### Kubernetes Deployment
+
+#### Prerequisites
 ```bash
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
 # Install kubectl
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
@@ -497,317 +298,193 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 # Install Helm
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-# Install ArgoCD CLI
+# Install ArgoCD
 curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
 sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
 ```
 
+#### Deployment Steps
+
+```bash
+# 1. Create namespace
+kubectl create namespace student-tracker
+
+# 2. Install ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 3. Deploy application
+helm upgrade --install student-tracker ./helm-chart \
+  --namespace student-tracker \
+  --set image.repository=student-tracker \
+  --set image.tag=latest
+
+# 4. Apply ArgoCD application
+kubectl apply -f argocd/application.yaml
+```
+
+### Production Deployment
+
+#### AWS EC2 Setup
+
+```bash
+# Update system
+sudo yum update -y
+
+# Install Docker
+sudo yum install -y docker
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -a -G docker ec2-user
+
+# Install Kubernetes tools
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# Deploy application
+./scripts/deploy.sh
+```
+
 ---
 
-## 🔧 Deployment
+## 🔧 Development Environment
 
-### Docker Deployment
+### Local Development Setup
 
-The simplest way to deploy the application:
-
+#### Option 1: Automated Setup
 ```bash
-# Build and run with Docker
-./deploy-to-production.sh
+# Complete development environment
+./scripts/deploy.sh --setup-cluster
+
+# Access ArgoCD UI
+./scripts/deploy.sh --argocd-portforward
+# Visit http://localhost:8080 (admin/password)
 ```
 
-This script will:
-- Build the Docker image
-- Run the container on port 30011
-- Set up health checks
-- Configure restart policies
-
-### Kubernetes Deployment
-
-For production environments:
-
+#### Option 2: Manual Setup
 ```bash
-# Deploy to Kubernetes cluster (with pruning prompt)
-./scripts/deploy.sh
+# Install kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
 
-# Deploy with automatic pruning (recommended for clean environments)
-./scripts/deploy.sh --force-prune
+# Create cluster
+kind create cluster
 
-# Deploy without pruning (if you want to keep existing resources)
-./scripts/deploy.sh --skip-prune
+# Install ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Deploy application
+helm upgrade --install student-tracker ./helm-chart --namespace student-tracker
 ```
 
-This script will:
-- **Prune machine** (optional): Clean all Docker and Kubernetes resources
-- **Validate Helm charts**: Ensure all templates are correct
-- **Deploy to Kubernetes cluster**: Install the application
-- **Set up ArgoCD for GitOps**: Configure continuous deployment
-- **Configure monitoring and scaling**: Set up health checks and autoscaling
+### Development Workflow
 
-### ArgoCD GitOps Deployment
+```mermaid
+graph LR
+    A[Code Changes] --> B[Git Push]
+    B --> C[ArgoCD Sync]
+    C --> D[Kubernetes Deploy]
+    D --> E[Health Check]
+    E --> F[Access App]
+```
+
+### Useful Commands
 
 ```bash
-# Apply ArgoCD application
-kubectl apply -f argocd/application.yaml
+# Check cluster status
+kubectl get nodes
+kubectl get pods -A
 
-# Get ArgoCD admin password
+# View application logs
+kubectl logs -f deployment/student-tracker -n student-tracker
+
+# Port forward to application
+kubectl port-forward svc/student-tracker 30011:8000 -n student-tracker
+
+# Access ArgoCD UI
+kubectl port-forward svc/argocd-server 8080:443 -n argocd
+
+# Get ArgoCD password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ENVIRONMENT` | Application environment | `production` |
-| `MONGO_URI` | MongoDB connection string | `mongodb://localhost:27017` |
-| `DATABASE_NAME` | Database name | `student_project_tracker` |
-| `COLLECTION_NAME` | Collection name | `students` |
-| `HOST` | Application host | `0.0.0.0` |
-| `PORT` | Application port | `8000` |
-
-### 🚀 Complete Deployment Options Guide
-
-The `./scripts/deploy.sh` script provides comprehensive deployment options for different scenarios:
-
-#### **Command Line Options**
-
-```bash
-# Show help and all available options
-./scripts/deploy.sh --help
-
-# Deploy with automatic machine pruning (recommended for clean environments)
-./scripts/deploy.sh --force-prune
-
-# Deploy without any pruning (preserves existing resources)
-./scripts/deploy.sh --skip-prune
-
-# Interactive deployment with pruning prompt
-./scripts/deploy.sh
-```
-
-#### **Environment Variables for Deployment**
-
-```bash
-# Set Docker Hub username for production deployment
-export DOCKER_USERNAME="your-dockerhub-username"
-
-# Override production host and port
-export PRODUCTION_HOST="your-server-ip"
-export PRODUCTION_PORT="30011"
-
-# Enable automatic image pushing
-export PUSH_IMAGE="true"
-```
-
-#### **Deployment Options (When Kubernetes Cluster is Available)**
-
-When you have a Kubernetes cluster running, the script offers 6 deployment options:
-
-**Option 1: Complete ArgoCD + Application Deployment**
-```bash
-# Installs ArgoCD, builds Docker image, deploys Helm chart, and sets up ArgoCD application
-# Best for: Fresh Kubernetes environments
-./scripts/deploy.sh --skip-prune
-# Then select option 1 when prompted
-```
-
-**Option 2: Application Deployment Only (ArgoCD Already Installed)**
-```bash
-# Builds Docker image, deploys Helm chart, and sets up ArgoCD application
-# Best for: Environments with existing ArgoCD installation
-./scripts/deploy.sh --skip-prune
-# Then select option 2 when prompted
-```
-
-**Option 3: Docker Image Build Only**
-```bash
-# Builds and optionally pushes Docker image without deployment
-# Best for: CI/CD pipelines or when you want to build images separately
-./scripts/deploy.sh --skip-prune
-# Then select option 3 when prompted
-```
-
-**Option 4: Configuration Validation Only**
-```bash
-# Validates Helm charts, ArgoCD configuration, and Dockerfile
-# Best for: Testing configuration before deployment
-./scripts/deploy.sh --skip-prune
-# Then select option 4 when prompted
-```
-
-**Option 5: Monitoring-Enabled Deployment**
-```bash
-# Installs Prometheus CRDs and deploys with monitoring capabilities
-# Best for: Production environments requiring monitoring
-./scripts/deploy.sh --skip-prune
-# Then select option 5 when prompted
-```
-
-**Option 6: Production Docker Deployment**
-```bash
-# Deploys directly to production server using Docker
-# Best for: Simple production deployments without Kubernetes
-./scripts/deploy.sh --skip-prune
-# Then select option 6 when prompted
-```
-
-#### **Deployment Options (When No Kubernetes Cluster is Available)**
-
-When no Kubernetes cluster is detected, the script offers 3 simplified options:
-
-**Option 1: Configuration Validation Only**
-```bash
-# Validates all configuration files without deployment
-# Best for: Development environments or configuration testing
-./scripts/deploy.sh --skip-prune
-# Then select option 1 when prompted
-```
-
-**Option 2: Local Docker Build**
-```bash
-# Validates configuration and builds Docker image locally
-# Best for: Development or testing Docker builds
-./scripts/deploy.sh --skip-prune
-# Then select option 2 when prompted
-```
-
-**Option 3: Production Docker Deployment (Recommended)**
-```bash
-# Validates configuration and deploys to production server
-# Best for: Production deployments without Kubernetes complexity
-./scripts/deploy.sh --skip-prune
-# Then select option 3 when prompted
-```
-
-#### **Prerequisites for Each Option**
-
-| Option | Requires | Description |
-|--------|----------|-------------|
-| 1-5 (K8s) | kubectl, helm, docker | Full Kubernetes deployment |
-| 6 (Production) | docker, docker login | Direct production deployment |
-| 1-2 (No K8s) | None | Configuration validation only |
-| 3 (No K8s) | docker | Local Docker build |
-
-#### **Troubleshooting Common Issues**
-
-**Issue: kubectl not found**
-```bash
-# Install kubectl
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-chmod +x kubectl
-sudo mv kubectl /usr/local/bin/
-```
-
-**Issue: Helm not found**
-```bash
-# Install Helm
-curl -fsSL -o helm.tar.gz https://get.helm.sh/helm-v3.13.3-linux-amd64.tar.gz
-tar -xzf helm.tar.gz
-sudo mv linux-amd64/helm /usr/local/bin/
-rm -rf linux-amd64 helm.tar.gz
-```
-
-**Issue: Docker not running**
-```bash
-# Start Docker service
-sudo systemctl start docker
-sudo systemctl enable docker
-```
-
-**Issue: ArgoCD CLI not found**
-```bash
-# The script will automatically install ArgoCD CLI if missing
-# Manual installation:
-curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
-rm argocd-linux-amd64
-```
-
-#### **Deployment Process Flow**
-
-1. **Prerequisites Check**: Validates kubectl, helm, docker, and argocd availability
-2. **Machine Pruning** (optional): Cleans Docker and Kubernetes resources
-3. **Cluster Detection**: Determines if Kubernetes cluster is available
-4. **Option Selection**: Presents appropriate deployment options
-5. **Validation**: Validates Helm charts and ArgoCD configuration
-6. **Build**: Builds Docker image with proper tagging
-7. **Deploy**: Deploys to Kubernetes or production server
-8. **Health Check**: Verifies deployment success and application health
-
-#### **Production Deployment Example**
-
-```bash
-# Set up environment
-export DOCKER_USERNAME="your-username"
-export PRODUCTION_HOST="your-server-ip"
-export PRODUCTION_PORT="30011"
-
-# Deploy to production
-./scripts/deploy.sh --force-prune
-# Select option 6 for production Docker deployment
-```
-
-#### **Development Deployment Example**
-
-```bash
-# Quick validation and build
-./scripts/deploy.sh --skip-prune
-# Select option 4 for validation only, or option 2 for local build
-```
-
 ---
 
-## 📊 Monitoring
+## 📊 Monitoring & Health
 
-### Health Checks
+### Health Check Endpoints
 
-The application provides comprehensive health monitoring:
-
-```bash
-# Application health
-curl http://localhost:30011/health
-
-# Response:
-{
-  "status": "healthy",
-  "timestamp": "2025-08-03T07:04:08.289843",
-  "version": "1.1.0",
-  "uptime_seconds": 146,
-  "request_count": 5,
-  "production_url": "http://18.206.89.183:30011",
-  "database": "healthy",
-  "environment": "production",
-  "services": {
-    "api": "healthy",
-    "database": "healthy",
-    "cache": "healthy"
-  }
-}
-```
-
-### Metrics Endpoint
-
-Prometheus-compatible metrics:
-
-```bash
-# Get metrics
-curl http://localhost:30011/metrics
-```
-
-### Logging
-
-Application logs are structured and include:
-
-- Request/response logging
-- Error tracking
-- Performance metrics
-- Security events
+| Endpoint | Method | Description | Response |
+|----------|--------|-------------|----------|
+| `/health` | GET | Application health status | `{"status":"healthy","version":"1.1.0"}` |
+| `/metrics` | GET | Prometheus metrics | Metrics data |
+| `/docs` | GET | API documentation | Swagger UI |
 
 ### Monitoring Stack
 
-- **Prometheus**: Metrics collection
-- **Grafana**: Visualization and dashboards
-- **AlertManager**: Alerting and notifications
-- **Jaeger**: Distributed tracing
+```mermaid
+graph TB
+    subgraph "Application Layer"
+        A[Student Tracker App]
+        B[Health Checks]
+        C[Prometheus Metrics]
+    end
+    
+    subgraph "Monitoring"
+        D[Prometheus Server]
+        E[Grafana Dashboard]
+        F[Alert Manager]
+    end
+    
+    subgraph "Logging"
+        G[Application Logs]
+        H[Container Logs]
+        I[System Logs]
+    end
+    
+    A --> B
+    A --> C
+    B --> D
+    C --> D
+    D --> E
+    D --> F
+    A --> G
+    G --> H
+    H --> I
+```
+
+### Health Check Implementation
+
+```python
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "version": "1.1.0",
+        "timestamp": datetime.utcnow().isoformat(),
+        "uptime": get_uptime()
+    }
+```
+
+### Metrics Collection
+
+```python
+from prometheus_client import Counter, Histogram, generate_latest
+
+# Define metrics
+REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests')
+REQUEST_LATENCY = Histogram('http_request_duration_seconds', 'HTTP request latency')
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    REQUEST_COUNT.inc()
+    REQUEST_LATENCY.observe(time.time() - start_time)
+    return response
+```
 
 ---
 
@@ -815,351 +492,149 @@ Application logs are structured and include:
 
 ### Security Features
 
-- **Non-root containers**: Application runs as user ID 1000
-- **Read-only filesystem**: Container filesystem is read-only
-- **Security contexts**: Kubernetes security policies applied
-- **Secret management**: Vault integration for sensitive data
-- **Network policies**: Kubernetes network isolation
+- **Non-root Containers**: Application runs as non-root user
+- **Read-only Filesystem**: Container filesystem is read-only
+- **Security Contexts**: Proper Kubernetes security contexts
+- **Network Policies**: Restricted network access
+- **Secret Management**: Kubernetes secrets for sensitive data
 - **RBAC**: Role-based access control
-- **TLS/SSL**: Encrypted communication
+- **Pod Security Standards**: Enforced security policies
 
-### Security Best Practices
+### Security Configuration
 
 ```yaml
-# Security context in Helm chart
+# Pod Security Context
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
-  fsGroup: 1000
+  readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   capabilities:
     drop:
-    - ALL
-  readOnlyRootFilesystem: true
+      - ALL
+
+# Container Security
+containers:
+  - name: student-tracker
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000
 ```
 
-### Vulnerability Scanning
+### Network Security
 
-```bash
-# Run security scan
-bandit -r app/
-
-# Check for vulnerabilities in dependencies
-safety check
-
-# Container vulnerability scan
-trivy image student-tracker:latest
+```yaml
+# Network Policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: student-tracker-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: student-tracker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
 ```
 
 ---
 
 ## 📚 API Documentation
 
-### Interactive Documentation
+### Interactive API Documentation
 
-Access the interactive API documentation at:
-- **Swagger UI**: http://localhost:30011/docs
-- **ReDoc**: http://localhost:30011/redoc
-- **OpenAPI JSON**: http://localhost:30011/openapi.json
+Access the complete API documentation at: [http://18.206.89.183:30011/docs](http://18.206.89.183:30011/docs)
 
-### API Endpoints
+### Core Endpoints
 
-#### Students Management
+| Endpoint | Method | Description | Parameters |
+|----------|--------|-------------|------------|
+| `/students/` | GET | List all students | `page`, `size` |
+| `/students/{id}` | GET | Get student by ID | `id` |
+| `/students/` | POST | Create new student | Student data |
+| `/students/{id}` | PUT | Update student | `id`, Student data |
+| `/students/{id}` | DELETE | Delete student | `id` |
+| `/health` | GET | Health check | None |
+| `/metrics` | GET | Prometheus metrics | None |
 
+### API Response Examples
+
+#### Get All Students
 ```bash
-# Get all students
-GET /api/students/
-
-# Get student by ID
-GET /api/students/{student_id}
-
-# Create new student
-POST /api/students/
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "course": "Computer Science"
-}
-
-# Update student
-PUT /api/students/{student_id}
-
-# Delete student
-DELETE /api/students/{student_id}
+curl http://18.206.89.183:30011/students/
 ```
 
-#### Health and Monitoring
-
-```bash
-# Health check
-GET /health
-
-# Metrics
-GET /metrics
-
-# API documentation
-GET /docs
-```
-
-### API Response Format
-
+Response:
 ```json
 {
-  "status": "success",
-  "data": {
-    "id": "123",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "course": "Computer Science",
-    "created_at": "2025-08-03T07:00:00Z",
-    "updated_at": "2025-08-03T07:00:00Z"
-  },
-  "message": "Student retrieved successfully"
+  "students": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "grade": "A",
+      "progress": 85
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 10
 }
 ```
 
----
-
-## 🛠️ Development
-
-### Development Setup
-
+#### Create Student
 ```bash
-# Clone and setup
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# Setup pre-commit hooks
-pre-commit install
-
-# Run development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Testing
-
-```bash
-# Run all tests
-pytest app/ -v
-
-# Run with coverage
-pytest app/ -v --cov=app
-
-# Run specific test file
-pytest app/tests/test_students.py -v
-
-# Run linting
-flake8 app/
-black app/
-isort app/
-```
-
-### Code Quality
-
-```bash
-# Format code
-black app/
-isort app/
-
-# Lint code
-flake8 app/
-
-# Type checking
-mypy app/
-
-# Security scan
-bandit -r app/
-```
-
-### Database Management
-
-```bash
-# Initialize database
-python -m app.database.init
-
-# Run migrations
-python -m app.database.migrate
-
-# Seed data
-python -m app.database.seed
+curl -X POST http://18.206.89.183:30011/students/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "grade": "B+",
+    "progress": 78
+  }'
 ```
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! Please follow these guidelines:
-
-### 🎯 Pull Request Process
-
-#### Overview
-When submitting a pull request, please provide a brief description of what the PR accomplishes.
-
-#### What's Changed
-Please list the main changes in your PR:
-
-##### 🏗️ **Infrastructure Changes**
-- [ ] Kubernetes manifests
-- [ ] Helm charts
-- [ ] ArgoCD applications
-- [ ] CI/CD pipeline
-
-##### 🔧 **Application Changes**
-- [ ] FastAPI endpoints
-- [ ] Database models
-- [ ] Business logic
-- [ ] Configuration
-
-##### 📚 **Documentation**
-- [ ] README updates
-- [ ] API documentation
-- [ ] Deployment guides
-- [ ] Configuration examples
-
-#### 🎯 **Deployment URLs**
-If your changes affect deployed services, list the access URLs:
-
-- 🌐 **Application**: http://18.206.89.183:30011
-- 📖 **API Docs**: http://18.206.89.183:30011/docs
-- 🩺 **Health Check**: http://18.206.89.183:30011/health
-- 🎯 **ArgoCD**: http://30.80.98.218:30080
-
-#### 🚀 **How to Test**
-
-```bash
-# Deployment
-./scripts/deploy-all.sh
-
-# Testing
-pytest app/ -v
-
-# Health check
-curl http://localhost:30011/health
-```
-
-#### 📋 **Files Changed**
-List the key files modified in your PR:
-
-- `app/` - Application code changes
-- `infra/` - Infrastructure configuration
-- `scripts/` - Deployment and utility scripts
-- `.github/` - CI/CD workflow changes
-
-### ✅ **Checklist**
-
-#### Before Submitting
-- [ ] Code follows project style guidelines
-- [ ] Tests have been added/updated and pass
-- [ ] Documentation has been updated
-- [ ] CI/CD pipeline passes
-- [ ] Security considerations addressed
-
-#### Deployment Verification
-- [ ] Local deployment tested
-- [ ] Health endpoints working
-- [ ] ArgoCD sync successful
-- [ ] No breaking changes to existing APIs
-
-#### Security & Quality
-- [ ] No secrets in code
-- [ ] Vulnerability scans pass
-- [ ] Resource limits configured
-- [ ] Security contexts applied
-
-### 🔗 **Related Issues**
-Link any related issues:
-- Fixes #
-- Closes #
-- Related to #
-
-### 🎉 **Additional Notes**
-Any additional context or considerations for reviewers.
-
-### Development Workflow
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Make your changes**
-4. **Add tests** for new functionality
-5. **Update documentation** as needed
-6. **Run tests**: `pytest app/ -v`
-7. **Commit changes**: `git commit -m 'Add amazing feature'`
-8. **Push to branch**: `git push origin feature/amazing-feature`
-9. **Open a Pull Request**
-
-### Code Style
-
-- Follow PEP 8 for Python code
-- Use meaningful variable and function names
-- Add docstrings to all functions and classes
-- Write comprehensive tests
-- Keep functions small and focused
-
-### Commit Message Format
-
-```
-type(scope): description
-
-[optional body]
-
-[optional footer]
-```
-
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `test`: Test changes
-- `chore`: Build/tooling changes
-
----
-
-## 🔧 Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
-#### Docker Issues
-
+#### 1. Docker Not Available
 ```bash
-# Docker daemon not running
+# Error: Cannot connect to Docker daemon
+# Solution: Start Docker service
 sudo systemctl start docker
-
-# Permission denied
-sudo usermod -aG docker $USER
+sudo usermod -a -G docker $USER
 newgrp docker
-
-# Container won't start
-docker logs student-tracker
 ```
 
-#### Kubernetes Issues
-
+#### 2. Kubernetes Cluster Issues
 ```bash
-# Check pod status
-kubectl get pods -n student-tracker
+# Check cluster status
+kubectl cluster-info
 
-# View pod logs
-kubectl logs -f deployment/student-tracker -n student-tracker
+# Reset cluster (kind)
+kind delete cluster
+kind create cluster
 
-# Check service
-kubectl get svc -n student-tracker
-
-# Check events
-kubectl get events -n student-tracker
+# Reset cluster (minikube)
+minikube delete
+minikube start
 ```
 
-#### ArgoCD Issues
-
+#### 3. ArgoCD Connection Issues
 ```bash
 # Check ArgoCD status
 kubectl get pods -n argocd
@@ -1167,51 +642,102 @@ kubectl get pods -n argocd
 # Get ArgoCD password
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 
-# Check application sync
-argocd app get student-tracker
+# Port forward ArgoCD
+kubectl port-forward svc/argocd-server 8080:443 -n argocd
 ```
 
-#### Application Issues
-
+#### 4. Application Not Starting
 ```bash
-# Check application logs
-docker logs student-tracker
+# Check pod status
+kubectl get pods -n student-tracker
 
-# Test health endpoint
-curl http://localhost:30011/health
+# View logs
+kubectl logs -f deployment/student-tracker -n student-tracker
 
-# Check database connection
-curl http://localhost:30011/api/students/
+# Check events
+kubectl get events -n student-tracker
 ```
 
 ### Debug Commands
 
 ```bash
-# Check system resources
-docker stats
-kubectl top pods -n student-tracker
+# Check all resources
+kubectl get all -A
 
-# Check network connectivity
-curl -v http://localhost:30011/health
+# Check persistent volumes
+kubectl get pv,pvc -A
 
-# Check configuration
-kubectl get configmap -n student-tracker -o yaml
+# Check services
+kubectl get svc -A
 
-# Check secrets
-kubectl get secrets -n student-tracker
+# Check ingress
+kubectl get ingress -A
+
+# Check configmaps and secrets
+kubectl get cm,secrets -A
 ```
 
-### Performance Issues
+### Validation Reports
+
+The deployment script generates detailed validation reports:
 
 ```bash
-# Check resource usage
-kubectl describe pod -n student-tracker
+# View validation report
+cat deployment_validation_report.txt
+```
 
-# Monitor metrics
-curl http://localhost:30011/metrics
+Report includes:
+- ✅ Project structure validation
+- ✅ Tools installation status
+- ✅ Environment configuration
+- ✅ Kubernetes cluster status
+- ✅ Recommendations for issues
 
-# Check HPA status
-kubectl get hpa -n student-tracker
+---
+
+## 🤝 Contributing
+
+### Development Setup
+
+1. **Fork the repository**
+2. **Create a feature branch**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Make your changes**
+4. **Test your changes**
+   ```bash
+   ./scripts/deploy.sh --setup-cluster
+   ```
+5. **Commit your changes**
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+6. **Push to the branch**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+7. **Open a Pull Request**
+
+### Code Style
+
+- Follow PEP 8 for Python code
+- Use type hints for function parameters
+- Add docstrings for all functions
+- Include tests for new features
+
+### Testing
+
+```bash
+# Run tests
+python -m pytest tests/
+
+# Run with coverage
+python -m pytest --cov=app tests/
+
+# Run linting
+flake8 app/
+black app/
 ```
 
 ---
@@ -1222,85 +748,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 👨‍💻 Author
-
-**Bonaventure Simeon**  
-📧 Email: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)  
-📱 Phone: [+234 (812) 222 5406](tel:+2348122225406)  
-🌐 GitHub: [@bonaventuresimeon](https://github.com/bonaventuresimeon)  
-💼 LinkedIn: [linkedin.com/in/bonaventuresimeon](https://linkedin.com/in/bonaventuresimeon)
-
----
-
-## 🆘 Support
-
-### Getting Help
-
-- **📖 Documentation**: [http://18.206.89.183:30011/docs](http://18.206.89.183:30011/docs)
-- **🐛 Issues**: [GitHub Issues](https://github.com/bonaventuresimeon/NativeSeries/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/bonaventuresimeon/NativeSeries/discussions)
-- **📧 Email**: [contact@bonaventure.org.ng](mailto:contact@bonaventure.org.ng)
-
-### Quick Help Commands
-
-```bash
-# Check deployment status
-./scripts/deploy.sh
-
-# View logs
-kubectl logs -f deployment/student-tracker -n student-tracker
-
-# Health check
-curl http://18.206.89.183:30011/health
-
-# Get ArgoCD password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-```
-
----
-
-## 🎉 **DEPLOYMENT SUCCESS SUMMARY**
-
-### ✅ **All Systems Operational**
-
-This project has been **successfully deployed and tested** with all components working perfectly:
-
-- **🐳 Docker Deployment**: ✅ Live and healthy
-- **🔍 Health Checks**: ✅ All endpoints responding
-- **📊 API Endpoints**: ✅ RESTful API fully functional
-- **🎨 Web Interface**: ✅ Modern templates with CSS
-- **📋 ArgoCD Configuration**: ✅ GitOps ready for Kubernetes
-- **📦 Helm Charts**: ✅ All templates validated
-- **📈 Monitoring**: ✅ Metrics collection working
-- **🔒 Security**: ✅ Non-root containers, security contexts
-
-### 🚀 **Ready for Production**
-
-The application is **production-ready** with:
-- **Docker deployment** currently active
-- **Kubernetes + ArgoCD** deployment ready
-- **Comprehensive monitoring** and health checks
-- **Modern web interface** with responsive design
-- **RESTful API** with full documentation
-
-### 🌐 **Live Endpoints**
-
-All endpoints are **tested and working**:
-- **Main App**: http://18.206.89.183:30011
-- **API Docs**: http://18.206.89.183:30011/docs
-- **Health Check**: http://18.206.89.183:30011/health
-- **Students Interface**: http://18.206.89.183:30011/students/
-
----
-
 <div align="center">
 
-**Made with ❤️ by Bonaventure Simeon**
+**Built with ❤️ using FastAPI, Kubernetes, and ArgoCD**
 
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/bonaventuresimeon)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/bonaventuresimeon)
-[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:contact@bonaventure.org.ng)
-
-### ⭐ If this project helped you, please give it a star! ⭐
+[![GitHub stars](https://img.shields.io/github/stars/bonaventuresimeon/NativeSeries?style=social)](https://github.com/bonaventuresimeon/NativeSeries)
+[![GitHub forks](https://img.shields.io/github/forks/bonaventuresimeon/NativeSeries?style=social)](https://github.com/bonaventuresimeon/NativeSeries)
+[![GitHub issues](https://img.shields.io/github/issues/bonaventuresimeon/NativeSeries)](https://github.com/bonaventuresimeon/NativeSeries/issues)
 
 </div>
