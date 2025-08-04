@@ -236,20 +236,23 @@ open http://localhost:30011
 
 ## 📦 Installation & Deployment
 
-### Automated Deployment Script
+### 🛠️ Enhanced Deployment Script (`scripts/deploy.sh`)
 
-Our comprehensive `deploy.sh` script handles everything automatically:
+Our comprehensive deployment script is optimized for Amazon Linux and other Linux distributions with full Kubernetes and ArgoCD integration.
 
-#### Features
-- ✅ **Tool Installation**: kubectl, helm, docker, argocd, jq, yq
-- ✅ **Cluster Creation**: kind/minikube with automatic fallback
-- ✅ **ArgoCD Setup**: Complete GitOps environment
-- ✅ **Docker Management**: Automatic daemon setup and group configuration
-- ✅ **Validation**: Comprehensive project structure and prerequisite checks
-- ✅ **Error Handling**: Graceful fallbacks for container environments
-- ✅ **Reporting**: Detailed validation reports for troubleshooting
+#### 🎯 Script Features
 
-#### Usage Options
+- **✅ Automatic OS Detection**: Detects Amazon Linux, Ubuntu, and other distributions
+- **✅ Tool Installation**: Automatically installs kubectl, helm, docker, argocd, jq, yq
+- **✅ Project Validation**: Validates project structure and prerequisites
+- **✅ Docker Build**: Builds Docker images with proper error handling
+- **✅ Kubernetes Deployment**: Deploys to Kubernetes clusters when available
+- **✅ Production Deployment**: Handles production deployment preparation
+- **✅ Validation Report**: Generates detailed validation reports
+- **✅ Container Environment Detection**: Handles Docker-in-Docker scenarios gracefully
+- **✅ Error Handling**: Comprehensive error handling with graceful fallbacks
+
+#### 🚀 Usage Options
 
 ```bash
 # Standard deployment
@@ -266,18 +269,70 @@ DOCKER_USERNAME=yourusername ./scripts/deploy.sh
 
 # With custom production host
 PRODUCTION_HOST=your-host-ip ./scripts/deploy.sh
+
+# Show comprehensive help
+./scripts/deploy.sh --help
 ```
 
-#### What the Script Does
+#### 🔧 What the Script Does
 
-1. **Validates Project Structure**: Checks for required files
-2. **Installs Tools**: kubectl, helm, docker, argocd, jq, yq
-3. **Sets Up Docker**: Configures access and group membership
-4. **Creates Kubernetes Cluster**: kind/minikube with ArgoCD
-5. **Builds Docker Image**: Creates application container
-6. **Deploys Application**: Kubernetes deployment with Helm
-7. **Prepares Production**: Production deployment configuration
-8. **Generates Reports**: Detailed validation and status reports
+1. **Validates Project Structure**: Checks for required files (app/main.py, helm-chart/Chart.yaml, etc.)
+2. **Installs Tools**: Automatically installs kubectl, helm, docker, argocd, jq, yq
+3. **Sets Up Docker**: Configures Docker access and group membership
+4. **Creates Kubernetes Cluster**: Installs kind/minikube and creates local cluster (--setup-cluster)
+5. **Installs ArgoCD**: Deploys ArgoCD to the Kubernetes cluster
+6. **Builds Docker Image**: Creates the application Docker image
+7. **Deploys to Kubernetes**: If a cluster is available, deploys the application
+8. **Prepares Production**: Sets up production deployment configuration
+9. **Generates Report**: Creates a detailed validation report
+
+#### 📊 Output Files
+
+- `deployment_validation_report.txt`: Detailed validation report
+- `.docker_image_name`: Contains the built Docker image name
+- `.argocd_password`: Contains ArgoCD admin password
+
+#### 🔍 Amazon Linux Compatibility
+
+The script is specifically optimized for Amazon Linux:
+- Uses `yum` package manager for Amazon Linux
+- Handles Amazon Linux specific Docker installation
+- Provides proper error handling for container environments
+- Includes Amazon Linux specific tool installation paths
+- Supports both kind and minikube for cluster creation
+
+#### 🐳 Docker Management
+
+The script handles Docker setup comprehensively:
+```bash
+# Automatic Docker daemon startup
+sudo systemctl start docker
+
+# User group membership
+sudo usermod -a -G docker $USER
+
+# Container environment detection
+if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup; then
+    # Handle container environment gracefully
+fi
+```
+
+#### ☸️ Kubernetes Cluster Features
+
+- **Automatic Cluster Creation**: Uses kind or minikube to create local clusters
+- **ArgoCD Installation**: Automatically installs and configures ArgoCD
+- **Namespace Management**: Creates required namespaces
+- **Port-Forward Access**: Provides ArgoCD UI access via port-forward
+- **Cluster Detection**: Detects existing clusters and provides guidance
+
+#### 🛡️ Error Handling
+
+The script includes robust error handling:
+- Continues execution even if Docker is not available
+- Provides clear error messages and recommendations
+- Creates validation reports for troubleshooting
+- Handles container environments gracefully
+- Offers fallback options for cluster creation
 
 ### Environment Variables
 
