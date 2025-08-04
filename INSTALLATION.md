@@ -363,7 +363,7 @@ ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o js
 echo "$ARGOCD_PASSWORD" > .argocd-password
 
 echo "ArgoCD Admin Password: $ARGOCD_PASSWORD"
-echo "ArgoCD UI: http://18.206.89.183:30080"
+echo "ArgoCD UI: http://54.166.101.15:30080"
 echo "Username: admin"
 ```
 
@@ -480,10 +480,10 @@ echo "=== Student Tracker Logs ==="
 kubectl logs deployment/student-tracker -n student-tracker --tail=50
 
 echo "=== Application Health ==="
-curl -f http://18.206.89.183:30011/health
+curl -f http://54.166.101.15:30011/health
 
 echo "=== API Documentation ==="
-curl -f http://18.206.89.183:30011/docs
+curl -f http://54.166.101.15:30011/docs
 ```
 
 ### ArgoCD Checks
@@ -499,7 +499,7 @@ echo "=== ArgoCD Applications ==="
 kubectl get applications -n argocd -o wide
 
 echo "=== ArgoCD UI Access ==="
-echo "URL: http://18.206.89.183:30080"
+echo "URL: http://54.166.101.15:30080"
 echo "Username: admin"
 echo "Password: $(cat .argocd-password)"
 ```
@@ -508,14 +508,14 @@ echo "Password: $(cat .argocd-password)"
 
 ### Application URLs
 
-- **Main Application**: http://18.206.89.183:30011
-- **API Documentation**: http://18.206.89.183:30011/docs
-- **Health Check**: http://18.206.89.183:30011/health
-- **Metrics**: http://18.206.89.183:30011/metrics
+- **Main Application**: http://54.166.101.15:30011
+- **API Documentation**: http://54.166.101.15:30011/docs
+- **Health Check**: http://54.166.101.15:30011/health
+- **Metrics**: http://54.166.101.15:30011/metrics
 
 ### ArgoCD URLs
 
-- **ArgoCD UI**: http://18.206.89.183:30080
+- **ArgoCD UI**: http://54.166.101.15:30080
 - **Username**: admin
 - **Password**: Check `.argocd-password` file
 
@@ -555,7 +555,7 @@ Set these in your GitHub repository settings:
 
 ```bash
 # Repository Variables
-PRODUCTION_HOST=18.206.89.183
+PRODUCTION_HOST=54.166.101.15
 PRODUCTION_PORT=30011
 
 # Repository Secrets (if needed)
@@ -670,11 +670,11 @@ docker system prune -af
 
 ```bash
 # Check all components are healthy
-./scripts/smoke-tests.sh http://18.206.89.183:30011
+./scripts/smoke-tests.sh http://54.166.101.15:30011
 
 # Check individual components
-curl -f http://18.206.89.183:30011/health
-curl -f http://18.206.89.183:30080 # ArgoCD UI
+curl -f http://54.166.101.15:30011/health
+curl -f http://54.166.101.15:30080 # ArgoCD UI
 ```
 
 ## 📚 Next Steps

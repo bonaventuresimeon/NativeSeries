@@ -24,7 +24,7 @@
 
 The Student Tracker API is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
 
-**Production URL**: [http://18.206.89.183:30011](http://18.206.89.183:30011)
+**Production URL**: [http://54.166.101.15:30011](http://54.166.101.15:30011)
 
 ### Key Highlights
 

@@ -14,6 +14,8 @@ app:
       value: "student_project_tracker"
     - name: COLLECTION_NAME
       value: "students"
+    - name: PRODUCTION_URL
+      value: "http://54.166.101.15:30011"
 
 # Service configuration
 service:
@@ -28,7 +30,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: student-tracker.example.com
+    - host: 54.166.101.15
       paths:
         - path: /
           pathType: ImplementationSpecific

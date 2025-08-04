@@ -46,7 +46,7 @@ async def api_info():
             "docs": "/docs",
             "metrics": "/metrics"
         },
-        "production_url": "http://18.206.89.183:30011"
+        "production_url": "http://54.166.101.15:30011"
     }
 
 @router.get("/stats")
