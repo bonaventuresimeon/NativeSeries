@@ -21,11 +21,11 @@ ARGOCD_NAMESPACE="argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 DOCKER_USERNAME="${DOCKER_USERNAME:-}"
-DOCKER_IMAGE="${DOCKER_USERNAME:-student-tracker}/student-tracker"
+DOCKER_IMAGE="${DOCKER_USERNAME:+$DOCKER_USERNAME/}student-tracker"
 PYTHON_VERSION="3.11"
 ARGOCD_VERSION="v2.9.3"
-TARGET_IP="18.208.149.195"
-TARGET_PORT="8011"
+# Remove conflicting TARGET_IP and TARGET_PORT variables
+# Use PRODUCTION_HOST and PRODUCTION_PORT consistently
 
 # Output functions
 print_status() { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -290,7 +290,7 @@ nodes:
     hostPort: 30080
     protocol: TCP
   - containerPort: 30011
-    hostPort: ${TARGET_PORT}
+    hostPort: ${PRODUCTION_PORT}
     protocol: TCP
     listenAddress: "0.0.0.0"
 - role: worker
@@ -461,14 +461,14 @@ deploy_production() {
     fi
     
     # Check if Docker daemon is running
-    if ! sudo docker info &> /dev/null; then
+    if ! docker info &> /dev/null; then
         print_error "Docker daemon is not running. Please start Docker first."
         exit 1
     fi
     
     # Build the Docker image
     print_status "Building Docker image..."
-    sudo docker build -t ${APP_NAME}:latest .
+    docker build -t ${APP_NAME}:latest .
     
     # Check if the image was built successfully
     if [ $? -eq 0 ]; then
@@ -480,7 +480,7 @@ deploy_production() {
     
     # Run the application container
     print_status "Starting application container..."
-    sudo docker run -d \
+    docker run -d \
         --name ${APP_NAME} \
         --restart unless-stopped \
         -p ${PRODUCTION_PORT}:8000 \

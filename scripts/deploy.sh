@@ -25,7 +25,7 @@ ARGOCD_APP_PATH="./argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 DOCKER_USERNAME="${DOCKER_USERNAME:-}"
-DOCKER_IMAGE="${DOCKER_USERNAME:-student-tracker}/student-tracker"
+DOCKER_IMAGE="${DOCKER_USERNAME:+$DOCKER_USERNAME/}student-tracker"
 
 # Function to print colored output
 print_status() {
@@ -258,9 +258,9 @@ check_prerequisites() {
         # Wait and try again
         sleep 2
         if ! docker info >/dev/null 2>&1; then
-            print_warning "Docker still not accessible. Trying with sudo..."
-            if ! sudo docker info >/dev/null 2>&1; then
-                print_warning "Docker daemon may not be running"
+            print_warning "Docker still not accessible. Trying with newgrp..."
+            if ! newgrp docker -c 'docker info' >/dev/null 2>&1; then
+                print_warning "Docker daemon may not be running or user not in docker group"
             fi
         fi
     fi
