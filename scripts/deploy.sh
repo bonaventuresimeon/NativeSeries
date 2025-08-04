@@ -10,6 +10,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
@@ -21,6 +23,7 @@ ARGOCD_APP_PATH="./argocd"
 PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 DOCKER_USERNAME="${DOCKER_USERNAME:-}"
+DOCKER_IMAGE="${DOCKER_USERNAME:-student-tracker}/student-tracker"
 
 # Function to print colored output
 print_status() {
@@ -37,6 +40,14 @@ print_error() {
 
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_header() {
+    echo ""
+    echo -e "${PURPLE}================================${NC}"
+    echo -e "${PURPLE}🚀 $1${NC}"
+    echo -e "${PURPLE}================================${NC}"
+    echo ""
 }
 
 # Function to check if command exists
@@ -259,7 +270,7 @@ check_prerequisites() {
 build_docker_image() {
     print_status "Building Docker image..."
     
-    local image_name="${DOCKER_USERNAME:-student-tracker}/student-tracker:latest"
+    local image_name="$DOCKER_IMAGE:latest"
     
     if [ -z "$DOCKER_USERNAME" ]; then
         print_warning "DOCKER_USERNAME not set, using local image name"
