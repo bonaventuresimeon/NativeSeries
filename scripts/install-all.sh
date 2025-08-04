@@ -1213,6 +1213,11 @@ main() {
     echo -e "${GREEN}⏱️  Total installation time: ${DURATION} seconds${NC}"
     
     display_final_info
+    
+    # Signal completion and exit
+    echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
+    echo -e "${GREEN}✅ All processes finished. Exiting...${NC}"
+    exit 0
 }
 
 # Check if script is run as root
