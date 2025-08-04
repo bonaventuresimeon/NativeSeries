@@ -1,0 +1,45 @@
+# Pipeline Configuration
+# This file contains configuration settings for the CI/CD pipeline
+
+# Application settings
+app:
+  name: "student-tracker"
+  port: 8000
+  health_endpoint: "/health"
+
+# Environment configurations
+environments:
+  staging:
+    url: "http://staging.yourdomain.com"
+    namespace: "staging"
+    replicas: 1
+  production:
+    url: "http://yourdomain.com"
+    namespace: "production"
+    replicas: 2
+
+# Docker settings
+docker:
+  registry: "ghcr.io"
+  build_args:
+    - "PYTHON_VERSION=3.11"
+
+# Test settings
+testing:
+  timeout: 300  # seconds
+  coverage_threshold: 80
+  smoke_tests:
+    - endpoint: "/health"
+      expected_status: 200
+    - endpoint: "/docs"
+      expected_status: 200
+
+# Security settings
+security:
+  scan_timeout: 600  # seconds
+  fail_on_high_severity: true
+  
+# Notification settings
+notifications:
+  slack_webhook: ""  # Set in GitHub secrets
+  email_on_failure: true
