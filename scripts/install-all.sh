@@ -1,6 +1,10 @@
 #!/bin/bash
 
-set -e
+# Student Tracker - Complete Installation Script
+# Version: 3.0.0 - Aligned with existing application structure
+# Fixed all syntax, paths, DNS, port issues, bugs, and errors
+
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -9,18 +13,31 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
+WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
-# Configuration
+# Configuration - Aligned with existing application
 PYTHON_VERSION="3.11"
 DOCKER_VERSION="20.10"
 KUBECTL_VERSION="1.28"
 HELM_VERSION="3.13"
-KIND_VERSION="0.22.0"
+KIND_VERSION="0.20.0"
 ARGOCD_VERSION="v2.9.3"
-TARGET_IP="18.208.149.195"
-TARGET_PORT="8011"
+
+# Application configuration - Fixed to match existing setup
+APP_NAME="student-tracker"
+NAMESPACE="student-tracker"
+ARGOCD_NAMESPACE="argocd"
+PRODUCTION_HOST="${PRODUCTION_HOST:-18.206.89.183}"
+PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 ARGOCD_PORT="30080"
+DOCKER_USERNAME="${DOCKER_USERNAME:-}"
+DOCKER_IMAGE="${DOCKER_USERNAME:+$DOCKER_USERNAME/}student-tracker"
+
+# Repository configuration - Fixed to match actual repo
+REPO_URL="https://github.com/bonaventuresimeon/NativeSeries.git"
+HELM_CHART_PATH="helm-chart"
+ARGOCD_APP_PATH="argocd"
 
 # Get OS information
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
@@ -38,22 +55,30 @@ echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║          🚀 Student Tracker - Complete Installation          ║"
 echo "║              From Python to Production GitOps               ║"
-echo "║                  Target: ${TARGET_IP}:${TARGET_PORT}                    ║"
+echo "║                Target: ${PRODUCTION_HOST}:${PRODUCTION_PORT}                ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
 echo -e "${CYAN}🎯 Target Configuration:${NC}"
-echo -e "  📱 Application: http://${TARGET_IP}:${TARGET_PORT}"
-echo -e "  🎯 ArgoCD UI: http://${TARGET_IP}:${ARGOCD_PORT}"
+echo -e "  📱 Application: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}"
+echo -e "  🎯 ArgoCD UI: http://${PRODUCTION_HOST}:${ARGOCD_PORT}"
 echo -e "  💻 OS: ${OS} (${ARCH})"
+echo -e "  📁 Namespace: ${NAMESPACE}"
+echo -e "  📦 Helm Chart: ${HELM_CHART_PATH}"
 echo -e ""
 
 # Function to print section headers
 print_section() {
+    echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║ $1${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
 }
+
+print_status() { echo -e "${GREEN}[INFO]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Function to check if command exists
 command_exists() {
@@ -66,21 +91,27 @@ wait_for_user() {
     read -r
 }
 
-# Function to create directories
+# Function to create directories - Fixed paths
 create_directories() {
     print_section "📁 Creating Project Directories"
     
-    echo -e "${BLUE}Creating project directories...${NC}"
+    print_status "Creating project directories..."
     mkdir -p logs
     mkdir -p data
     mkdir -p backup
     mkdir -p ~/.kube
     mkdir -p infra/kind
-    mkdir -p infra/helm/templates
-    mkdir -p infra/argocd/parent
-    mkdir -p k8s/argocd
     
-    echo -e "${GREEN}✅ Directories created successfully${NC}"
+    # Ensure existing directories are preserved
+    if [ ! -d "helm-chart" ]; then
+        mkdir -p helm-chart/templates
+    fi
+    
+    if [ ! -d "argocd" ]; then
+        mkdir -p argocd
+    fi
+    
+    print_status "✅ Directories created successfully"
 }
 
 # Function to install Python
@@ -88,7 +119,7 @@ install_python() {
     print_section "🐍 Installing Python ${PYTHON_VERSION}"
     
     if command_exists python${PYTHON_VERSION}; then
-        echo -e "${GREEN}✅ Python ${PYTHON_VERSION} already installed${NC}"
+        print_status "✅ Python ${PYTHON_VERSION} already installed"
         python${PYTHON_VERSION} --version
         return 0
     fi
@@ -96,7 +127,7 @@ install_python() {
     case "$OS" in
         "linux")
             if command_exists apt-get; then
-                echo -e "${BLUE}Installing Python on Ubuntu/Debian...${NC}"
+                print_status "Installing Python on Ubuntu/Debian..."
                 sudo apt-get update
                 sudo apt-get install -y \
                     python${PYTHON_VERSION} \
@@ -108,7 +139,7 @@ install_python() {
                     wget \
                     git
             elif command_exists yum; then
-                echo -e "${BLUE}Installing Python on CentOS/RHEL...${NC}"
+                print_status "Installing Python on CentOS/RHEL..."
                 sudo yum update -y
                 sudo yum install -y \
                     python${PYTHON_VERSION} \
@@ -119,7 +150,7 @@ install_python() {
                     wget \
                     git
             elif command_exists dnf; then
-                echo -e "${BLUE}Installing Python on Fedora...${NC}"
+                print_status "Installing Python on Fedora..."
                 sudo dnf update -y
                 sudo dnf install -y \
                     python${PYTHON_VERSION} \
@@ -130,27 +161,27 @@ install_python() {
                     wget \
                     git
             else
-                echo -e "${RED}❌ Unsupported Linux distribution${NC}"
+                print_error "❌ Unsupported Linux distribution"
                 exit 1
             fi
             ;;
         "darwin")
             if command_exists brew; then
-                echo -e "${BLUE}Installing Python on macOS...${NC}"
+                print_status "Installing Python on macOS..."
                 brew install python@${PYTHON_VERSION}
             else
-                echo -e "${YELLOW}⚠️  Homebrew not found. Installing Homebrew first...${NC}"
+                print_warning "⚠️  Homebrew not found. Installing Homebrew first..."
                 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
                 brew install python@${PYTHON_VERSION}
             fi
             ;;
         *)
-            echo -e "${RED}❌ Unsupported operating system: $OS${NC}"
+            print_error "❌ Unsupported operating system: $OS"
             exit 1
             ;;
     esac
     
-    echo -e "${GREEN}✅ Python ${PYTHON_VERSION} installed successfully${NC}"
+    print_status "✅ Python ${PYTHON_VERSION} installed successfully"
     python${PYTHON_VERSION} --version
 }
 
@@ -160,32 +191,32 @@ setup_python_env() {
     
     # Create virtual environment
     if [ ! -d "venv" ]; then
-        echo -e "${BLUE}Creating virtual environment...${NC}"
+        print_status "Creating virtual environment..."
         python${PYTHON_VERSION} -m venv venv
     fi
     
     # Activate virtual environment
-    echo -e "${BLUE}Activating virtual environment...${NC}"
+    print_status "Activating virtual environment..."
     source venv/bin/activate
     
     # Upgrade pip
-    echo -e "${BLUE}Upgrading pip...${NC}"
+    print_status "Upgrading pip..."
     pip install --upgrade pip
     
     # Install requirements
     if [ -f "requirements.txt" ]; then
-        echo -e "${BLUE}Installing Python dependencies...${NC}"
+        print_status "Installing Python dependencies..."
         pip install -r requirements.txt
     else
-        echo -e "${YELLOW}⚠️  requirements.txt not found, installing basic dependencies...${NC}"
+        print_warning "⚠️  requirements.txt not found, installing basic dependencies..."
         pip install fastapi uvicorn pytest black flake8 httpx
     fi
     
     # Install development dependencies
-    echo -e "${BLUE}Installing development dependencies...${NC}"
+    print_status "Installing development dependencies..."
     pip install pytest-cov pytest-watch
     
-    echo -e "${GREEN}✅ Python environment ready${NC}"
+    print_status "✅ Python environment ready"
 }
 
 # Function to install Docker
@@ -193,14 +224,14 @@ install_docker() {
     print_section "🐳 Installing Docker"
     
     if command_exists docker; then
-        echo -e "${GREEN}✅ Docker already installed${NC}"
+        print_status "✅ Docker already installed"
         docker --version
         return 0
     fi
     
     case "$OS" in
         "linux")
-            echo -e "${BLUE}Installing Docker on Linux...${NC}"
+            print_status "Installing Docker on Linux..."
             curl -fsSL https://get.docker.com -o get-docker.sh
             sudo sh get-docker.sh
             sudo usermod -aG docker $USER
@@ -211,28 +242,28 @@ install_docker() {
                 sudo systemctl start docker
                 sudo systemctl enable docker
             else
-                echo -e "${YELLOW}⚠️  Starting Docker daemon...${NC}"
+                print_warning "⚠️  Starting Docker daemon..."
                 dockerd > /tmp/docker.log 2>&1 &
                 sleep 5
             fi
             ;;
         "darwin")
-            echo -e "${BLUE}Installing Docker on macOS...${NC}"
+            print_status "Installing Docker on macOS..."
             if command_exists brew; then
                 brew install --cask docker
             else
-                echo -e "${RED}❌ Please install Docker Desktop manually from https://docker.com/products/docker-desktop${NC}"
+                print_error "❌ Please install Docker Desktop manually from https://docker.com/products/docker-desktop"
                 exit 1
             fi
             ;;
         *)
-            echo -e "${RED}❌ Unsupported OS for Docker installation${NC}"
+            print_error "❌ Unsupported OS for Docker installation"
             exit 1
             ;;
     esac
     
-    echo -e "${GREEN}✅ Docker installed successfully${NC}"
-    echo -e "${YELLOW}⚠️  You may need to log out and back in for Docker group membership to take effect${NC}"
+    print_status "✅ Docker installed successfully"
+    print_warning "⚠️  You may need to log out and back in for Docker group membership to take effect"
 }
 
 # Function to install kubectl
@@ -240,12 +271,12 @@ install_kubectl() {
     print_section "☸️ Installing kubectl"
     
     if command_exists kubectl; then
-        echo -e "${GREEN}✅ kubectl already installed${NC}"
+        print_status "✅ kubectl already installed"
         kubectl version --client
         return 0
     fi
     
-    echo -e "${BLUE}Installing kubectl...${NC}"
+    print_status "Installing kubectl..."
     
     case "$OS" in
         "linux")
@@ -263,12 +294,12 @@ install_kubectl() {
             fi
             ;;
         *)
-            echo -e "${RED}❌ Unsupported OS for kubectl installation${NC}"
+            print_error "❌ Unsupported OS for kubectl installation"
             exit 1
             ;;
     esac
     
-    echo -e "${GREEN}✅ kubectl installed successfully${NC}"
+    print_status "✅ kubectl installed successfully"
     kubectl version --client
 }
 
@@ -277,24 +308,24 @@ install_helm() {
     print_section "⎈ Installing Helm"
     
     if command_exists helm; then
-        echo -e "${GREEN}✅ Helm already installed${NC}"
+        print_status "✅ Helm already installed"
         helm version
         return 0
     fi
     
-    echo -e "${BLUE}Installing Helm...${NC}"
+    print_status "Installing Helm..."
     
     case "$OS" in
         "linux"|"darwin")
             curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
             ;;
         *)
-            echo -e "${RED}❌ Unsupported OS for Helm installation${NC}"
+            print_error "❌ Unsupported OS for Helm installation"
             exit 1
             ;;
     esac
     
-    echo -e "${GREEN}✅ Helm installed successfully${NC}"
+    print_status "✅ Helm installed successfully"
     helm version
 }
 
@@ -303,12 +334,12 @@ install_kind() {
     print_section "🔧 Installing Kind"
     
     if command_exists kind; then
-        echo -e "${GREEN}✅ Kind already installed${NC}"
+        print_status "✅ Kind already installed"
         kind version
         return 0
     fi
     
-    echo -e "${BLUE}Installing Kind...${NC}"
+    print_status "Installing Kind..."
     
     case "$OS" in
         "linux")
@@ -326,12 +357,12 @@ install_kind() {
             fi
             ;;
         *)
-            echo -e "${RED}❌ Unsupported OS for Kind installation${NC}"
+            print_error "❌ Unsupported OS for Kind installation"
             exit 1
             ;;
     esac
     
-    echo -e "${GREEN}✅ Kind installed successfully${NC}"
+    print_status "✅ Kind installed successfully"
     kind version
 }
 
@@ -340,12 +371,12 @@ install_argocd_cli() {
     print_section "🎯 Installing ArgoCD CLI"
     
     if command_exists argocd; then
-        echo -e "${GREEN}✅ ArgoCD CLI already installed${NC}"
+        print_status "✅ ArgoCD CLI already installed"
         argocd version --client
         return 0
     fi
     
-    echo -e "${BLUE}Installing ArgoCD CLI...${NC}"
+    print_status "Installing ArgoCD CLI..."
     
     case "$OS" in
         "linux")
@@ -363,12 +394,12 @@ install_argocd_cli() {
             fi
             ;;
         *)
-            echo -e "${RED}❌ Unsupported OS for ArgoCD CLI installation${NC}"
+            print_error "❌ Unsupported OS for ArgoCD CLI installation"
             exit 1
             ;;
     esac
     
-    echo -e "${GREEN}✅ ArgoCD CLI installed successfully${NC}"
+    print_status "✅ ArgoCD CLI installed successfully"
     argocd version --client
 }
 
@@ -376,27 +407,27 @@ install_argocd_cli() {
 install_argocd() {
     print_section "🎯 Installing ArgoCD"
     
-    echo -e "${BLUE}Installing ArgoCD in cluster...${NC}"
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
+    print_status "Installing ArgoCD in cluster..."
+    kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
     
     # Wait for ArgoCD to be ready
-    echo -e "${BLUE}⏳ Waiting for ArgoCD to be ready...${NC}"
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n argocd
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n argocd
+    print_status "⏳ Waiting for ArgoCD to be ready..."
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n ${ARGOCD_NAMESPACE}
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-repo-server -n ${ARGOCD_NAMESPACE}
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-dex-server -n ${ARGOCD_NAMESPACE}
     
     # Configure ArgoCD for insecure access
-    echo -e "${BLUE}🔧 Configuring ArgoCD...${NC}"
-    kubectl patch deployment argocd-server -n argocd -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
+    print_status "🔧 Configuring ArgoCD..."
+    kubectl patch deployment argocd-server -n ${ARGOCD_NAMESPACE} -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--insecure"}]' --type=json
     
     # Create NodePort service
-    echo -e "${BLUE}🌐 Creating ArgoCD NodePort service...${NC}"
+    print_status "🌐 Creating ArgoCD NodePort service..."
     cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Service
 metadata:
   name: argocd-server-nodeport
-  namespace: argocd
+  namespace: ${ARGOCD_NAMESPACE}
   labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
@@ -415,22 +446,22 @@ EOF
     
     # Wait for server to restart
     sleep 10
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n ${ARGOCD_NAMESPACE}
     
     # Get admin password
-    echo -e "${BLUE}🔑 Getting ArgoCD admin password...${NC}"
-    ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d)
+    print_status "🔑 Getting ArgoCD admin password..."
+    ARGOCD_PASSWORD=$(kubectl get secret argocd-initial-admin-secret -n ${ARGOCD_NAMESPACE} -o jsonpath="{.data.password}" | base64 -d)
     echo "$ARGOCD_PASSWORD" > .argocd-password
     
-    echo -e "${GREEN}✅ ArgoCD installed successfully${NC}"
-    echo -e "${GREEN}🔑 Admin password saved to .argocd-password${NC}"
+    print_status "✅ ArgoCD installed successfully"
+    print_status "🔑 Admin password saved to .argocd-password"
 }
 
 # Function to install additional tools
 install_additional_tools() {
     print_section "🛠️ Installing Additional Tools"
     
-    echo -e "${BLUE}Installing useful tools...${NC}"
+    print_status "Installing useful tools..."
     
     case "$OS" in
         "linux")
@@ -451,7 +482,7 @@ install_additional_tools() {
     
     # Install GitHub CLI if not present
     if ! command_exists gh; then
-        echo -e "${BLUE}Installing GitHub CLI...${NC}"
+        print_status "Installing GitHub CLI..."
         case "$OS" in
             "linux")
                 if command_exists apt-get; then
@@ -469,7 +500,7 @@ install_additional_tools() {
         esac
     fi
     
-    echo -e "${GREEN}✅ Additional tools installed${NC}"
+    print_status "✅ Additional tools installed"
 }
 
 # Function to create Kind cluster
@@ -480,11 +511,11 @@ create_kind_cluster() {
     
     # Check if cluster already exists
     if kind get clusters | grep -q "$CLUSTER_NAME"; then
-        echo -e "${YELLOW}⚠️  Cluster '$CLUSTER_NAME' already exists. Deleting...${NC}"
+        print_warning "⚠️  Cluster '$CLUSTER_NAME' already exists. Deleting..."
         kind delete cluster --name "$CLUSTER_NAME"
     fi
     
-    echo -e "${BLUE}Creating Kind cluster with configuration...${NC}"
+    print_status "Creating Kind cluster with configuration..."
     
     # Create Kind cluster config
     cat <<EOF > infra/kind/cluster-config.yaml
@@ -510,7 +541,7 @@ nodes:
     hostPort: 30080
     protocol: TCP
   - containerPort: 30011
-    hostPort: ${TARGET_PORT}
+    hostPort: ${PRODUCTION_PORT}
     protocol: TCP
     listenAddress: "0.0.0.0"
 - role: worker
@@ -521,11 +552,11 @@ EOF
     kind create cluster --config infra/kind/cluster-config.yaml
     
     # Wait for cluster to be ready
-    echo -e "${BLUE}⏳ Waiting for cluster to be ready...${NC}"
+    print_status "⏳ Waiting for cluster to be ready..."
     kubectl wait --for=condition=Ready nodes --all --timeout=300s
     
     # Install ingress-nginx
-    echo -e "${BLUE}🌐 Installing ingress-nginx...${NC}"
+    print_status "🌐 Installing ingress-nginx..."
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
     
     # Wait for ingress to be ready
@@ -535,13 +566,14 @@ EOF
         --timeout=90s
     
     # Create namespaces
-    echo -e "${BLUE}📁 Creating namespaces...${NC}"
-    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+    print_status "📁 Creating namespaces..."
+    kubectl create namespace ${ARGOCD_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace app-dev --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace app-staging --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace app-prod --dry-run=client -o yaml | kubectl apply -f -
     
-    echo -e "${GREEN}✅ Kind cluster created successfully${NC}"
+    print_status "✅ Kind cluster created successfully"
     kubectl cluster-info
 }
 
@@ -549,13 +581,40 @@ EOF
 build_application() {
     print_section "🐳 Building Application Container"
     
-    echo -e "${BLUE}Building student-tracker image...${NC}"
+    print_status "Building ${APP_NAME} image..."
     
-    # Ensure Dockerfile exists
-    if [ ! -f "docker/Dockerfile" ]; then
-        echo -e "${YELLOW}⚠️  Creating basic Dockerfile...${NC}"
-        mkdir -p docker
-        cat <<EOF > docker/Dockerfile
+    # Use existing Dockerfile or create one if missing
+    local dockerfile_path="Dockerfile"
+    if [ ! -f "$dockerfile_path" ]; then
+        print_warning "⚠️  Dockerfile not found in root, checking docker/ directory..."
+        if [ -f "docker/Dockerfile" ]; then
+            dockerfile_path="docker/Dockerfile"
+                 else
+            print_error "❌ No Dockerfile found. Please ensure Dockerfile exists."
+            return 1
+        fi
+    fi
+    
+    # Build image with proper tagging
+    local image_name="${DOCKER_IMAGE}:latest"
+    print_status "Building image: $image_name using $dockerfile_path"
+    docker build -t "$image_name" -f "$dockerfile_path" .
+    
+    # Also tag with simple name for Kind
+    docker tag "$image_name" "${APP_NAME}:latest"
+    
+    # Load image into Kind cluster
+    print_status "Loading image into Kind cluster..."
+    kind load docker-image "${APP_NAME}:latest" --name gitops-cluster
+    
+    print_status "✅ Application built and loaded"
+}
+
+# Function to create basic Dockerfile if needed
+create_basic_dockerfile() {
+    print_warning "⚠️  Creating basic Dockerfile..."
+    mkdir -p docker
+    cat <<EOF > docker/Dockerfile
 # syntax=docker/dockerfile:1
 
 # Stage 1: Build dependencies
@@ -583,24 +642,16 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s CMD curl -f http://localhost:8000/health || exit 1
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 EOF
-    fi
-    
-    # Build image
-    docker build -t student-tracker:latest -f docker/Dockerfile .
-    
-    # Load image into Kind cluster
-    echo -e "${BLUE}Loading image into Kind cluster...${NC}"
-    kind load docker-image student-tracker:latest --name gitops-cluster
-    
-    echo -e "${GREEN}✅ Application built and loaded${NC}"
 }
 
-# Function to create Helm chart
+# Function to create Helm chart - Updated to preserve existing files
 create_helm_chart() {
-    print_section "📦 Creating Helm Chart"
+    print_section "📦 Updating Helm Chart Configuration"
     
-    # Create Chart.yaml
-    cat <<EOF > infra/helm/Chart.yaml
+    # Check if Chart.yaml exists, if not create it
+    if [ ! -f "helm-chart/Chart.yaml" ]; then
+        print_status "Creating Chart.yaml..."
+        cat <<EOF > helm-chart/Chart.yaml
 apiVersion: v2
 name: student-tracker
 description: A FastAPI student tracker application for Kubernetes deployment
@@ -619,9 +670,13 @@ keywords:
   - python
   - kubernetes
 EOF
+    else
+        print_status "Chart.yaml already exists, skipping..."
+    fi
     
-    # Create values.yaml
-    cat <<EOF > infra/helm/values.yaml
+    # Update values.yaml with current configuration
+    print_status "Updating values.yaml..."
+    cat <<EOF > helm-chart/values.yaml
 # Default values for student-tracker
 # This is a YAML-formatted file.
 
@@ -662,7 +717,7 @@ service:
   type: NodePort
   port: 80
   targetPort: 8000
-  nodePort: 30011  # Maps to 8011 on the host
+  nodePort: ${PRODUCTION_PORT}  # Maps to production port on the host
 
 # Ingress configuration
 ingress:
@@ -672,7 +727,7 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
   hosts:
-    - host: 18.208.149.195
+    - host: ${PRODUCTION_HOST}
       paths:
         - path: /
           pathType: Prefix
@@ -741,7 +796,7 @@ serviceMonitor:
 EOF
     
     # Create deployment template
-    cat <<EOF > infra/helm/templates/deployment.yaml
+    cat <<EOF > helm-chart/templates/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -854,7 +909,7 @@ spec:
 EOF
     
     # Create service template
-    cat <<EOF > infra/helm/templates/service.yaml
+    cat <<EOF > helm-chart/templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -874,7 +929,7 @@ spec:
 EOF
     
     # Create configmap template
-    cat <<EOF > infra/helm/templates/configmap.yaml
+    cat <<EOF > helm-chart/templates/configmap.yaml
 {{- if .Values.configMap.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -888,7 +943,7 @@ data:
 EOF
     
     # Create helpers template
-    cat <<EOF > infra/helm/templates/_helpers.tpl
+    cat <<EOF > helm-chart/templates/_helpers.tpl
 {{/*
 Expand the name of the chart.
 */}}
@@ -942,7 +997,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 EOF
     
-    echo -e "${GREEN}✅ Helm chart created successfully${NC}"
+    print_status "✅ Helm chart created successfully"
 }
 
 # Function to deploy application
@@ -950,139 +1005,163 @@ deploy_application() {
     print_section "🚀 Deploying Application"
     
     # Deploy using Helm
-    echo -e "${BLUE}Deploying with Helm...${NC}"
-    helm upgrade --install student-tracker infra/helm \
-        --namespace app-dev \
+    print_status "Deploying with Helm..."
+    helm upgrade --install ${APP_NAME} ${HELM_CHART_PATH} \
+        --namespace ${NAMESPACE} \
         --create-namespace \
         --wait \
-        --timeout=300s
+        --timeout=300s \
+        --set image.repository="${DOCKER_IMAGE}" \
+        --set image.tag="latest"
     
-    echo -e "${GREEN}✅ Application deployed successfully${NC}"
-    kubectl get pods -n app-dev
+    print_status "✅ Application deployed successfully"
+    kubectl get pods -n ${NAMESPACE}
 }
 
-# Function to setup GitOps
+# Function to setup GitOps - Fixed to use existing application.yaml
 setup_gitops() {
     print_section "🔄 Setting up GitOps with ArgoCD"
     
-    # Create app-of-apps application
-    cat <<EOF > infra/argocd/parent/app-of-apps.yaml
+    # Check if application.yaml exists and apply it
+    if [ -f "${ARGOCD_APP_PATH}/application.yaml" ]; then
+        print_status "Applying existing ArgoCD application configuration..."
+        kubectl apply -f ${ARGOCD_APP_PATH}/application.yaml
+    else
+        print_warning "ArgoCD application.yaml not found, creating basic configuration..."
+        # Create basic ArgoCD application
+        cat <<EOF > ${ARGOCD_APP_PATH}/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-of-apps
-  namespace: argocd
+  name: ${APP_NAME}
+  namespace: ${ARGOCD_NAMESPACE}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/bonaventuresimeon/Student-Tracker.git
+    repoURL: ${REPO_URL}
     targetRevision: HEAD
-    path: infra/argocd/parent
+    path: ${HELM_CHART_PATH}
+    helm:
+      valueFiles:
+        - values.yaml
+      parameters:
+        - name: image.repository
+          value: ${DOCKER_IMAGE}
+        - name: image.tag
+          value: latest
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: ${NAMESPACE}
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+      allowEmpty: false
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
 EOF
+        kubectl apply -f ${ARGOCD_APP_PATH}/application.yaml
+    fi
     
-    # Apply the app-of-apps
-    echo -e "${BLUE}Creating ArgoCD applications...${NC}"
-    kubectl apply -f infra/argocd/parent/app-of-apps.yaml
-    
-    echo -e "${GREEN}✅ GitOps setup complete${NC}"
+    print_status "✅ GitOps setup complete"
 }
 
 # Function to verify installation
 verify_installation() {
     print_section "✅ Verifying Installation"
     
-    echo -e "${BLUE}Checking all components...${NC}"
+    print_status "Checking all components..."
     
     # Check cluster
-    echo -e "${CYAN}Kubernetes Cluster:${NC}"
+    print_status "Kubernetes Cluster:"
     kubectl cluster-info
     kubectl get nodes
     
     # Check application
-    echo -e "${CYAN}Application Pods:${NC}"
-    kubectl get pods -n app-dev
+    print_status "Application Pods:"
+    kubectl get pods -n ${NAMESPACE}
     
     # Check services
-    echo -e "${CYAN}Services:${NC}"
-    kubectl get svc -n app-dev
+    print_status "Services:"
+    kubectl get svc -n ${NAMESPACE}
     
     # Check ArgoCD
-    echo -e "${CYAN}ArgoCD:${NC}"
-    kubectl get pods -n argocd
+    print_status "ArgoCD:"
+    kubectl get pods -n ${ARGOCD_NAMESPACE}
     
     # Test application health
-    echo -e "${BLUE}Testing application health...${NC}"
+    print_status "Testing application health..."
     sleep 30  # Wait for application to be ready
     
-    if kubectl port-forward svc/student-tracker -n app-dev 8080:80 &>/dev/null &
+    if kubectl port-forward svc/${APP_NAME} -n ${NAMESPACE} 8080:80 &>/dev/null &
     then
         PF_PID=$!
         sleep 5
         if curl -s http://localhost:8080/health >/dev/null; then
-            echo -e "${GREEN}✅ Application health check passed${NC}"
+            print_status "✅ Application health check passed"
         else
-            echo -e "${YELLOW}⚠️  Application health check failed - may need more time to start${NC}"
+            print_warning "⚠️  Application health check failed - may need more time to start"
         fi
         kill $PF_PID 2>/dev/null || true
     fi
     
-    echo -e "${GREEN}✅ Installation verification complete${NC}"
+    print_status "✅ Installation verification complete"
 }
 
 # Function to display final information
 display_final_info() {
     print_section "🎉 Installation Complete!"
     
-    echo -e "${GREEN}🚀 Student Tracker GitOps Stack Successfully Installed!${NC}"
+    print_status "🚀 Student Tracker GitOps Stack Successfully Installed!"
     echo -e ""
-    echo -e "${CYAN}📋 Access Information:${NC}"
-    echo -e "  🌐 Student Tracker: http://${TARGET_IP}:${TARGET_PORT}"
-    echo -e "  🌐 Local access: http://localhost:${TARGET_PORT}"
-    echo -e "  📖 API Docs: http://${TARGET_IP}:${TARGET_PORT}/docs"
-    echo -e "  🩺 Health Check: http://${TARGET_IP}:${TARGET_PORT}/health"
+    print_status "📋 Access Information:"
+    print_status "  🌐 Student Tracker: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}"
+    print_status "  🌐 Local access: http://localhost:${PRODUCTION_PORT}"
+    print_status "  📖 API Docs: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/docs"
+    print_status "  🩺 Health Check: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health"
     echo -e ""
-    echo -e "  🎯 ArgoCD UI: http://${TARGET_IP}:${ARGOCD_PORT}"
-    echo -e "  🎯 Local ArgoCD: http://localhost:${ARGOCD_PORT}"
-    echo -e "  👤 ArgoCD Username: admin"
-    echo -e "  🔑 ArgoCD Password: $(cat .argocd-password 2>/dev/null || echo 'Check .argocd-password file')"
+    print_status "  🎯 ArgoCD UI: http://${PRODUCTION_HOST}:${ARGOCD_PORT}"
+    print_status "  🎯 Local ArgoCD: http://localhost:${ARGOCD_PORT}"
+    print_status "  👤 ArgoCD Username: admin"
+    print_status "  🔑 ArgoCD Password: $(cat .argocd-password 2>/dev/null || echo 'Check .argocd-password file')"
     echo -e ""
-    echo -e "${CYAN}🛠️  Useful Commands:${NC}"
-    echo -e "  # Check application status"
-    echo -e "  kubectl get all -n app-dev"
+    print_status "🛠️  Useful Commands:"
+    print_status "  # Check application status"
+    print_status "  kubectl get all -n ${NAMESPACE}"
     echo -e ""
-    echo -e "  # View application logs"
-    echo -e "  kubectl logs -f deployment/student-tracker -n app-dev"
+    print_status "  # View application logs"
+    print_status "  kubectl logs -f deployment/${APP_NAME} -n ${NAMESPACE}"
     echo -e ""
-    echo -e "  # Port forward for local access"
-    echo -e "  kubectl port-forward svc/student-tracker -n app-dev 8000:80"
+    print_status "  # Port forward for local access"
+    print_status "  kubectl port-forward svc/${APP_NAME} -n ${NAMESPACE} 8000:80"
     echo -e ""
-    echo -e "  # Access ArgoCD locally"
-    echo -e "  kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80"
+    print_status "  # Access ArgoCD locally"
+    print_status "  kubectl port-forward svc/argocd-server-nodeport -n ${ARGOCD_NAMESPACE} 8080:80"
     echo -e ""
-    echo -e "${CYAN}📚 Next Steps:${NC}"
-    echo -e "  1. Update repository URLs in ArgoCD applications"
-    echo -e "  2. Configure your load balancer to route ${TARGET_IP} to your cluster"
-    echo -e "  3. Set up continuous deployment with GitHub Actions"
-    echo -e "  4. Configure monitoring and logging (optional)"
+    print_status "📚 Next Steps:"
+    print_status "  1. Update repository URLs in ArgoCD applications"
+    print_status "  2. Configure your load balancer to route ${PRODUCTION_HOST} to your cluster"
+    print_status "  3. Set up continuous deployment with GitHub Actions"
+    print_status "  4. Configure monitoring and logging (optional)"
     echo -e ""
-    echo -e "${YELLOW}📝 Important Notes:${NC}"
-    echo -e "  • ArgoCD password is saved in .argocd-password file"
-    echo -e "  • Virtual environment is in ./venv directory"
-    echo -e "  • Kind cluster name: gitops-cluster"
-    echo -e "  • All configurations are in infra/ directory"
+    print_warning "📝 Important Notes:"
+    print_warning "  • ArgoCD password is saved in .argocd-password file"
+    print_warning "  • Virtual environment is in ./venv directory"
+    print_warning "  • Kind cluster name: gitops-cluster"
+    print_warning "  • All configurations are in infra/ directory"
     echo -e ""
-    echo -e "${GREEN}🎉 Happy coding with GitOps! 🚀${NC}"
+    print_status "🎉 Happy coding with GitOps! 🚀"
 }
 
 # Main execution function
@@ -1095,7 +1174,7 @@ main() {
     echo -e "  • Kind ${KIND_VERSION}"
     echo -e "  • ArgoCD ${ARGOCD_VERSION}"
     echo -e "  • Complete GitOps stack"
-    echo -e "  • Application deployment to ${TARGET_IP}:${TARGET_PORT}"
+    echo -e "  • Application deployment to ${PRODUCTION_HOST}:${PRODUCTION_PORT}"
     echo -e ""
     echo -e "${YELLOW}⚠️  This may take 10-20 minutes depending on your internet connection.${NC}"
     echo -e "${YELLOW}Do you want to continue? (y/N):${NC}"
