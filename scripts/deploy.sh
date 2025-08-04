@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Robust deployment script for Amazon Linux
+# Version: 2.0.0 - Enhanced with Kubernetes and ArgoCD support
+# Build Date: $(date +%Y-%m-%d)
 # Handles tool installation, validation, and deployment with minimal user interaction
 
 set -euo pipefail
