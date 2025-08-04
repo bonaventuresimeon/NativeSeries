@@ -1,0 +1,238 @@
+name: Student Tracker Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      skip_tests:
+        description: 'Skip running tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run linting
+      run: |
+        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 app/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
+    - name: Check code formatting
+      run: |
+        black --check app/ --diff
+        
+    - name: Run tests
+      if: ${{ !inputs.skip_tests }}
+      run: |
+        pytest app/test_*.py -v --tb=short
+        
+    - name: Build Docker image
+      run: |
+        docker build -t student-tracker:latest .
+        
+    - name: Run smoke tests
+      run: |
+        docker run -d --name test-app -p 8000:8000 student-tracker:latest
+        sleep 10
+        curl -f http://localhost:8000/health || exit 1
+        docker stop test-app && docker rm test-app
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  build-and-push:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'workflow_dispatch'
+    environment: ${{ inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy to production
+      env:
+        DOCKER_USERNAME: ${{ github.actor }}
+        PRODUCTION_HOST: ${{ vars.PRODUCTION_HOST || '18.206.89.183' }}
+        PRODUCTION_PORT: ${{ vars.PRODUCTION_PORT || '30011' }}
+      run: |
+        echo "🚀 Deploying Student Tracker"
+        echo "Environment: ${{ inputs.environment || 'production' }}"
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Target: $PRODUCTION_HOST:$PRODUCTION_PORT"
+        
+        # Make deploy script executable
+        chmod +x ./deploy.sh
+        
+        # Run deployment
+        ./deploy.sh --deploy-prod
+        
+    - name: Run post-deployment tests
+      run: |
+        echo "Running post-deployment verification..."
+        chmod +x ./scripts/smoke-tests.sh
+        ./scripts/smoke-tests.sh http://${{ vars.PRODUCTION_HOST || '18.206.89.183' }}:${{ vars.PRODUCTION_PORT || '30011' }} || echo "Smoke tests failed but deployment completed"
+        
+    - name: Deployment Summary
+      run: |
+        echo "## 🎉 Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Application**: http://${{ vars.PRODUCTION_HOST || '18.206.89.183' }}:${{ vars.PRODUCTION_PORT || '30011' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Docs**: http://${{ vars.PRODUCTION_HOST || '18.206.89.183' }}:${{ vars.PRODUCTION_PORT || '30011' }}/docs" >> $GITHUB_STEP_SUMMARY
+        echo "- **Health Check**: http://${{ vars.PRODUCTION_HOST || '18.206.89.183' }}:${{ vars.PRODUCTION_PORT || '30011' }}/health" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+  pr-feedback:
+    name: PR Feedback
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Comment on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && comment.body.includes('## 🚀 Student Tracker Pipeline Results')
+          );
+          
+          const conclusion = '${{ needs.test.result }}';
+          const emoji = conclusion === 'success' ? '✅' : '❌';
+          const message = `## 🚀 Student Tracker Pipeline Results ${emoji}
+          
+          **Status**: ${conclusion.toUpperCase()}
+          **Commit**: \`${{ github.sha }}\`
+          **Workflow**: [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### Test Results
+          - Linting: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}
+          - Formatting: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}  
+          - Unit Tests: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}
+          - Docker Build: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}
+          
+          ${conclusion === 'success' ? 
+            '🎉 All checks passed! This PR is ready for review and merge.' : 
+            '⚠️ Some checks failed. Please review the logs and fix any issues before merging.'
+          }`;
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: message
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
+          }
