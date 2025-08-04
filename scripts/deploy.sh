@@ -345,6 +345,145 @@ check_cluster() {
     return 1
 }
 
+# Function to check for existing clusters and provide guidance
+check_existing_clusters() {
+    print_status "Checking for existing Kubernetes clusters..."
+    
+    # Check for existing kubectl context
+    if command_exists kubectl; then
+        if kubectl config current-context >/dev/null 2>&1; then
+            local current_context=$(kubectl config current-context)
+            print_info "Found existing kubectl context: $current_context"
+            
+            # List available contexts
+            print_info "Available kubectl contexts:"
+            kubectl config get-contexts -o name | while read context; do
+                print_info "  - $context"
+            done
+            
+            return 0
+        fi
+    fi
+    
+    # Check for kind clusters
+    if command_exists kind; then
+        local kind_clusters=$(kind get clusters 2>/dev/null)
+        if [ -n "$kind_clusters" ]; then
+            print_info "Found existing kind clusters:"
+            echo "$kind_clusters" | while read cluster; do
+                print_info "  - $cluster"
+            done
+            return 0
+        fi
+    fi
+    
+    # Check for minikube
+    if command_exists minikube; then
+        if minikube status >/dev/null 2>&1; then
+            print_info "Found minikube cluster"
+            return 0
+        fi
+    fi
+    
+    print_warning "No existing Kubernetes clusters found"
+    return 1
+}
+
+# Function to create Kubernetes cluster
+create_cluster() {
+    print_status "Creating Kubernetes cluster..."
+    
+    # Check if we're in a container environment
+    if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+        print_warning "Running in container environment - Docker daemon not available"
+        print_info "Kind requires Docker daemon access to create clusters"
+        print_info "Alternative options:"
+        print_info "1. Use minikube (if available)"
+        print_info "2. Use external Kubernetes cluster"
+        print_info "3. Run this script on the host machine"
+        return 1
+    fi
+    
+    # Check if Docker is accessible
+    if ! docker info >/dev/null 2>&1; then
+        print_error "Docker daemon not accessible"
+        print_info "Please ensure Docker is running and accessible"
+        return 1
+    fi
+    
+    # Check if kind is available
+    if ! command_exists kind; then
+        print_status "Installing kind..."
+        curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+        chmod +x ./kind
+        sudo mv ./kind /usr/local/bin/kind
+    fi
+    
+    # Check if cluster already exists
+    if kind get clusters | grep -q "kind"; then
+        print_info "Kind cluster already exists"
+        return 0
+    fi
+    
+    # Create kind cluster
+    print_status "Creating kind cluster..."
+    kind create cluster --name kind || {
+        print_error "Failed to create kind cluster"
+        return 1
+    }
+    
+    # Wait for cluster to be ready
+    print_status "Waiting for cluster to be ready..."
+    kubectl wait --for=condition=Ready nodes --all --timeout=300s || {
+        print_warning "Cluster may not be fully ready, but continuing..."
+    }
+    
+    print_status "✅ Kubernetes cluster created successfully"
+}
+
+# Function to install and setup minikube
+install_minikube() {
+    print_status "Installing minikube..."
+    
+    if ! command_exists minikube; then
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        chmod +x minikube
+        sudo mv minikube /usr/local/bin/minikube
+    fi
+    
+    # Check if minikube cluster exists
+    if minikube status >/dev/null 2>&1; then
+        print_info "Minikube cluster already exists"
+        minikube start
+        return 0
+    fi
+    
+    # Start minikube
+    print_status "Starting minikube cluster..."
+    minikube start --driver=docker || {
+        print_error "Failed to start minikube cluster"
+        return 1
+    }
+    
+    print_status "✅ Minikube cluster created successfully"
+}
+
+# Function to create namespace
+create_namespace() {
+    local namespace="$1"
+    print_status "Creating namespace: $namespace"
+    
+    if ! check_cluster; then
+        print_error "No Kubernetes cluster available"
+        return 1
+    fi
+    
+    # Create namespace if it doesn't exist
+    kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
+    
+    print_status "✅ Namespace '$namespace' created/verified"
+}
+
 # Function to install ArgoCD
 install_argocd() {
     print_status "Installing ArgoCD..."
@@ -354,11 +493,53 @@ install_argocd() {
         return 1
     fi
     
+    # Create ArgoCD namespace
+    create_namespace "$ARGOCD_NAMESPACE"
+    
     # Install ArgoCD
-    kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
     kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
     
-    print_status "✅ ArgoCD installed"
+    # Wait for ArgoCD to be ready
+    print_status "Waiting for ArgoCD to be ready..."
+    kubectl wait --for=condition=Available deployment/argocd-server -n argocd --timeout=300s || {
+        print_warning "ArgoCD may not be fully ready, but continuing..."
+    }
+    
+    # Get ArgoCD admin password
+    print_status "Getting ArgoCD admin password..."
+    local argocd_password=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+    echo "$argocd_password" > .argocd_password
+    
+    print_status "✅ ArgoCD installed successfully"
+    print_info "ArgoCD admin password saved to .argocd_password"
+    print_info "ArgoCD UI will be available at: http://localhost:8080"
+    print_info "Username: admin"
+    print_info "Password: $argocd_password"
+}
+
+# Function to setup complete Kubernetes environment
+setup_kubernetes_environment() {
+    print_status "Setting up complete Kubernetes environment..."
+    
+    # Try to create cluster
+    if ! create_cluster; then
+        print_warning "Failed to create kind cluster, trying minikube..."
+        if ! install_minikube; then
+            print_error "Failed to create any Kubernetes cluster"
+            return 1
+        fi
+    fi
+    
+    # Create application namespace
+    create_namespace "$NAMESPACE"
+    
+    # Install ArgoCD
+    install_argocd || {
+        print_error "Failed to install ArgoCD"
+        return 1
+    }
+    
+    print_status "✅ Kubernetes environment setup completed"
 }
 
 # Function to deploy application
@@ -393,7 +574,27 @@ show_status() {
     
     if check_cluster; then
         print_info "Kubernetes cluster: Available"
+        kubectl get nodes
+        echo ""
         kubectl get pods -A
+        echo ""
+        
+        # Check ArgoCD status
+        if kubectl get namespace argocd >/dev/null 2>&1; then
+            print_info "ArgoCD Status:"
+            kubectl get pods -n argocd
+            echo ""
+            
+            if [ -f .argocd_password ]; then
+                local password=$(cat .argocd_password)
+                print_info "ArgoCD UI Access:"
+                print_info "URL: http://localhost:8080"
+                print_info "Username: admin"
+                print_info "Password: $password"
+                echo ""
+                print_info "To access ArgoCD UI, run: kubectl port-forward svc/argocd-server -n argocd 8080:443"
+            fi
+        fi
     else
         print_info "Kubernetes cluster: Not available"
     fi
@@ -404,6 +605,25 @@ show_status() {
     fi
     
     print_info "Production host: $PRODUCTION_HOST:$PRODUCTION_PORT"
+}
+
+# Function to start ArgoCD port-forward
+start_argocd_portforward() {
+    if ! check_cluster; then
+        print_error "No Kubernetes cluster available"
+        return 1
+    fi
+    
+    if ! kubectl get namespace argocd >/dev/null 2>&1; then
+        print_error "ArgoCD not installed"
+        return 1
+    fi
+    
+    print_status "Starting ArgoCD port-forward..."
+    print_info "ArgoCD UI will be available at: http://localhost:8080"
+    print_info "Press Ctrl+C to stop the port-forward"
+    
+    kubectl port-forward svc/argocd-server -n argocd 8080:443
 }
 
 # Function to create validation report
@@ -470,6 +690,48 @@ create_validation_report() {
     print_status "✅ Validation report created: $report_file"
 }
 
+# Parse command line arguments
+SETUP_CLUSTER=false
+ARGOCD_PORTFORWARD=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --setup-cluster)
+            SETUP_CLUSTER=true
+            shift
+            ;;
+        --argocd-portforward)
+            ARGOCD_PORTFORWARD=true
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --setup-cluster      Create Kubernetes cluster and install ArgoCD"
+            echo "  --argocd-portforward Start ArgoCD port-forward for UI access"
+            echo "  --help, -h          Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  DOCKER_USERNAME      Your Docker Hub username"
+            echo "  PRODUCTION_HOST      Production host IP (default: 18.206.89.183)"
+            echo "  PRODUCTION_PORT      Production port (default: 30011)"
+            echo ""
+            echo "Examples:"
+            echo "  $0                              # Standard deployment"
+            echo "  $0 --setup-cluster              # Create cluster and install ArgoCD"
+            echo "  $0 --argocd-portforward         # Start ArgoCD port-forward"
+            echo "  DOCKER_USERNAME=user $0         # Deploy with Docker Hub"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Main function
 main() {
     print_status "Starting deployment process..."
@@ -478,6 +740,12 @@ main() {
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
     cd "$PROJECT_ROOT"
+    
+    # Handle ArgoCD port-forward
+    if [[ "$ARGOCD_PORTFORWARD" == "true" ]]; then
+        start_argocd_portforward
+        exit 0
+    fi
     
     # Validate project structure
     validate_project || exit 1
@@ -500,8 +768,26 @@ main() {
         print_info "You can manually build the Docker image later"
     fi
     
-    # Check if we have a cluster
-    if check_cluster; then
+    # Handle cluster setup
+    if [[ "$SETUP_CLUSTER" == "true" ]]; then
+        print_status "Setting up Kubernetes cluster and ArgoCD..."
+        
+        # Check for existing clusters first
+        if check_existing_clusters; then
+            print_info "Existing clusters found. You can use them instead of creating a new one."
+        fi
+        
+        if setup_kubernetes_environment; then
+            deploy_application
+        else
+            print_error "Failed to setup Kubernetes environment"
+            print_info "Alternative options:"
+            print_info "1. Use an existing Kubernetes cluster"
+            print_info "2. Install minikube: curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && sudo install minikube /usr/local/bin/"
+            print_info "3. Use a cloud Kubernetes service (EKS, GKE, AKS)"
+            print_info "4. Run this script on a host machine with Docker access"
+        fi
+    elif check_cluster; then
         print_status "Kubernetes cluster detected"
         
         # Install ArgoCD if not present
@@ -514,6 +800,7 @@ main() {
     else
         print_warning "No Kubernetes cluster available"
         print_info "Deploying to production only"
+        print_info "To create a cluster, run: $0 --setup-cluster"
     fi
     
     # Deploy to production
