@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Application metadata
 APP_VERSION = "1.1.0"
 APP_NAME = "Student Tracker API"
-PRODUCTION_URL = "http://18.206.89.183:30011"
+PRODUCTION_URL = "http://54.166.101.15:30011"
 APP_DESCRIPTION = """
 A comprehensive student tracking application built with FastAPI.
 
