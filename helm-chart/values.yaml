@@ -113,16 +113,12 @@ secrets:
   dbSecret:
     name: nativeseries-db-secret
     data:
-      db-username: "student_user"
-      db-password: "secure_password_123"
-      db-host: "postgres-service"
-      db-name: "studentdb"
+      username: "admin"
+      password: "password"
   apiSecret:
     name: nativeseries-api-secret
     data:
-      api-key: "your-super-secret-api-key-2024"
-      jwt-secret: "your-jwt-secret-key-2024"
-      session-secret: "your-session-secret-key-2024"
+      apiKey: "my-api-key"
 
 configMaps:
   enabled: true
