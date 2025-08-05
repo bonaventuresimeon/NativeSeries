@@ -93,104 +93,169 @@ graph TB
     subgraph "Client Layer"
         UI[Web UI]
         API[API Clients]
+        Mobile[Mobile Apps]
     end
     
     subgraph "Application Layer"
         FastAPI[FastAPI Application]
-        Auth[Authentication]
+        Auth[JWT Authentication]
         Cache[Redis Cache]
+        Metrics[Metrics Endpoint]
+        Health[Health Checks]
     end
     
     subgraph "Data Layer"
         MongoDB[(MongoDB)]
         Vault[(HashiCorp Vault)]
         Memory[(In-Memory Fallback)]
+        Logs[Application Logs]
     end
     
-    subgraph "Infrastructure Layer"
+    subgraph "Kubernetes Infrastructure"
         K8s[Kubernetes Cluster]
-        ArgoCD[ArgoCD]
+        ArgoCD[ArgoCD GitOps]
         Docker[Docker Registry]
+        Ingress[Ingress Controller]
+        Service[K8s Service]
+        Pod[Application Pods]
     end
     
-    subgraph "Monitoring Stack"
-        Prometheus[Prometheus]
-        Grafana[Grafana]
-        Loki[Loki Logs]
+    subgraph "Monitoring & Observability"
+        Prometheus[Prometheus Server]
+        Grafana[Grafana Dashboards]
+        Loki[Loki Log Aggregator]
         AlertManager[Alert Manager]
+        ServiceMonitor[ServiceMonitor]
+        PodMonitor[PodMonitor]
+        PrometheusRule[PrometheusRules]
     end
     
-    subgraph "Security & Scaling"
+    subgraph "Security & Auto-scaling"
         HPA[Horizontal Pod Autoscaler]
         PDB[Pod Disruption Budget]
         NetworkPolicy[Network Policies]
-        Secrets[Secrets & ConfigMaps]
+        Secrets[K8s Secrets]
+        ConfigMaps[ConfigMaps]
+        RBAC[RBAC Policies]
     end
     
     subgraph "CI/CD Pipeline"
         GitHub[GitHub Repository]
         Actions[GitHub Actions]
         Build[Build & Test]
+        Security[Security Scans]
         Deploy[Deploy to K8s]
+        Sync[ArgoCD Sync]
     end
     
-    UI --> FastAPI
-    API --> FastAPI
+    UI --> Ingress
+    API --> Ingress
+    Mobile --> Ingress
+    Ingress --> Service
+    Service --> Pod
+    Pod --> FastAPI
     FastAPI --> Auth
     FastAPI --> Cache
+    FastAPI --> Metrics
+    FastAPI --> Health
     FastAPI --> MongoDB
     FastAPI --> Vault
     FastAPI --> Memory
-    FastAPI --> K8s
+    FastAPI --> Logs
+    
+    Pod --> Prometheus
+    Pod --> Loki
+    ServiceMonitor --> Prometheus
+    PodMonitor --> Prometheus
+    Prometheus --> Grafana
+    Prometheus --> AlertManager
+    PrometheusRule --> AlertManager
+    Loki --> Grafana
+    
     K8s --> ArgoCD
     ArgoCD --> Docker
-    K8s --> Prometheus
-    Prometheus --> Grafana
-    K8s --> Loki
-    Prometheus --> AlertManager
     K8s --> HPA
     K8s --> PDB
     K8s --> NetworkPolicy
     K8s --> Secrets
+    K8s --> ConfigMaps
+    K8s --> RBAC
+    
     GitHub --> Actions
     Actions --> Build
+    Actions --> Security
     Build --> Deploy
     Deploy --> K8s
+    ArgoCD --> Sync
+    Sync --> K8s
 ```
 
 ### Monitoring Architecture
 
 ```mermaid
-graph LR
-    subgraph "Application"
-        App[FastAPI App]
+graph TB
+    subgraph "Application Layer"
+        App[FastAPI Application]
         Metrics[/metrics endpoint]
+        Health[/health endpoint]
         Logs[Application Logs]
+        Errors[Error Logs]
     end
     
-    subgraph "Monitoring Stack"
-        Prometheus[Prometheus Server]
-        Grafana[Grafana Dashboards]
-        Loki[Loki Log Aggregator]
-        AlertManager[Alert Manager]
-    end
-    
-    subgraph "Kubernetes"
+    subgraph "Kubernetes Monitoring"
         ServiceMonitor[ServiceMonitor]
         PodMonitor[PodMonitor]
         PrometheusRule[PrometheusRules]
+        K8sMetrics[K8s Metrics]
+    end
+    
+    subgraph "Metrics Collection"
+        Prometheus[Prometheus Server]
+        ScrapeConfig[Scrape Config]
+        Storage[Time Series DB]
+        AlertManager[Alert Manager]
+    end
+    
+    subgraph "Logging & Visualization"
+        Loki[Loki Log Aggregator]
+        Grafana[Grafana Dashboards]
+        LogQL[LogQL Queries]
+        PromQL[PromQL Queries]
+    end
+    
+    subgraph "Alerting & Notifications"
+        AlertRules[Alert Rules]
+        Notifications[Slack/Email]
+        PagerDuty[PagerDuty]
     end
     
     App --> Metrics
+    App --> Health
     App --> Logs
+    App --> Errors
     Metrics --> ServiceMonitor
     Metrics --> PodMonitor
+    Health --> ServiceMonitor
+    Logs --> Loki
+    Errors --> Loki
+    
     ServiceMonitor --> Prometheus
     PodMonitor --> Prometheus
-    Prometheus --> Grafana
+    K8sMetrics --> Prometheus
+    Prometheus --> ScrapeConfig
+    Prometheus --> Storage
     Prometheus --> AlertManager
-    Logs --> Loki
+    
     PrometheusRule --> AlertManager
+    AlertRules --> AlertManager
+    AlertManager --> Notifications
+    AlertManager --> PagerDuty
+    
+    Prometheus --> Grafana
+    Loki --> Grafana
+    Storage --> Grafana
+    Grafana --> PromQL
+    Grafana --> LogQL
 ```
 
 ### GitOps Workflow
@@ -204,77 +269,258 @@ sequenceDiagram
     participant ArgoCD as ArgoCD
     participant K8s as Kubernetes
     participant Monitor as Monitoring Stack
+    participant Alert as Alert Manager
     
     Dev->>Git: Push Code Changes
     Git->>Actions: Trigger CI/CD Pipeline
     Actions->>Actions: Run Tests & Security Scans
-    Actions->>Docker: Build & Push Docker Image
+    Actions->>Actions: Build Docker Image
+    Actions->>Docker: Push Docker Image
     Actions->>Git: Update Image Tag in Helm Values
     ArgoCD->>Git: Detect Changes
+    ArgoCD->>ArgoCD: Validate Application
     ArgoCD->>K8s: Sync Application State
     K8s->>K8s: Deploy New Version
+    K8s->>K8s: Apply Secrets & ConfigMaps
+    K8s->>K8s: Setup HPA & Network Policies
     K8s->>Monitor: Start Monitoring
     Monitor->>Monitor: Collect Metrics & Logs
+    Monitor->>Alert: Check Alert Rules
+    Alert->>Alert: Send Notifications (if needed)
     K8s-->>ArgoCD: Deployment Status
     ArgoCD-->>Git: Update Status
+    Monitor-->>Dev: Health Status
 ```
 
 ### Application Components
 
 ```mermaid
-graph LR
+graph TB
     subgraph "FastAPI Application"
         Main[main.py]
         Routes[routes/]
         Models[models.py]
         Database[database.py]
         CRUD[crud.py]
+        Middleware[Middleware]
+        Dependencies[Dependencies]
     end
     
     subgraph "External Services"
         MongoDB[(MongoDB)]
         Redis[(Redis)]
         Vault[(Vault)]
+        ExternalAPI[External APIs]
     end
     
-    subgraph "Infrastructure"
+    subgraph "Kubernetes Infrastructure"
         Docker[Docker Container]
         K8s[Kubernetes Pod]
         Service[K8s Service]
-        Ingress[Ingress]
+        Ingress[Ingress Controller]
+        ConfigMap[ConfigMaps]
+        Secret[K8s Secrets]
     end
     
-    subgraph "Monitoring"
-        Prometheus[Prometheus]
-        Grafana[Grafana]
-        Loki[Loki]
+    subgraph "Monitoring & Observability"
+        Prometheus[Prometheus Server]
+        Grafana[Grafana Dashboards]
+        Loki[Loki Log Aggregator]
+        ServiceMonitor[ServiceMonitor]
+        PodMonitor[PodMonitor]
+        Metrics[Metrics Endpoint]
     end
     
-    subgraph "Security & Scaling"
-        HPA[HPA]
-        PDB[PDB]
-        Secrets[Secrets]
-        NetworkPolicy[Network Policy]
+    subgraph "Security & Auto-scaling"
+        HPA[Horizontal Pod Autoscaler]
+        PDB[Pod Disruption Budget]
+        NetworkPolicy[Network Policies]
+        RBAC[RBAC Policies]
+        SecurityContext[Security Context]
     end
     
     Main --> Routes
     Routes --> Models
     Routes --> CRUD
+    Routes --> Middleware
+    Routes --> Dependencies
     CRUD --> Database
     Database --> MongoDB
     Database --> Redis
     Database --> Vault
+    Database --> ExternalAPI
+    
+    Main --> Metrics
     Main --> Docker
     Docker --> K8s
     K8s --> Service
     Service --> Ingress
+    K8s --> ConfigMap
+    K8s --> Secret
+    
     K8s --> Prometheus
     K8s --> Grafana
     K8s --> Loki
+    K8s --> ServiceMonitor
+    K8s --> PodMonitor
+    Metrics --> ServiceMonitor
+    Metrics --> PodMonitor
+    
     K8s --> HPA
     K8s --> PDB
-    K8s --> Secrets
     K8s --> NetworkPolicy
+    K8s --> RBAC
+    K8s --> SecurityContext
+```
+
+### Auto-scaling & Security Architecture
+
+```mermaid
+graph TB
+    subgraph "Load & Traffic"
+        Users[Users/API Clients]
+        LoadBalancer[Load Balancer]
+        Ingress[Ingress Controller]
+        Traffic[Traffic Flow]
+    end
+    
+    subgraph "Application Layer"
+        Pod1[Pod 1]
+        Pod2[Pod 2]
+        PodN[Pod N]
+        Service[K8s Service]
+    end
+    
+    subgraph "Auto-scaling"
+        HPA[Horizontal Pod Autoscaler]
+        MetricsServer[Metrics Server]
+        CPU[CPU Usage]
+        Memory[Memory Usage]
+        Scaling[Scaling Decision]
+    end
+    
+    subgraph "Security Layer"
+        NetworkPolicy[Network Policies]
+        RBAC[RBAC Policies]
+        Secrets[K8s Secrets]
+        ConfigMaps[ConfigMaps]
+        SecurityContext[Security Context]
+    end
+    
+    subgraph "High Availability"
+        PDB[Pod Disruption Budget]
+        ReplicaSet[ReplicaSet]
+        RollingUpdate[Rolling Updates]
+        HealthChecks[Health Checks]
+    end
+    
+    Users --> LoadBalancer
+    LoadBalancer --> Ingress
+    Ingress --> Traffic
+    Traffic --> Service
+    Service --> Pod1
+    Service --> Pod2
+    Service --> PodN
+    
+    Pod1 --> CPU
+    Pod2 --> CPU
+    PodN --> CPU
+    Pod1 --> Memory
+    Pod2 --> Memory
+    PodN --> Memory
+    
+    CPU --> MetricsServer
+    Memory --> MetricsServer
+    MetricsServer --> HPA
+    HPA --> Scaling
+    Scaling --> ReplicaSet
+    ReplicaSet --> Pod1
+    ReplicaSet --> Pod2
+    ReplicaSet --> PodN
+    
+    Pod1 --> NetworkPolicy
+    Pod2 --> NetworkPolicy
+    PodN --> NetworkPolicy
+    NetworkPolicy --> RBAC
+    RBAC --> Secrets
+    RBAC --> ConfigMaps
+    Secrets --> SecurityContext
+    ConfigMaps --> SecurityContext
+    
+    PDB --> ReplicaSet
+    ReplicaSet --> RollingUpdate
+    RollingUpdate --> HealthChecks
+    HealthChecks --> Pod1
+    HealthChecks --> Pod2
+    HealthChecks --> PodN
+```
+
+### Data Flow Architecture
+
+```mermaid
+graph LR
+    subgraph "Client Requests"
+        Web[Web Browser]
+        API[API Client]
+        Mobile[Mobile App]
+    end
+    
+    subgraph "Network Layer"
+        DNS[DNS Resolution]
+        LoadBalancer[Load Balancer]
+        Ingress[Ingress Controller]
+        NetworkPolicy[Network Policies]
+    end
+    
+    subgraph "Application Processing"
+        FastAPI[FastAPI App]
+        Auth[JWT Auth]
+        Cache[Redis Cache]
+        Database[MongoDB]
+        Logs[Application Logs]
+    end
+    
+    subgraph "Monitoring & Observability"
+        Metrics[Prometheus Metrics]
+        LogsAgg[Loki Logs]
+        Alerts[Alert Manager]
+        Dashboards[Grafana Dashboards]
+    end
+    
+    subgraph "Security & Configuration"
+        Secrets[K8s Secrets]
+        ConfigMaps[ConfigMaps]
+        RBAC[RBAC Policies]
+        Vault[HashiCorp Vault]
+    end
+    
+    Web --> DNS
+    API --> DNS
+    Mobile --> DNS
+    DNS --> LoadBalancer
+    LoadBalancer --> Ingress
+    Ingress --> NetworkPolicy
+    NetworkPolicy --> FastAPI
+    
+    FastAPI --> Auth
+    FastAPI --> Cache
+    FastAPI --> Database
+    FastAPI --> Logs
+    FastAPI --> Metrics
+    
+    Auth --> Secrets
+    Database --> Vault
+    Logs --> LogsAgg
+    Metrics --> Dashboards
+    LogsAgg --> Dashboards
+    
+    ConfigMaps --> FastAPI
+    RBAC --> NetworkPolicy
+    Secrets --> FastAPI
+    Vault --> Secrets
+    
+    Alerts --> Dashboards
+    Metrics --> Alerts
 ```
 
 ## 🛠️ Technology Stack
