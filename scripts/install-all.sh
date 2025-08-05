@@ -1371,17 +1371,24 @@ EOF
 # Function to deploy application
 deploy_application() {
     print_section "🚀 Deploying Application"
-    
+
+    # Always update Helm repos and dependencies before linting/installing
+    print_section "🔄 Updating Helm Repositories and Dependencies"
+    print_status "Updating Helm repositories..."
+    helm repo update || true
+    print_status "Updating Helm chart dependencies..."
+    helm dependency update ${HELM_CHART_PATH} || true
+
     # Deploy using Helm
     print_status "Deploying with Helm..."
-    
+
     # Validate Helm chart first
     print_status "🔍 Validating Helm chart..."
     if ! helm lint ${HELM_CHART_PATH}; then
         print_error "❌ Helm chart validation failed"
         return 1
     fi
-    
+
     # Deploy with explicit values file and proper image settings
     if helm upgrade --install ${APP_NAME} ${HELM_CHART_PATH} \
         --namespace ${NAMESPACE} \
