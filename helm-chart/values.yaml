@@ -226,8 +226,7 @@ prometheusRules:
       labels:
         severity: critical
       annotations:
-        summary: "Application {{ $labels.app }} is down"
-        description: "Application {{ $labels.app }} has been down for more than 1 minute"
+        summary: "Application is down"
     
     - alert: HighCPUUsage
       expr: rate(container_cpu_usage_seconds_total{container="nativeseries"}[5m]) > 0.8
