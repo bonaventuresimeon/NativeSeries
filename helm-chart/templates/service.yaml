@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "student-tracker.fullname" . }}
+  name: {{ include "nativeseries.fullname" . }}
   labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
+    {{- include "nativeseries.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -13,4 +13,8 @@ spec:
       protocol: TCP
       name: http
   selector:
+<<<<<<< HEAD
     {{- include "student-tracker.selectorLabels" . | nindent 4 }}
+=======
+    {{- include "nativeseries.selectorLabels" . | nindent 4 }}
+>>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37

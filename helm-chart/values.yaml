@@ -15,7 +15,48 @@ image:
 # Deployment configuration
 replicaCount: 2
 
+<<<<<<< HEAD
 # Resource limits and requests
+=======
+# Redis configuration (external)
+redis:
+  enabled: false
+
+# Vault configuration (external)
+vault:
+  enabled: false
+
+# ArgoCD configuration
+argocd:
+  enabled: false
+
+# Horizontal Pod Autoscaler
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+
+# Resources
+>>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
 resources:
   limits:
     cpu: 500m
@@ -87,6 +128,7 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
 
+<<<<<<< HEAD
 # Node selector
 nodeSelector: {}
 
@@ -103,14 +145,201 @@ autoscaling:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
+=======
+# Pod Security Context
+podSecurityContext:
+  fsGroup: 2000
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Health checks
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Secrets and ConfigMaps
+secrets:
+  enabled: true
+  dbSecret:
+    name: nativeseries-db-secret
+    data:
+      db-username: "student_user"
+      db-password: "secure_password_123"
+      db-host: "postgres-service"
+      db-name: "studentdb"
+  apiSecret:
+    name: nativeseries-api-secret
+    data:
+      api-key: "your-super-secret-api-key-2024"
+      jwt-secret: "your-jwt-secret-key-2024"
+      session-secret: "your-session-secret-key-2024"
+
+configMaps:
+  enabled: true
+  appConfig:
+    name: nativeseries-config
+    data:
+      app_name: "Student Tracker API"
+      log_level: "INFO"
+      environment: "production"
+      max_connections: "100"
+      timeout_seconds: "30"
+      cache_ttl: "3600"
+      cors_origins: "http://localhost:3000,http://54.166.101.159:30011"
+  loggingConfig:
+    name: nativeseries-logging-config
+    data:
+      log-config.yaml: |
+        version: 1
+        formatters:
+          simple:
+            format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        handlers:
+          console:
+            class: logging.StreamHandler
+            level: INFO
+            formatter: simple
+            stream: ext://sys.stdout
+          file:
+            class: logging.handlers.RotatingFileHandler
+            level: INFO
+            formatter: simple
+            filename: /app/logs/app.log
+            maxBytes: 10485760
+            backupCount: 5
+        loggers:
+          app:
+            level: INFO
+            handlers: [console, file]
+            propagate: false
+        root:
+          level: INFO
+          handlers: [console]
+>>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
 
 # Pod Disruption Budget
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
 
+<<<<<<< HEAD
 # ServiceMonitor for Prometheus (if using Prometheus Operator)
 serviceMonitor:
   enabled: false
   interval: 30s
   path: /metrics
+=======
+# Network Policies
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      ports:
+      - protocol: TCP
+        port: 8000
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: monitoring
+      ports:
+      - protocol: TCP
+        port: 8000
+  egress:
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            name: nativeseries
+      ports:
+      - protocol: TCP
+        port: 5432
+    - to: []
+      ports:
+      - protocol: TCP
+        port: 53
+      - protocol: UDP
+        port: 53
+
+# Service monitor for Prometheus (requires Prometheus Operator)
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+  labels:
+    release: prometheus
+
+# Pod monitor for Prometheus
+podMonitor:
+  enabled: true
+  interval: 30s
+  path: /metrics
+  labels:
+    release: prometheus
+
+# Prometheus Rules for alerts
+prometheusRules:
+  enabled: true
+  rules:
+    - alert: AppDown
+      expr: up{app="nativeseries"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Application {{ $labels.app }} is down"
+        description: "Application {{ $labels.app }} has been down for more than 1 minute"
+    
+    - alert: HighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{container="nativeseries"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage for {{ $labels.app }}"
+        description: "CPU usage is above 80% for {{ $labels.app }}"
+    
+    - alert: HighMemoryUsage
+      expr: (container_memory_usage_bytes{container="nativeseries"} / container_spec_memory_limit_bytes{container="nativeseries"}) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage for {{ $labels.app }}"
+        description: "Memory usage is above 80% for {{ $labels.app }}"
+
+# Logging configuration
+logging:
+  enabled: true
+  loki:
+    enabled: true
+    url: "http://loki.logging:3100"
+    labels:
+      app: nativeseries
+      namespace: nativeseries
+  volume:
+    enabled: true
+    size: 1Gi
+    mountPath: /app/logs
+
+# Metrics configuration
+metrics:
+  enabled: true
+  port: 8000
+  path: /metrics
+  interval: 30s
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+>>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37

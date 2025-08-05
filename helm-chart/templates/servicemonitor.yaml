@@ -2,16 +2,18 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "student-tracker.fullname" . }}
+  name: {{ include "nativeseries.fullname" . }}-monitor
+  namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
-
+    {{- include "nativeseries.labels" . | nindent 4 }}
+    {{- toYaml .Values.serviceMonitor.labels | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "student-tracker.selectorLabels" . | nindent 6 }}
+      {{- include "nativeseries.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: http
-      path: /metrics
+      path: {{ .Values.serviceMonitor.path }}
       interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: 10s
 {{- end }}

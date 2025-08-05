@@ -23,5 +23,20 @@ nodes:
     hostPort: 30011
     protocol: TCP
     listenAddress: "0.0.0.0"
+<<<<<<< HEAD
+=======
+  - containerPort: 30081
+    hostPort: 30081
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 30082
+    hostPort: 30082
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 30083
+    hostPort: 30083
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+>>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
 - role: worker
 - role: worker
