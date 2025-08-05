@@ -1,6 +1,6 @@
-# nativeseries - Cloud Native Application
+# NativeSeries - Cloud Native Application
 
-[![CI/CD Pipeline](https://github.com/bonaventuresimeon/nativeseries/workflows/Student%20Tracker%20Pipeline/badge.svg)](https://github.com/bonaventuresimeon/nativeseries/actions)
+[![CI/CD Pipeline](https://github.com/bonaventuresimeon/NativeSeries/workflows/Student%20Tracker%20Pipeline/badge.svg)](https://github.com/bonaventuresimeon/NativeSeries/actions)
 [![Docker Image](https://img.shields.io/docker/pulls/bonaventuresimeon/nativeseries)](https://ghcr.io/bonaventuresimeon/nativeseries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
@@ -23,7 +23,7 @@
 
 ## 🎯 Overview
 
-The nativeseries is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
+The NativeSeries is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
 
 **Production URL**: [http://54.166.101.159:30011](http://54.166.101.159:30011)
 
@@ -206,8 +206,8 @@ graph LR
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/bonaventuresimeon/nativeseries.git
-cd nativeseries
+   git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
    ```
 
 2. **Install dependencies**
@@ -254,7 +254,7 @@ cd nativeseries
 
 ### Project Structure
 ```
-nativeseries/
+NativeSeries/
 ├── app/                    # Application source code
 │   ├── main.py            # FastAPI application entry point
 │   ├── models.py          # Pydantic models
@@ -412,10 +412,10 @@ We welcome contributions! Please follow these steps:
 - **LinkedIn**: [Bonaventure Simeon](https://linkedin.com/in/bonaventuresimeon)
 
 ### Project Links
-- **Repository**: https://github.com/bonaventuresimeon/nativeseries
-- **Issues**: https://github.com/bonaventuresimeon/nativeseries/issues
-- **Discussions**: https://github.com/bonaventuresimeon/nativeseries/discussions
-- **Wiki**: https://github.com/bonaventuresimeon/nativeseries/wiki
+- **Repository**: https://github.com/bonaventuresimeon/NativeSeries
+- **Issues**: https://github.com/bonaventuresimeon/NativeSeries/issues
+- **Discussions**: https://github.com/bonaventuresimeon/NativeSeries/discussions
+- **Wiki**: https://github.com/bonaventuresimeon/NativeSeries/wiki
 
 ### Support Channels
 - **Technical Support**: Open an issue on GitHub
@@ -432,7 +432,7 @@ We welcome contributions! Please follow these steps:
 
 ### ✅ **Deployment Status: SUCCESSFUL**
 
-Your nativeseries application has been successfully deployed and is now accessible online!
+Your NativeSeries application has been successfully deployed and is now accessible online!
 
 ### 🌐 **Public Access URLs**
 
@@ -484,7 +484,7 @@ Your nativeseries application has been successfully deployed and is now accessib
 #### **From Anywhere in the World**
 1. **Open your web browser**
 2. **Navigate to**: `http://54.166.101.159:30011`
-3. **Enjoy your nativeseries application!**
+3. **Enjoy your NativeSeries application!**
 
 #### **API Access**
 - **Base URL**: `http://54.166.101.159:30011`
@@ -542,7 +542,7 @@ argocd app sync nativeseries
 
 ### 🏆 **Congratulations!**
 
-Your nativeseries application is now **LIVE** and accessible from anywhere in the world at:
+Your NativeSeries application is now **LIVE** and accessible from anywhere in the world at:
 
 #### **🌍 http://54.166.101.159:30011**
 

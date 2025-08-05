@@ -1,4 +1,4 @@
-# Deploy Your to Kubernetes 
+# Deploy Your NativeSeries App to Kubernetes 
 In this Phase we will work on k8s app deployment and  Ingress. We deploy your app as a deployment and expose it externally
 
 - Deploy an app from Docker Hub

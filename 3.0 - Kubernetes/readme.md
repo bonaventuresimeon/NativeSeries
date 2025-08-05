@@ -1,4 +1,4 @@
-# Kubernetes - Setup and Basics
+# Kubernetes - Setup and Basics for NativeSeries
 
 In this phase we are going to set up kubernetes using kind. Kind is the 
 

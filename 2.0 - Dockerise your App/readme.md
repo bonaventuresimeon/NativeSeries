@@ -1,4 +1,4 @@
-# 📦Case Study 1- Build Your APP (Student tracker App)
+# 📦Case Study 1- Build Your APP (NativeSeries Student tracker App)
 
 This FastAPI app allows students to register, track their weekly progress in the bootcamp, and view others' progress (using a shared MongoDB Atlas backend).
 
