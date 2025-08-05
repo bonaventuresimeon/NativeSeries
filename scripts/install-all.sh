@@ -25,17 +25,17 @@ KIND_VERSION="0.20.0"
 ARGOCD_VERSION="v2.9.3"
 
 # Application configuration - Fixed to match existing setup
-APP_NAME="NativeSeries"
+APP_NAME="nativeseries"
 NAMESPACE="nativeseries"
 ARGOCD_NAMESPACE="argocd"
-PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.15}"
+PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.159}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 ARGOCD_PORT="30080"
 DOCKER_USERNAME="${DOCKER_USERNAME:-bonaventuresimeon}"
 DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
 
 # Repository configuration - Fixed to match actual repo
-REPO_URL="https://github.com/bonaventuresimeon/NativeSeries.git"
+REPO_URL="https://github.com/bonaventuresimeon/nativeseries.git"
 HELM_CHART_PATH="helm-chart"
 ARGOCD_APP_PATH="argocd"
 

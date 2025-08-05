@@ -14,7 +14,7 @@ print_status() { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 
 # Get the URL from command line argument
-URL="${1:-http://54.166.101.15:30011}"
+URL="${1:-http://54.166.101.159:30011}"
 
 echo "🧪 Running smoke tests for: $URL"
 

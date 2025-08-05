@@ -1,7 +1,7 @@
 === Deployment Validation Report ===
 Date: 2024-01-15
 OS: Linux
-Application: NativeSeries
+Application: nativeseries
 
 === Project Structure ===
 ✅ app/main.py - Found
@@ -22,10 +22,10 @@ Application: NativeSeries
 ✅ yq - Installed
 
 === Environment ===
-Production Host: 54.166.101.15
+Production Host: 54.166.101.159
 Production Port: 30011
 Docker Username: bonaventuresimeon
-Application Name: NativeSeries
+Application Name: nativeseries
 Image Repository: ghcr.io/bonaventuresimeon/nativeseries
 
 === Kubernetes Cluster ===

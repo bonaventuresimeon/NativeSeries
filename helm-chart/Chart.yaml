@@ -1,6 +1,6 @@
 apiVersion: v2
-name: NativeSeries
-description: A Helm chart for deploying NativeSeries application with ArgoCD
+name: nativeseries
+description: A Helm chart for deploying nativeseries application with ArgoCD
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
@@ -11,9 +11,9 @@ keywords:
   - helm
   - argocd
   - student-management
-home: https://github.com/bonaventuresimeon/NativeSeries
+home: https://github.com/bonaventuresimeon/nativeseries
 sources:
-  - https://github.com/bonaventuresimeon/NativeSeries
+- https://github.com/bonaventuresimeon/nativeseries
 maintainers:
   - name: Bonaventure Simeon
     email: contact@bonaventure.org.ng
