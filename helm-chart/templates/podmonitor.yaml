@@ -1,8 +1,9 @@
 {{- if and .Values.podMonitor (hasKey .Values.podMonitor "enabled") .Values.podMonitor.enabled }}
+{{- $fullname := (include "nativeseries.fullname" . | default .Release.Name) }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: {{ include "nativeseries.fullname" . }}-pod-monitor
+  name: {{$fullname}}-pod-monitor
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "nativeseries.labels" . | nindent 4 }}

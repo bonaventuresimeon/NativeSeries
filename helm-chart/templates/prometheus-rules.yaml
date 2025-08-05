@@ -1,8 +1,9 @@
 {{- if and .Values.prometheusRules (hasKey .Values.prometheusRules "enabled") .Values.prometheusRules.enabled }}
+{{- $fullname := (include "nativeseries.fullname" . | default .Release.Name) }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
-  name: {{ include "nativeseries.fullname" . }}-alerts
+  name: {{$fullname}}-alerts
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "nativeseries.labels" . | nindent 4 }}
@@ -11,7 +12,7 @@ metadata:
     role: alert-rules
 spec:
   groups:
-  - name: {{ include "nativeseries.fullname" . }}-alerts
+  - name: {{$fullname}}-alerts
     rules:
     {{- range .Values.prometheusRules.rules }}
     - alert: {{ .alert }}
