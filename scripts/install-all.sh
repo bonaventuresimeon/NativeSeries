@@ -98,27 +98,68 @@ wait_for_user() {
     read -r
 }
 
-# Function to install system dependencies
+# Add package manager detection at the top (after color variables)
+
+# Detect package manager
+PKG_MANAGER=""
+detect_package_manager() {
+    if command -v apt-get >/dev/null 2>&1; then
+        PKG_MANAGER="apt"
+    elif command -v dnf >/dev/null 2>&1; then
+        PKG_MANAGER="dnf"
+    elif command -v yum >/dev/null 2>&1; then
+        PKG_MANAGER="yum"
+    else
+        echo "No supported package manager found (apt, dnf, yum)." >&2
+        exit 1
+    fi
+}
+
+# Update install_system_dependencies to use the detected package manager
 install_system_dependencies() {
     print_section "Installing System Dependencies"
-    
+    detect_package_manager
+
     print_status "Updating package lists..."
-    sudo apt update
-    
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt update
+    else
+        sudo $PKG_MANAGER makecache || sudo $PKG_MANAGER check-update || true
+    fi
+
     print_status "Installing essential packages..."
-    sudo apt install -y \
-        curl \
-        wget \
-        git \
-        unzip \
-        jq \
-        build-essential \
-        software-properties-common \
-        apt-transport-https \
-        ca-certificates \
-        gnupg \
-        lsb-release
-    
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt install -y \
+            curl \
+            wget \
+            git \
+            unzip \
+            jq \
+            build-essential \
+            software-properties-common \
+            apt-transport-https \
+            ca-certificates \
+            gnupg \
+            lsb-release
+    else
+        sudo $PKG_MANAGER install -y \
+            curl \
+            wget \
+            git \
+            unzip \
+            jq \
+            gcc \
+            gcc-c++ \
+            make \
+            which \
+            ca-certificates \
+            openssl \
+            tar \
+            python3 \
+            python3-pip \
+            python3-venv || sudo $PKG_MANAGER install -y python3-virtualenv
+    fi
+
     print_status "System dependencies installed successfully!"
 }
 
@@ -135,7 +176,11 @@ install_docker() {
     print_status "Installing Docker..."
     
     # Add Docker's official GPG key
-    sudo apt install -y docker.io
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt install -y docker.io
+    else
+        sudo $PKG_MANAGER install -y docker.io
+    fi
     
     # Start and enable Docker service
     sudo systemctl start docker || true
@@ -245,19 +290,28 @@ install_helm() {
 # Function to install Python and pip
 install_python() {
     print_section "Installing Python"
-    
+    detect_package_manager
+
     if command_exists python3; then
         print_status "Python is already installed"
         python3 --version
     else
         print_status "Installing Python ${PYTHON_VERSION}..."
-        sudo apt install -y python3 python3-pip
+        if [ "$PKG_MANAGER" = "apt" ]; then
+            sudo apt install -y python3 python3-pip
+        else
+            sudo $PKG_MANAGER install -y python3 python3-pip
+        fi
     fi
-    
+
     # Install Python virtual environment package
     print_status "Installing Python virtual environment package..."
-    sudo apt install -y python3-venv
-    
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt install -y python3-venv
+    else
+        sudo $PKG_MANAGER install -y python3-venv || sudo $PKG_MANAGER install -y python3-virtualenv
+    fi
+
     # Verify installation
     if command_exists python3; then
         print_status "Python installed successfully!"
