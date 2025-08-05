@@ -177,69 +177,44 @@ graph TB
 ### Monitoring Architecture
 
 ```mermaid
-graph TB
-    subgraph "Application Layer"
+graph LR
+    subgraph "Application"
         App[FastAPI Application]
-        Metrics[/metrics endpoint]
-        Health[/health endpoint]
+        Metrics[/metrics endpoint/]
         Logs[Application Logs]
-        Errors[Error Logs]
+        Health[/health endpoint/]
     end
-    
-    subgraph "Kubernetes Monitoring"
+
+    subgraph "Kubernetes CRDs"
         ServiceMonitor[ServiceMonitor]
         PodMonitor[PodMonitor]
-        PrometheusRule[PrometheusRules]
-        K8sMetrics[K8s Metrics]
+        PrometheusRule[PrometheusRule]
     end
-    
-    subgraph "Metrics Collection"
-        Prometheus[Prometheus Server]
-        ScrapeConfig[Scrape Config]
-        Storage[Time Series DB]
-        AlertManager[Alert Manager]
+
+    subgraph "Monitoring Stack"
+        Prometheus[Prometheus]
+        Loki[Loki]
+        Grafana[Grafana]
+        AlertManager[AlertManager]
     end
-    
-    subgraph "Logging & Visualization"
-        Loki[Loki Log Aggregator]
-        Grafana[Grafana Dashboards]
-        LogQL[LogQL Queries]
-        PromQL[PromQL Queries]
-    end
-    
-    subgraph "Alerting & Notifications"
-        AlertRules[Alert Rules]
-        Notifications[Slack/Email]
-        PagerDuty[PagerDuty]
-    end
-    
-    App --> Metrics
-    App --> Health
-    App --> Logs
-    App --> Errors
-    Metrics --> ServiceMonitor
-    Metrics --> PodMonitor
-    Health --> ServiceMonitor
-    Logs --> Loki
-    Errors --> Loki
-    
-    ServiceMonitor --> Prometheus
-    PodMonitor --> Prometheus
-    K8sMetrics --> Prometheus
-    Prometheus --> ScrapeConfig
-    Prometheus --> Storage
-    Prometheus --> AlertManager
-    
-    PrometheusRule --> AlertManager
-    AlertRules --> AlertManager
-    AlertManager --> Notifications
-    AlertManager --> PagerDuty
-    
-    Prometheus --> Grafana
-    Loki --> Grafana
-    Storage --> Grafana
-    Grafana --> PromQL
-    Grafana --> LogQL
+
+    App -- "exposes" --> Metrics
+    App -- "writes" --> Logs
+    App -- "exposes" --> Health
+
+    Metrics -- "scraped by" --> ServiceMonitor
+    Metrics -- "scraped by" --> PodMonitor
+    ServiceMonitor -- "configures" --> Prometheus
+    PodMonitor -- "configures" --> Prometheus
+    Health -- "scraped by" --> ServiceMonitor
+
+    Logs -- "collected by" --> Loki
+
+    Prometheus -- "sends alerts" --> AlertManager
+    PrometheusRule -- "defines alerts" --> Prometheus
+
+    Prometheus -- "visualized in" --> Grafana
+    Loki -- "visualized in" --> Grafana
 ```
 
 ### Auto-scaling & Security Architecture
