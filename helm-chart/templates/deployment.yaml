@@ -1,27 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "nativeseries.fullname" . }}
+  name: {{ include "student-tracker.fullname" . }}
   labels:
-    {{- include "nativeseries.labels" . | nindent 4 }}
+    {{- include "student-tracker.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "nativeseries.selectorLabels" . | nindent 6 }}
+      {{- include "student-tracker.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "nativeseries.selectorLabels" . | nindent 8 }}
+        {{- include "student-tracker.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-<<<<<<< HEAD
         {{- if .Values.secret.enabled }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-=======
-        {{- if .Values.secrets.enabled }}
-        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
         {{- end }}
     spec:
       {{- with .Values.podSecurityContext }}
@@ -29,7 +24,6 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-<<<<<<< HEAD
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -37,40 +31,23 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-=======
-        - name: {{ include "nativeseries.name" . }}
-          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
-          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
           ports:
             - name: http
               containerPort: {{ .Values.app.port }}
               protocol: TCP
-<<<<<<< HEAD
           {{- if and .Values.healthCheck.enabled .Values.healthCheck.path }}
-=======
-          {{- if .Values.healthCheck.enabled }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
           livenessProbe:
             httpGet:
               path: {{ .Values.healthCheck.path }}
               port: http
-<<<<<<< HEAD
             initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds | default 30 }}
             periodSeconds: {{ .Values.healthCheck.periodSeconds | default 10 }}
             timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 5 }}
             failureThreshold: {{ .Values.healthCheck.failureThreshold | default 3 }}
-=======
-            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.healthCheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.healthCheck.failureThreshold }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
           readinessProbe:
             httpGet:
               path: {{ .Values.healthCheck.path }}
               port: http
-<<<<<<< HEAD
             initialDelaySeconds: {{ div (.Values.healthCheck.initialDelaySeconds | default 30) 2 }}
             periodSeconds: {{ .Values.healthCheck.periodSeconds | default 10 }}
             timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds | default 5 }}
@@ -106,122 +83,18 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
           volumeMounts:
-=======
-            initialDelaySeconds: {{ div .Values.healthCheck.initialDelaySeconds 2 }}
-            periodSeconds: {{ .Values.healthCheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.healthCheck.failureThreshold }}
-          {{- end }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.securityContext }}
-          securityContext:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          env:
-            {{- range .Values.app.env }}
-            - name: {{ .name }}
-              {{- if .value }}
-              value: {{ .value | quote }}
-              {{- end }}
-              {{- if .valueFrom }}
-              valueFrom:
-                {{- toYaml .valueFrom | nindent 16 }}
-              {{- end }}
-            {{- end }}
-            {{- if .Values.configMaps.enabled }}
-            - name: APP_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.configMaps.appConfig.name }}
-                  key: app_name
-            - name: LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Values.configMaps.appConfig.name }}
-                  key: log_level
-            {{- end }}
-            {{- if .Values.secrets.enabled }}
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.dbSecret.name }}
-                  key: db-username
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.dbSecret.name }}
-                  key: db-password
-            - name: DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.dbSecret.name }}
-                  key: db-host
-            - name: DB_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.dbSecret.name }}
-                  key: db-name
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.apiSecret.name }}
-                  key: api-key
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.apiSecret.name }}
-                  key: jwt-secret
-            - name: SESSION_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.apiSecret.name }}
-                  key: session-secret
-            {{- end }}
-          volumeMounts:
-            - name: config
-              mountPath: /app/config
-              readOnly: true
-            {{- if .Values.logging.enabled }}
-            - name: logs
-              mountPath: {{ .Values.logging.volume.mountPath }}
-              readOnly: false
-            {{- end }}
-            {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
             - name: tmp
               mountPath: /tmp
             - name: var-run
               mountPath: /var/run
-<<<<<<< HEAD
           {{- end }}
       {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
       volumes:
-=======
-            {{- end }}
-      volumes:
-        - name: config
-          configMap:
-            name: {{ .Values.configMaps.appConfig.name }}
-        {{- if .Values.logging.enabled }}
-        - name: logs
-          persistentVolumeClaim:
-            claimName: {{ include "nativeseries.fullname" . }}-logs-pvc
-        {{- else }}
-        - name: logs
-          emptyDir: {}
-        {{- end }}
-        {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
         - name: tmp
           emptyDir: {}
         - name: var-run
           emptyDir: {}
-<<<<<<< HEAD
       {{- end }}
-=======
-        {{- end }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -233,8 +106,4 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
-<<<<<<< HEAD
       {{- end }}
-=======
-      {{- end }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37

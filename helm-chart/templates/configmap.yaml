@@ -1,32 +1,10 @@
-<<<<<<< HEAD
 {{- if .Values.configMap.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "student-tracker.fullname" . }}
-=======
-{{- if .Values.configMaps.enabled }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Values.configMaps.appConfig.name }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
   labels:
-    {{- include "nativeseries.labels" . | nindent 4 }}
+    {{- include "student-tracker.labels" . | nindent 4 }}
 data:
-<<<<<<< HEAD
   {{- toYaml .Values.configMap.data | nindent 2 }}
 {{- end }}
-=======
-  {{- toYaml .Values.configMaps.appConfig.data | nindent 2 }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Values.configMaps.loggingConfig.name }}
-  labels:
-    {{- include "nativeseries.labels" . | nindent 4 }}
-data:
-  {{- toYaml .Values.configMaps.loggingConfig.data | nindent 2 }}
-{{- end }}
->>>>>>> f2475f83ae74981450743dfeecb4ab0d29f50a37
