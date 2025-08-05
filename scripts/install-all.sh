@@ -1006,15 +1006,45 @@ deploy_application() {
     
     # Deploy using Helm
     print_status "Deploying with Helm..."
-    helm upgrade --install ${APP_NAME} ${HELM_CHART_PATH} \
+    
+    # Validate Helm chart first
+    print_status "🔍 Validating Helm chart..."
+    if ! helm lint ${HELM_CHART_PATH}; then
+        print_error "❌ Helm chart validation failed"
+        return 1
+    fi
+    
+    # Deploy with explicit values file and proper image settings
+    if helm upgrade --install ${APP_NAME} ${HELM_CHART_PATH} \
         --namespace ${NAMESPACE} \
         --create-namespace \
         --wait \
         --timeout=300s \
-        --set image.repository="${DOCKER_IMAGE}" \
-        --set image.tag="latest"
-    
-    print_status "✅ Application deployed successfully"
+        --values ${HELM_CHART_PATH}/values.yaml \
+        --set app.image.repository="${DOCKER_IMAGE}" \
+        --set app.image.tag="latest" \
+        --debug; then
+        print_status "✅ Application deployed successfully"
+    else
+        print_warning "⚠️  First deployment attempt failed, trying with HPA disabled..."
+        if helm upgrade --install ${APP_NAME} ${HELM_CHART_PATH} \
+            --namespace ${NAMESPACE} \
+            --create-namespace \
+            --wait \
+            --timeout=300s \
+            --values ${HELM_CHART_PATH}/values.yaml \
+            --set app.image.repository="${DOCKER_IMAGE}" \
+            --set app.image.tag="latest" \
+            --set hpa.enabled=false \
+            --debug; then
+            print_status "✅ Application deployed successfully (HPA disabled)"
+        else
+            print_error "❌ Helm deployment failed completely"
+            print_status "📋 Checking Helm release status..."
+            helm status ${APP_NAME} -n ${NAMESPACE} || true
+            return 1
+        fi
+    fi
     kubectl get pods -n ${NAMESPACE}
 }
 
