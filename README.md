@@ -814,11 +814,11 @@ GET /api/items?search={query}&page={page}&limit={limit}
     "id": "item_123",
     "name": "Sample Item",
     "description": "Item description",
-    "created_at": "2024-01-01T00:00:00Z",
-    "updated_at": "2024-01-01T00:00:00Z"
+    "created_at": "2025-08-01T00:00:00Z",
+    "updated_at": "2025-08-01T00:00:00Z"
   },
   "message": "Item retrieved successfully",
-  "timestamp": "2024-01-01T00:00:00Z"
+  "timestamp": "2025-08-01T00:00:00Z"
 }
 ```
 
@@ -986,7 +986,7 @@ For support and questions:
 - **Documentation**: [Project Wiki](https://github.com/your-username/nativeseries/wiki)
 - **Issues**: [GitHub Issues](https://github.com/your-username/nativeseries/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-username/nativeseries/discussions)
-- **Email**: support@nativeseries.com
+- **Email**: contact@bonaventure.org.ng
 
 ---
 
