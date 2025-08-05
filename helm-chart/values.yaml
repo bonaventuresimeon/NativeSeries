@@ -73,18 +73,9 @@ secret:
   enabled: false
   data: {}
 
-<<<<<<< HEAD
 # Pod Security Context
 podSecurityContext:
   fsGroup: 2000
-=======
-# Pod monitor for Prometheus
-podMonitor:
-  enabled: true
-  path: /metrics
-  interval: 30s
-  labels: {}
->>>>>>> 8c0a0c85ab1dc8d41aae9bd2e454c8752a8222b3
 
 # Security Context
 securityContext:
