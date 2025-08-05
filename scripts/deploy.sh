@@ -15,10 +15,10 @@ PURPLE='\033[0;35m'
 NC='\033[0m'
 
 # Configuration
-APP_NAME="NativeSeries"
-NAMESPACE="NativeSeries"
+APP_NAME="nativeseries"
+NAMESPACE="nativeseries"
 ARGOCD_NAMESPACE="argocd"
-PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.15}"
+PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.159}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 DOCKER_USERNAME="${DOCKER_USERNAME:-bonaventuresimeon}"
 DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
@@ -167,7 +167,7 @@ install_k8s_tools() {
 
 # Main deployment function
 deploy_application() {
-    print_header "🚀 Deploying NativeSeries Application"
+    print_header "🚀 Deploying nativeseries Application"
     
     print_status "Target: $PRODUCTION_HOST:$PRODUCTION_PORT"
     print_status "Docker Image: $DOCKER_IMAGE"
@@ -189,7 +189,7 @@ deploy_application() {
 
 # Main execution
 main() {
-    print_header "NativeSeries Deployment"
+    print_header "nativeseries Deployment"
     
     # Install dependencies
     install_docker

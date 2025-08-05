@@ -1,4 +1,4 @@
-# NativeSeries - Complete Installation Guide
+# nativeseries - Complete Installation Guide
 
 ## 📋 Table of Contents
 
@@ -14,7 +14,7 @@
 
 ## 🎯 Overview
 
-This guide provides comprehensive instructions for installing and deploying the NativeSeries application. The application is designed to be deployed using modern cloud-native practices with Docker, Kubernetes, and GitOps.
+This guide provides comprehensive instructions for installing and deploying the nativeseries application. The application is designed to be deployed using modern cloud-native practices with Docker, Kubernetes, and GitOps.
 
 ### What You'll Get
 
@@ -49,8 +49,8 @@ This guide provides comprehensive instructions for installing and deploying the 
 
 ```bash
 # Clone the repository
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
+git clone https://github.com/bonaventuresimeon/nativeseries.git
+cd nativeseries
 
 # Run the automated installation script
 chmod +x scripts/install-all.sh
@@ -61,8 +61,8 @@ chmod +x scripts/install-all.sh
 
 ```bash
 # Clone the repository
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
+git clone https://github.com/bonaventuresimeon/nativeseries.git
+cd nativeseries
 
 # Install Python dependencies
 pip install -r requirements.txt
@@ -149,8 +149,8 @@ argocd version --client
 #### Clone Repository
 
 ```bash
-git clone https://github.com/bonaventuresimeon/NativeSeries.git
-cd NativeSeries
+git clone https://github.com/bonaventuresimeon/nativeseries.git
+cd nativeseries
 ```
 
 #### Create Virtual Environment
@@ -302,11 +302,11 @@ echo "Username: admin"
 
 ```bash
 # Create namespace
-kubectl create namespace NativeSeries
+kubectl create namespace nativeseries
 
 # Deploy application
-helm upgrade --install NativeSeries helm-chart \
-  --namespace NativeSeries \
+helm upgrade --install nativeseries helm-chart \
+--namespace nativeseries \
   --create-namespace \
   --wait \
   --timeout=300s \
@@ -324,7 +324,7 @@ kubectl apply -f argocd/application.yaml
 kubectl get applications -n argocd
 
 # Sync application
-argocd app sync NativeSeries --server localhost:30080 --username admin --password "$(cat .argocd-password)" --insecure
+argocd app sync nativeseries --server localhost:30080 --username admin --password "$(cat .argocd-password)" --insecure
 ```
 
 ## ⚙️ Configuration
@@ -354,7 +354,7 @@ VAULT_SECRET_ID=your-secret-id
 REDIS_URL=redis://localhost:6379
 
 # Production Configuration
-PRODUCTION_HOST=54.166.101.15
+PRODUCTION_HOST=54.166.101.159
 PRODUCTION_PORT=30011
 ```
 
@@ -365,7 +365,7 @@ Edit `helm-chart/values.yaml`:
 ```yaml
 # Application configuration
 app:
-  name: NativeSeries
+  name: nativeseries
   image:
     repository: ghcr.io/bonaventuresimeon/nativeseries
     tag: latest
@@ -412,8 +412,8 @@ docker run -d --name native-series -p 30011:8000 ghcr.io/bonaventuresimeon/nativ
 kubectl apply -f helm-chart/
 
 # Check deployment status
-kubectl get pods -n NativeSeries
-kubectl get svc -n NativeSeries
+kubectl get pods -n nativeseries
+kubectl get svc -n nativeseries
 ```
 
 ### Production Deployment
@@ -433,7 +433,7 @@ chmod +x scripts/deploy.sh
 curl -f http://localhost:8000/health
 
 # Check Kubernetes pods
-kubectl get pods -n NativeSeries
+kubectl get pods -n nativeseries
 
 # Check ArgoCD status
 kubectl get applications -n argocd
@@ -482,8 +482,8 @@ kubectl get nodes
 
 **Pods Not Starting:**
 ```bash
-kubectl describe pod <pod-name> -n NativeSeries
-kubectl logs <pod-name> -n NativeSeries
+kubectl describe pod <pod-name> -n nativeseries
+kubectl logs <pod-name> -n nativeseries
 ```
 
 #### ArgoCD Issues
@@ -491,8 +491,8 @@ kubectl logs <pod-name> -n NativeSeries
 **Application Not Syncing:**
 ```bash
 kubectl get applications -n argocd
-argocd app get NativeSeries
-argocd app sync NativeSeries --force
+argocd app get nativeseries
+argocd app sync nativeseries --force
 ```
 
 **Cannot Access ArgoCD UI:**
@@ -504,7 +504,7 @@ kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80
 
 ```bash
 # Application logs
-kubectl logs -f deployment/NativeSeries -n NativeSeries
+kubectl logs -f deployment/nativeseries -n nativeseries
 
 # ArgoCD logs
 kubectl logs -f deployment/argocd-server -n argocd
@@ -521,7 +521,7 @@ chmod +x scripts/stop-installation.sh
 ./scripts/stop-installation.sh
 
 # Clean up Kubernetes
-kubectl delete namespace NativeSeries
+kubectl delete namespace nativeseries
 kubectl delete namespace argocd
 
 # Clean up Docker
@@ -597,13 +597,13 @@ kind delete cluster --name native-series-cluster
 
 ```bash
 # Check application status
-kubectl get all -n NativeSeries
+kubectl get all -n nativeseries
 
 # View application logs
-kubectl logs -f deployment/NativeSeries -n NativeSeries
+kubectl logs -f deployment/nativeseries -n nativeseries
 
 # Port forward for local access
-kubectl port-forward svc/NativeSeries -n NativeSeries 8000:80
+kubectl port-forward svc/nativeseries -n nativeseries 8000:80
 
 # Access ArgoCD locally
 kubectl port-forward svc/argocd-server-nodeport -n argocd 8080:80
@@ -644,6 +644,6 @@ All installation and deployment scripts are located in the `scripts/` directory:
 
 ---
 
-**🎉 Congratulations! Your NativeSeries application is now installed and ready to use!**
+**🎉 Congratulations! Your nativeseries application is now installed and ready to use!**
 
-For more information, visit: https://github.com/bonaventuresimeon/NativeSeries
+For more information, visit: https://github.com/bonaventuresimeon/nativeseries

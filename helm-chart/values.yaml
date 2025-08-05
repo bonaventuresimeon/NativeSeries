@@ -1,6 +1,6 @@
 # Application configuration
 app:
-  name: NativeSeries
+  name: nativeseries
   image:
     repository: ghcr.io/bonaventuresimeon/nativeseries
     tag: v1.1.0
@@ -15,7 +15,7 @@ app:
     - name: COLLECTION_NAME
       value: "students"
     - name: PRODUCTION_URL
-      value: "http://54.166.101.15:30011"
+      value: "http://54.166.101.159:30011"
 
 # Service configuration
 service:
@@ -30,7 +30,7 @@ ingress:
   className: ""
   annotations: {}
   hosts:
-    - host: 54.166.101.15
+    - host: 54.166.101.159
       paths:
         - path: /
           pathType: ImplementationSpecific

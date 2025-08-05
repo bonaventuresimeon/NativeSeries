@@ -1,6 +1,6 @@
-# NativeSeries - Cloud Native Application
+# nativeseries - Cloud Native Application
 
-[![CI/CD Pipeline](https://github.com/bonaventuresimeon/NativeSeries/workflows/Student%20Tracker%20Pipeline/badge.svg)](https://github.com/bonaventuresimeon/NativeSeries/actions)
+[![CI/CD Pipeline](https://github.com/bonaventuresimeon/nativeseries/workflows/Student%20Tracker%20Pipeline/badge.svg)](https://github.com/bonaventuresimeon/nativeseries/actions)
 [![Docker Image](https://img.shields.io/docker/pulls/bonaventuresimeon/nativeseries)](https://ghcr.io/bonaventuresimeon/nativeseries)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
@@ -23,9 +23,9 @@
 
 ## 🎯 Overview
 
-The NativeSeries is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
+The nativeseries is a comprehensive cloud-native application built with FastAPI that provides complete student management capabilities. It's designed as a modern, scalable solution for educational institutions to track student progress, manage courses, and handle assignments.
 
-**Production URL**: [http://54.166.101.15:30011](http://54.166.101.15:30011)
+**Production URL**: [http://54.166.101.159:30011](http://54.166.101.159:30011)
 
 ### Key Highlights
 
@@ -206,8 +206,8 @@ graph LR
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/bonaventuresimeon/NativeSeries.git
-   cd NativeSeries
+   git clone https://github.com/bonaventuresimeon/nativeseries.git
+cd nativeseries
    ```
 
 2. **Install dependencies**
@@ -254,7 +254,7 @@ graph LR
 
 ### Project Structure
 ```
-NativeSeries/
+nativeseries/
 ├── app/                    # Application source code
 │   ├── main.py            # FastAPI application entry point
 │   ├── models.py          # Pydantic models
@@ -412,10 +412,10 @@ We welcome contributions! Please follow these steps:
 - **LinkedIn**: [Bonaventure Simeon](https://linkedin.com/in/bonaventuresimeon)
 
 ### Project Links
-- **Repository**: https://github.com/bonaventuresimeon/NativeSeries
-- **Issues**: https://github.com/bonaventuresimeon/NativeSeries/issues
-- **Discussions**: https://github.com/bonaventuresimeon/NativeSeries/discussions
-- **Wiki**: https://github.com/bonaventuresimeon/NativeSeries/wiki
+- **Repository**: https://github.com/bonaventuresimeon/nativeseries
+- **Issues**: https://github.com/bonaventuresimeon/nativeseries/issues
+- **Discussions**: https://github.com/bonaventuresimeon/nativeseries/discussions
+- **Wiki**: https://github.com/bonaventuresimeon/nativeseries/wiki
 
 ### Support Channels
 - **Technical Support**: Open an issue on GitHub
@@ -432,18 +432,18 @@ We welcome contributions! Please follow these steps:
 
 ### ✅ **Deployment Status: SUCCESSFUL**
 
-Your NativeSeries application has been successfully deployed and is now accessible online!
+Your nativeseries application has been successfully deployed and is now accessible online!
 
 ### 🌐 **Public Access URLs**
 
 #### **Main Application**
-- **🌍 Production URL**: http://54.166.101.15:30011
-- **📖 API Documentation**: http://54.166.101.15:30011/docs
-- **🩺 Health Check**: http://54.166.101.15:30011/health
-- **📊 Metrics**: http://54.166.101.15:30011/metrics
+- **🌍 Production URL**: http://54.166.101.159:30011
+- **📖 API Documentation**: http://54.166.101.159:30011/docs
+- **🩺 Health Check**: http://54.166.101.159:30011/health
+- **📊 Metrics**: http://54.166.101.159:30011/metrics
 
 #### **GitOps Management**
-- **🎯 ArgoCD UI**: http://54.166.101.15:30080
+- **🎯 ArgoCD UI**: http://54.166.101.159:30080
 - **👤 ArgoCD Username**: admin
 - **🔑 ArgoCD Password**: Check `.argocd-password` file
 
@@ -474,7 +474,7 @@ Your NativeSeries application has been successfully deployed and is now accessib
 - **CI/CD**: GitHub Actions
 
 #### **Network Configuration**
-- **Host IP**: 54.166.101.15
+- **Host IP**: 54.166.101.159
 - **Application Port**: 30011
 - **ArgoCD Port**: 30080
 - **Service Type**: NodePort
@@ -483,23 +483,23 @@ Your NativeSeries application has been successfully deployed and is now accessib
 
 #### **From Anywhere in the World**
 1. **Open your web browser**
-2. **Navigate to**: `http://54.166.101.15:30011`
-3. **Enjoy your NativeSeries application!**
+2. **Navigate to**: `http://54.166.101.159:30011`
+3. **Enjoy your nativeseries application!**
 
 #### **API Access**
-- **Base URL**: `http://54.166.101.15:30011`
-- **Interactive Docs**: `http://54.166.101.15:30011/docs`
-- **Health Check**: `http://54.166.101.15:30011/health`
+- **Base URL**: `http://54.166.101.159:30011`
+- **Interactive Docs**: `http://54.166.101.159:30011/docs`
+- **Health Check**: `http://54.166.101.159:30011/health`
 
 ### 🛠️ **Management Commands**
 
 #### **Check Application Status**
 ```bash
 # Check if application is running
-curl -f http://54.166.101.15:30011/health
+curl -f http://54.166.101.159:30011/health
 
 # View application logs
-kubectl logs -f deployment/NativeSeries -n NativeSeries
+kubectl logs -f deployment/nativeseries -n nativeseries
 
 # Check ArgoCD status
 kubectl get applications -n argocd
@@ -508,22 +508,22 @@ kubectl get applications -n argocd
 #### **Access ArgoCD Management**
 ```bash
 # Login to ArgoCD
-argocd login 54.166.101.15:30080 --username admin --insecure
+argocd login 54.166.101.159:30080 --username admin --insecure
 
 # List applications
 argocd app list
 
 # Sync application
-argocd app sync NativeSeries
+argocd app sync nativeseries
 ```
 
 ### 🔍 **Troubleshooting**
 
 #### **If Application is Not Accessible**
-1. **Check if the server is running**: `curl -f http://54.166.101.15:30011/health`
-2. **Verify Kubernetes pods**: `kubectl get pods -n NativeSeries`
-3. **Check service status**: `kubectl get svc -n NativeSeries`
-4. **View application logs**: `kubectl logs deployment/NativeSeries -n NativeSeries`
+1. **Check if the server is running**: `curl -f http://54.166.101.159:30011/health`
+2. **Verify Kubernetes pods**: `kubectl get pods -n nativeseries`
+3. **Check service status**: `kubectl get svc -n nativeseries`
+4. **View application logs**: `kubectl logs deployment/nativeseries -n nativeseries`
 
 #### **If ArgoCD is Not Accessible**
 1. **Check ArgoCD pods**: `kubectl get pods -n argocd`
@@ -532,19 +532,19 @@ argocd app sync NativeSeries
 
 ### 🎯 **Next Steps**
 
-1. **Test the Application**: Visit http://54.166.101.15:30011
-2. **Explore API Documentation**: Visit http://54.166.101.15:30011/docs
-3. **Manage with ArgoCD**: Visit http://54.166.101.15:30080
-4. **Monitor Health**: Check http://54.166.101.15:30011/health
+1. **Test the Application**: Visit http://54.166.101.159:30011
+2. **Explore API Documentation**: Visit http://54.166.101.159:30011/docs
+3. **Manage with ArgoCD**: Visit http://54.166.101.159:30080
+4. **Monitor Health**: Check http://54.166.101.159:30011/health
 5. **Set up Monitoring**: Configure Prometheus and Grafana
 6. **Add SSL/TLS**: Configure HTTPS certificates
 7. **Scale Application**: Adjust replicas based on load
 
 ### 🏆 **Congratulations!**
 
-Your NativeSeries application is now **LIVE** and accessible from anywhere in the world at:
+Your nativeseries application is now **LIVE** and accessible from anywhere in the world at:
 
-#### **🌍 http://54.166.101.15:30011**
+#### **🌍 http://54.166.101.159:30011**
 
 **The application is ready for production use with full GitOps automation!**
 

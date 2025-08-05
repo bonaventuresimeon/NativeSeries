@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Application metadata
 APP_VERSION = "1.1.0"
 APP_NAME = "Student Tracker API"
-PRODUCTION_URL = "http://54.166.101.15:30011"
+PRODUCTION_URL = "http://54.166.101.159:30011"
 APP_DESCRIPTION = """
 A comprehensive student tracking application built with FastAPI.
 
@@ -64,7 +64,7 @@ app = FastAPI(
     contact={
         "name": "Development Team",
         "email": "dev@yourcompany.com",
-        "url": "https://github.com/bonaventuresimeon/NativeSeries",
+        "url": "https://github.com/bonaventuresimeon/nativeseries",
     },
     license_info={
         "name": "MIT",
@@ -87,7 +87,7 @@ app.add_middleware(
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["54.166.101.15", "localhost", "127.0.0.1", "*"]
+    allowed_hosts=["54.166.101.159", "localhost", "127.0.0.1", "*"]
 )
 
 # Template configuration

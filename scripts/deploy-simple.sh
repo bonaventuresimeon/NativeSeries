@@ -12,7 +12,7 @@ print_status() { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 
 # Configuration
-PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.15}"
+PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.159}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 
 echo "🚀 Simple Deployment Script"
