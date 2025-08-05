@@ -17,7 +17,7 @@ WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
 # Configuration - Aligned with existing application
-PYTHON_VERSION="3.11"
+PYTHON_VERSION="3.13"
 DOCKER_VERSION="20.10"
 KUBECTL_VERSION="1.28"
 HELM_VERSION="3.13"
@@ -96,6 +96,291 @@ command_exists() {
 wait_for_user() {
     echo -e "${YELLOW}Press Enter to continue or Ctrl+C to abort...${NC}"
     read -r
+}
+
+# Function to install system dependencies
+install_system_dependencies() {
+    print_section "Installing System Dependencies"
+    
+    print_status "Updating package lists..."
+    sudo apt update
+    
+    print_status "Installing essential packages..."
+    sudo apt install -y \
+        curl \
+        wget \
+        git \
+        unzip \
+        jq \
+        build-essential \
+        software-properties-common \
+        apt-transport-https \
+        ca-certificates \
+        gnupg \
+        lsb-release
+    
+    print_status "System dependencies installed successfully!"
+}
+
+# Function to install Docker
+install_docker() {
+    print_section "Installing Docker"
+    
+    if command_exists docker; then
+        print_status "Docker is already installed"
+        docker --version
+        return 0
+    fi
+    
+    print_status "Installing Docker..."
+    
+    # Add Docker's official GPG key
+    sudo apt install -y docker.io
+    
+    # Start and enable Docker service
+    sudo systemctl start docker || true
+    sudo systemctl enable docker || true
+    
+    # Add user to docker group
+    sudo usermod -aG docker "$USER" || true
+    
+    # Verify installation
+    if command_exists docker; then
+        print_status "Docker installed successfully!"
+        docker --version
+    else
+        print_error "Docker installation failed!"
+        return 1
+    fi
+}
+
+# Function to install kubectl
+install_kubectl() {
+    print_section "Installing kubectl"
+    
+    if command_exists kubectl; then
+        print_status "kubectl is already installed"
+        kubectl version --client
+        return 0
+    fi
+    
+    print_status "Installing kubectl..."
+    
+    # Download kubectl
+    KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+    curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+    
+    # Make executable and move to PATH
+    chmod +x kubectl
+    sudo mv kubectl /usr/local/bin/
+    
+    # Verify installation
+    if command_exists kubectl; then
+        print_status "kubectl installed successfully!"
+        kubectl version --client
+    else
+        print_error "kubectl installation failed!"
+        return 1
+    fi
+}
+
+# Function to install Kind
+install_kind() {
+    print_section "Installing Kind"
+    
+    if command_exists kind; then
+        print_status "Kind is already installed"
+        kind version
+        return 0
+    fi
+    
+    print_status "Installing Kind..."
+    
+    # Download Kind
+    curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"
+    
+    # Make executable and move to PATH
+    chmod +x ./kind
+    sudo mv ./kind /usr/local/bin/
+    
+    # Verify installation
+    if command_exists kind; then
+        print_status "Kind installed successfully!"
+        kind version
+    else
+        print_error "Kind installation failed!"
+        return 1
+    fi
+}
+
+# Function to install Helm
+install_helm() {
+    print_section "Installing Helm"
+    
+    if command_exists helm; then
+        print_status "Helm is already installed"
+        helm version
+        return 0
+    fi
+    
+    print_status "Installing Helm..."
+    
+    # Download Helm
+    curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar xz
+    
+    # Move to PATH
+    sudo mv linux-amd64/helm /usr/local/bin/
+    rm -rf linux-amd64
+    
+    # Verify installation
+    if command_exists helm; then
+        print_status "Helm installed successfully!"
+        helm version
+    else
+        print_error "Helm installation failed!"
+        return 1
+    fi
+}
+
+# Function to install Python and pip
+install_python() {
+    print_section "Installing Python"
+    
+    if command_exists python3; then
+        print_status "Python is already installed"
+        python3 --version
+    else
+        print_status "Installing Python ${PYTHON_VERSION}..."
+        sudo apt install -y python3 python3-pip
+    fi
+    
+    # Install Python virtual environment package
+    print_status "Installing Python virtual environment package..."
+    sudo apt install -y python3-venv
+    
+    # Verify installation
+    if command_exists python3; then
+        print_status "Python installed successfully!"
+        python3 --version
+        pip3 --version
+    else
+        print_error "Python installation failed!"
+        return 1
+    fi
+}
+
+# Function to verify all tools are installed
+verify_tools() {
+    print_section "Verifying Tool Installation"
+    
+    local tools=("docker" "kubectl" "kind" "helm" "python3")
+    local missing_tools=()
+    
+    for tool in "${tools[@]}"; do
+        if command_exists "$tool"; then
+            print_status "✓ $tool is installed"
+        else
+            print_error "✗ $tool is missing"
+            missing_tools+=("$tool")
+        fi
+    done
+    
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        print_status "All tools are installed and ready!"
+        return 0
+    else
+        print_error "Missing tools: ${missing_tools[*]}"
+        return 1
+    fi
+}
+
+# Function to setup Docker environment
+setup_docker() {
+    print_section "Setting up Docker Environment"
+    
+    # Start Docker daemon if not running
+    if ! docker info >/dev/null 2>&1; then
+        print_status "Starting Docker daemon..."
+        sudo dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2376 >/dev/null 2>&1 &
+        sleep 10
+    fi
+    
+    # Fix Docker permissions
+    print_status "Setting up Docker permissions..."
+    sudo chmod 666 /var/run/docker.sock 2>/dev/null || true
+    sudo usermod -aG docker "$USER" 2>/dev/null || true
+    
+    # Test Docker with sudo if needed
+    if docker info >/dev/null 2>&1; then
+        print_status "Docker is running and accessible"
+    elif sudo docker info >/dev/null 2>&1; then
+        print_status "Docker is running (requires sudo)"
+        # Create alias for docker with sudo
+        echo 'alias docker="sudo docker"' >> ~/.bashrc
+        export docker="sudo docker"
+        # Also set for current session
+        alias docker="sudo docker"
+    else
+        print_warning "Docker is not accessible. Continuing without Docker for now..."
+        print_warning "You can manually start Docker later with: sudo dockerd &"
+        return 0
+    fi
+}
+
+# Function to check and install missing tools
+check_and_install_tools() {
+    print_section "Checking and Installing Required Tools"
+    
+    local tools_to_install=()
+    
+    # Check which tools need installation
+    if ! command_exists docker; then
+        tools_to_install+=("docker")
+    fi
+    
+    if ! command_exists kubectl; then
+        tools_to_install+=("kubectl")
+    fi
+    
+    if ! command_exists kind; then
+        tools_to_install+=("kind")
+    fi
+    
+    if ! command_exists helm; then
+        tools_to_install+=("helm")
+    fi
+    
+    if ! command_exists python3; then
+        tools_to_install+=("python")
+    fi
+    
+    if [ ${#tools_to_install[@]} -eq 0 ]; then
+        print_status "All required tools are already installed!"
+        return 0
+    fi
+    
+    print_status "Tools to install: ${tools_to_install[*]}"
+    
+    # Install missing tools
+    for tool in "${tools_to_install[@]}"; do
+        case $tool in
+            "docker")
+                install_docker
+                ;;
+            "kubectl")
+                install_kubectl
+                ;;
+            "kind")
+                install_kind
+                ;;
+            "helm")
+                install_helm
+                ;;
+            "python")
+                install_python
+                ;;
+        esac
+    done
 }
 
 # Function to create directories - Fixed paths
@@ -199,7 +484,7 @@ setup_python_env() {
     # Create virtual environment
     if [ ! -d "venv" ]; then
         print_status "Creating virtual environment..."
-        python${PYTHON_VERSION} -m venv venv
+        python3 -m venv venv
     fi
     
     # Activate virtual environment
@@ -567,8 +852,16 @@ nodes:
 - role: worker
 EOF
     
-    # Create cluster
-    kind create cluster --config infra/kind/cluster-config.yaml
+    # Create cluster with Docker permission handling
+    if docker info >/dev/null 2>&1; then
+        kind create cluster --config infra/kind/cluster-config.yaml
+    elif sudo docker info >/dev/null 2>&1; then
+        sudo kind create cluster --config infra/kind/cluster-config.yaml
+    else
+        print_error "Docker is not accessible. Cannot create Kind cluster."
+        print_error "Please start Docker manually: sudo dockerd &"
+        return 1
+    fi
     
     # Wait for cluster to be ready
     print_status "⏳ Waiting for cluster to be ready..."
@@ -1754,13 +2047,14 @@ display_final_info() {
 # Main execution function
 main() {
     echo -e "${YELLOW}🔍 This script will install and configure:${NC}"
+    echo -e "  • System dependencies (curl, wget, git, etc.)"
+    echo -e "  • Docker ${DOCKER_VERSION}+ with daemon setup"
+    echo -e "  • kubectl ${KUBECTL_VERSION}+ (latest stable)"
+    echo -e "  • Kind ${KIND_VERSION} for local Kubernetes"
+    echo -e "  • Helm ${HELM_VERSION}+ for package management"
     echo -e "  • Python ${PYTHON_VERSION} with virtual environment"
-    echo -e "  • Docker ${DOCKER_VERSION}+"
-    echo -e "  • kubectl ${KUBECTL_VERSION}+"
-    echo -e "  • Helm ${HELM_VERSION}+"
-    echo -e "  • Kind ${KIND_VERSION}"
-    echo -e "  • ArgoCD ${ARGOCD_VERSION}"
-    echo -e "  • Complete GitOps stack"
+    echo -e "  • ArgoCD ${ARGOCD_VERSION} for GitOps"
+    echo -e "  • Complete GitOps stack with monitoring"
     echo -e "  • Application deployment to ${PRODUCTION_HOST}:${PRODUCTION_PORT}"
     echo -e "  • Prometheus & Grafana monitoring stack"
     echo -e "  • Loki logging stack"
@@ -1770,7 +2064,7 @@ main() {
     echo -e "  • Network Policies"
     echo -e "  • Custom Grafana dashboards"
     echo -e ""
-    echo -e "${YELLOW}⚠️  This may take 10-20 minutes depending on your internet connection.${NC}"
+    echo -e "${YELLOW}⚠️  This may take 15-25 minutes depending on your internet connection.${NC}"
     echo -e "${YELLOW}Do you want to continue? (y/N):${NC}"
     read -r response
     
@@ -1783,13 +2077,19 @@ main() {
     START_TIME=$(date +%s)
     
     # Execute installation steps
+    install_system_dependencies
+    check_and_install_tools
+    setup_docker
+    verify_tools
+    
+    # Check if Docker is available for the rest of the installation
+    if ! docker info >/dev/null 2>&1 && ! sudo docker info >/dev/null 2>&1; then
+        print_warning "Docker is not available. Some features may not work."
+        print_warning "Continuing with Kubernetes tools installation..."
+    fi
+    
     create_directories
-    install_python
     setup_python_env
-    install_docker
-    install_kubectl
-    install_helm
-    install_kind
     install_argocd_cli
     install_additional_tools
     create_kind_cluster
