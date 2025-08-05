@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Student Tracker - Complete Installation Script
-# Version: 3.0.0 - Aligned with existing application structure
+# Version: 4.0.0 - Enhanced with Monitoring, Logging, Secrets, and Scaling
 # Fixed all syntax, paths, DNS, port issues, bugs, and errors
 
 set -euo pipefail
@@ -28,9 +28,13 @@ ARGOCD_VERSION="v2.9.3"
 APP_NAME="nativeseries"
 NAMESPACE="nativeseries"
 ARGOCD_NAMESPACE="argocd"
+MONITORING_NAMESPACE="monitoring"
+LOGGING_NAMESPACE="logging"
 PRODUCTION_HOST="${PRODUCTION_HOST:-54.166.101.159}"
 PRODUCTION_PORT="${PRODUCTION_PORT:-30011}"
 ARGOCD_PORT="30080"
+GRAFANA_PORT="30081"
+PROMETHEUS_PORT="30082"
 DOCKER_USERNAME="${DOCKER_USERNAME:-bonaventuresimeon}"
 DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
 
@@ -56,12 +60,15 @@ echo "╔═══════════════════════�
 echo "║          🚀 Student Tracker - Complete Installation          ║"
 echo "║              From Python to Production GitOps               ║"
 echo "║                Target: ${PRODUCTION_HOST}:${PRODUCTION_PORT}                ║"
+echo "║              Enhanced with Monitoring & Observability        ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
 echo -e "${CYAN}🎯 Target Configuration:${NC}"
 echo -e "  📱 Application: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}"
 echo -e "  🎯 ArgoCD UI: http://${PRODUCTION_HOST}:${ARGOCD_PORT}"
+echo -e "  📊 Grafana: http://${PRODUCTION_HOST}:${GRAFANA_PORT}"
+echo -e "  📈 Prometheus: http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}"
 echo -e "  💻 OS: ${OS} (${ARCH})"
 echo -e "  📁 Namespace: ${NAMESPACE}"
 echo -e "  📦 Helm Chart: ${HELM_CHART_PATH}"
@@ -544,6 +551,18 @@ nodes:
     hostPort: ${PRODUCTION_PORT}
     protocol: TCP
     listenAddress: "0.0.0.0"
+  - containerPort: 30081
+    hostPort: ${GRAFANA_PORT}
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 30082
+    hostPort: ${PROMETHEUS_PORT}
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 30083
+    hostPort: 30083
+    protocol: TCP
+    listenAddress: "0.0.0.0"
 - role: worker
 - role: worker
 EOF
@@ -572,6 +591,8 @@ EOF
     kubectl create namespace app-dev --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace app-staging --dry-run=client -o yaml | kubectl apply -f -
     kubectl create namespace app-prod --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace ${MONITORING_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace ${LOGGING_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
     
     print_status "✅ Kind cluster created successfully"
     kubectl cluster-info
@@ -1107,6 +1128,488 @@ EOF
     print_status "✅ GitOps setup complete"
 }
 
+# Function to setup secrets and configmaps
+setup_secrets_and_configmaps() {
+    print_section "🔐 Setting up Secrets and ConfigMaps"
+    
+    print_status "Creating application secrets..."
+    
+    # Create database secret
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${APP_NAME}-db-secret
+  namespace: ${NAMESPACE}
+type: Opaque
+data:
+  db-username: $(echo -n "student_user" | base64)
+  db-password: $(echo -n "secure_password_123" | base64)
+  db-host: $(echo -n "postgres-service" | base64)
+  db-name: $(echo -n "studentdb" | base64)
+EOF
+    
+    # Create API secret
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${APP_NAME}-api-secret
+  namespace: ${NAMESPACE}
+type: Opaque
+data:
+  api-key: $(echo -n "your-super-secret-api-key-2024" | base64)
+  jwt-secret: $(echo -n "your-jwt-secret-key-2024" | base64)
+  session-secret: $(echo -n "your-session-secret-key-2024" | base64)
+EOF
+    
+    # Create application configmap
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${APP_NAME}-config
+  namespace: ${NAMESPACE}
+data:
+  app_name: "Student Tracker API"
+  log_level: "INFO"
+  environment: "production"
+  max_connections: "100"
+  timeout_seconds: "30"
+  cache_ttl: "3600"
+  cors_origins: "http://localhost:3000,http://${PRODUCTION_HOST}:${PRODUCTION_PORT}"
+EOF
+    
+    print_status "✅ Secrets and ConfigMaps created successfully"
+}
+
+# Function to install Prometheus and Grafana
+install_monitoring_stack() {
+    print_section "📊 Installing Prometheus and Grafana"
+    
+    print_status "Adding Prometheus Helm repository..."
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo update
+    
+    print_status "Installing Prometheus Stack..."
+    helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+        --namespace ${MONITORING_NAMESPACE} \
+        --create-namespace \
+        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+        --set prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues=false \
+        --set prometheus.prometheusSpec.probeSelectorNilUsesHelmValues=false \
+        --set grafana.enabled=true \
+        --set grafana.service.type=NodePort \
+        --set grafana.service.nodePort=${GRAFANA_PORT} \
+        --set grafana.adminPassword=admin123 \
+        --set prometheus.service.type=NodePort \
+        --set prometheus.service.nodePort=${PROMETHEUS_PORT} \
+        --wait \
+        --timeout=600s
+    
+    # Wait for monitoring stack to be ready
+    print_status "⏳ Waiting for monitoring stack to be ready..."
+    kubectl wait --for=condition=available --timeout=300s deployment/prometheus-grafana -n ${MONITORING_NAMESPACE}
+    kubectl wait --for=condition=available --timeout=300s deployment/prometheus-kube-prometheus-operator -n ${MONITORING_NAMESPACE}
+    
+    print_status "✅ Monitoring stack installed successfully"
+}
+
+# Function to install Loki for logging
+install_loki_stack() {
+    print_section "📝 Installing Loki for Logging"
+    
+    print_status "Adding Grafana Helm repository..."
+    helm repo add grafana https://grafana.github.io/helm-charts
+    helm repo update
+    
+    print_status "Installing Loki Stack..."
+    helm upgrade --install loki grafana/loki-stack \
+        --namespace ${LOGGING_NAMESPACE} \
+        --create-namespace \
+        --set grafana.enabled=false \
+        --set prometheus.enabled=false \
+        --set loki.persistence.enabled=true \
+        --set loki.persistence.size=10Gi \
+        --set loki.service.type=NodePort \
+        --set loki.service.nodePort=30083 \
+        --wait \
+        --timeout=600s
+    
+    # Wait for Loki to be ready
+    print_status "⏳ Waiting for Loki to be ready..."
+    kubectl wait --for=condition=available --timeout=300s deployment/loki -n ${LOGGING_NAMESPACE}
+    
+    print_status "✅ Loki stack installed successfully"
+}
+
+# Function to setup application monitoring
+setup_application_monitoring() {
+    print_section "🔍 Setting up Application Monitoring"
+    
+    print_status "Creating ServiceMonitor for application..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ${APP_NAME}-monitor
+  namespace: ${MONITORING_NAMESPACE}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${APP_NAME}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+EOF
+    
+    print_status "Creating PodMonitor for application..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: ${APP_NAME}-pod-monitor
+  namespace: ${MONITORING_NAMESPACE}
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${APP_NAME}
+  podMetricsEndpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+EOF
+    
+    print_status "Creating PrometheusRule for alerts..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ${APP_NAME}-alerts
+  namespace: ${MONITORING_NAMESPACE}
+  labels:
+    release: prometheus
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: ${APP_NAME}-alerts
+    rules:
+    - alert: AppDown
+      expr: up{app="${APP_NAME}"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Application {{ \$labels.app }} is down"
+        description: "Application {{ \$labels.app }} has been down for more than 1 minute"
+    
+    - alert: HighCPUUsage
+      expr: rate(container_cpu_usage_seconds_total{container="${APP_NAME}"}[5m]) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage for {{ \$labels.app }}"
+        description: "CPU usage is above 80% for {{ \$labels.app }}"
+    
+    - alert: HighMemoryUsage
+      expr: (container_memory_usage_bytes{container="${APP_NAME}"} / container_spec_memory_limit_bytes{container="${APP_NAME}"}) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory usage for {{ \$labels.app }}"
+        description: "Memory usage is above 80% for {{ \$labels.app }}"
+EOF
+    
+    print_status "✅ Application monitoring configured successfully"
+}
+
+# Function to setup logging configuration
+setup_logging_configuration() {
+    print_section "📝 Setting up Logging Configuration"
+    
+    print_status "Creating logging ConfigMap..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${APP_NAME}-logging-config
+  namespace: ${NAMESPACE}
+data:
+  log-config.yaml: |
+    version: 1
+    formatters:
+      simple:
+        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        level: INFO
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.handlers.RotatingFileHandler
+        level: INFO
+        formatter: simple
+        filename: /app/logs/app.log
+        maxBytes: 10485760  # 10MB
+        backupCount: 5
+    loggers:
+      app:
+        level: INFO
+        handlers: [console, file]
+        propagate: false
+    root:
+      level: INFO
+      handlers: [console]
+EOF
+    
+    print_status "Creating logging volume..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${APP_NAME}-logs-pvc
+  namespace: ${NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+EOF
+    
+    print_status "✅ Logging configuration created successfully"
+}
+
+# Function to setup Horizontal Pod Autoscaler
+setup_hpa() {
+    print_section "📈 Setting up Horizontal Pod Autoscaler"
+    
+    print_status "Creating HPA for application..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ${APP_NAME}-hpa
+  namespace: ${NAMESPACE}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ${APP_NAME}
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+EOF
+    
+    print_status "✅ HPA configured successfully"
+}
+
+# Function to setup Pod Disruption Budget
+setup_pdb() {
+    print_section "🛡️ Setting up Pod Disruption Budget"
+    
+    print_status "Creating PDB for application..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ${APP_NAME}-pdb
+  namespace: ${NAMESPACE}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${APP_NAME}
+EOF
+    
+    print_status "✅ Pod Disruption Budget configured successfully"
+}
+
+# Function to setup Network Policies
+setup_network_policies() {
+    print_section "🌐 Setting up Network Policies"
+    
+    print_status "Creating network policy for application..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ${APP_NAME}-network-policy
+  namespace: ${NAMESPACE}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ${APP_NAME}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ${MONITORING_NAMESPACE}
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: ${NAMESPACE}
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+EOF
+    
+    print_status "✅ Network policies configured successfully"
+}
+
+# Function to create Grafana dashboards
+create_grafana_dashboards() {
+    print_section "📊 Creating Grafana Dashboards"
+    
+    print_status "Creating application dashboard..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${APP_NAME}-dashboard
+  namespace: ${MONITORING_NAMESPACE}
+  labels:
+    grafana_dashboard: "1"
+data:
+  app-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "Student Tracker Application",
+        "tags": ["student-tracker", "application"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Application Health",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{app=\"${APP_NAME}\"}",
+                "legendFormat": "{{pod}}"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "id": 2,
+            "title": "CPU Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{container=\"${APP_NAME}\"}[5m])",
+                "legendFormat": "{{pod}}"
+              }
+            ]
+          },
+          {
+            "id": 3,
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "container_memory_usage_bytes{container=\"${APP_NAME}\"}",
+                "legendFormat": "{{pod}}"
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "title": "HTTP Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{app=\"${APP_NAME}\"}[5m])",
+                "legendFormat": "{{method}} {{endpoint}}"
+              }
+            ]
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+EOF
+    
+    print_status "✅ Grafana dashboard created successfully"
+}
+
 # Function to verify installation
 verify_installation() {
     print_section "✅ Verifying Installation"
@@ -1129,6 +1632,22 @@ verify_installation() {
     # Check ArgoCD
     print_status "ArgoCD:"
     kubectl get pods -n ${ARGOCD_NAMESPACE}
+    
+    # Check monitoring
+    print_status "Monitoring Stack:"
+    kubectl get pods -n ${MONITORING_NAMESPACE}
+    
+    # Check logging
+    print_status "Logging Stack:"
+    kubectl get pods -n ${LOGGING_NAMESPACE}
+    
+    # Check HPA
+    print_status "Horizontal Pod Autoscaler:"
+    kubectl get hpa -n ${NAMESPACE}
+    
+    # Check secrets and configmaps
+    print_status "Secrets and ConfigMaps:"
+    kubectl get secrets,configmaps -n ${NAMESPACE}
     
     # Test application health
     print_status "Testing application health..."
@@ -1166,6 +1685,17 @@ display_final_info() {
     print_status "  👤 ArgoCD Username: admin"
     print_status "  🔑 ArgoCD Password: $(cat .argocd-password 2>/dev/null || echo 'Check .argocd-password file')"
     echo -e ""
+    print_status "  📊 Grafana Dashboard: http://${PRODUCTION_HOST}:${GRAFANA_PORT}"
+    print_status "  📊 Local Grafana: http://localhost:${GRAFANA_PORT}"
+    print_status "  👤 Grafana Username: admin"
+    print_status "  🔑 Grafana Password: admin123"
+    echo -e ""
+    print_status "  📈 Prometheus: http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}"
+    print_status "  📈 Local Prometheus: http://localhost:${PROMETHEUS_PORT}"
+    echo -e ""
+    print_status "  📝 Loki Logs: http://${PRODUCTION_HOST}:30083"
+    print_status "  📝 Local Loki: http://localhost:30083"
+    echo -e ""
     print_status "🛠️  Useful Commands:"
     print_status "  # Check application status"
     print_status "  kubectl get all -n ${NAMESPACE}"
@@ -1179,17 +1709,44 @@ display_final_info() {
     print_status "  # Access ArgoCD locally"
     print_status "  kubectl port-forward svc/argocd-server-nodeport -n ${ARGOCD_NAMESPACE} 8080:80"
     echo -e ""
+    print_status "  # Access Grafana locally"
+    print_status "  kubectl port-forward svc/prometheus-grafana -n ${MONITORING_NAMESPACE} 8081:80"
+    echo -e ""
+    print_status "  # Access Prometheus locally"
+    print_status "  kubectl port-forward svc/prometheus-kube-prometheus-prometheus -n ${MONITORING_NAMESPACE} 8082:9090"
+    echo -e ""
+    print_status "  # View application logs"
+    print_status "  kubectl logs -f deployment/${APP_NAME} -n ${NAMESPACE}"
+    echo -e ""
+    print_status "  # Check HPA status"
+    print_status "  kubectl get hpa -n ${NAMESPACE}"
+    echo -e ""
+    print_status "  # Check monitoring targets"
+    print_status "  kubectl get servicemonitors,podmonitors -n ${MONITORING_NAMESPACE}"
+    echo -e ""
+    print_status "  # Check alerts"
+    print_status "  kubectl get prometheusrules -n ${MONITORING_NAMESPACE}"
+    echo -e ""
     print_status "📚 Next Steps:"
     print_status "  1. Update repository URLs in ArgoCD applications"
     print_status "  2. Configure your load balancer to route ${PRODUCTION_HOST} to your cluster"
     print_status "  3. Set up continuous deployment with GitHub Actions"
-    print_status "  4. Configure monitoring and logging (optional)"
+    print_status "  4. Customize Grafana dashboards for your application"
+    print_status "  5. Configure alerting rules in Prometheus"
+    print_status "  6. Set up log aggregation with Loki"
+    print_status "  7. Test auto-scaling with load testing"
+    print_status "  8. Implement custom metrics for business KPIs"
     echo -e ""
     print_warning "📝 Important Notes:"
     print_warning "  • ArgoCD password is saved in .argocd-password file"
+    print_warning "  • Grafana password: admin123"
     print_warning "  • Virtual environment is in ./venv directory"
     print_warning "  • Kind cluster name: gitops-cluster"
     print_warning "  • All configurations are in infra/ directory"
+    print_warning "  • Monitoring namespace: ${MONITORING_NAMESPACE}"
+    print_warning "  • Logging namespace: ${LOGGING_NAMESPACE}"
+    print_warning "  • HPA will scale based on CPU (70%) and Memory (80%)"
+    print_warning "  • Secrets are base64 encoded - rotate in production"
     echo -e ""
     print_status "🎉 Happy coding with GitOps! 🚀"
 }
@@ -1205,6 +1762,13 @@ main() {
     echo -e "  • ArgoCD ${ARGOCD_VERSION}"
     echo -e "  • Complete GitOps stack"
     echo -e "  • Application deployment to ${PRODUCTION_HOST}:${PRODUCTION_PORT}"
+    echo -e "  • Prometheus & Grafana monitoring stack"
+    echo -e "  • Loki logging stack"
+    echo -e "  • Secrets and ConfigMaps management"
+    echo -e "  • Horizontal Pod Autoscaler (HPA)"
+    echo -e "  • Pod Disruption Budget (PDB)"
+    echo -e "  • Network Policies"
+    echo -e "  • Custom Grafana dashboards"
     echo -e ""
     echo -e "${YELLOW}⚠️  This may take 10-20 minutes depending on your internet connection.${NC}"
     echo -e "${YELLOW}Do you want to continue? (y/N):${NC}"
@@ -1234,6 +1798,18 @@ main() {
     install_argocd
     deploy_application
     setup_gitops
+    
+    # Enhanced features installation
+    setup_secrets_and_configmaps
+    install_monitoring_stack
+    install_loki_stack
+    setup_application_monitoring
+    setup_logging_configuration
+    setup_hpa
+    setup_pdb
+    setup_network_policies
+    create_grafana_dashboards
+    
     verify_installation
     
     # Calculate execution time
