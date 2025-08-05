@@ -20,8 +20,8 @@ spec:
         - name: app.image.repository
           value: ghcr.io/bonaventuresimeon/nativeseries
   destination:
-    server: https://54.166.101.15
-    namespace: NativeSeries
+    server: https://54.166.101.159
+    namespace: nativeseries
   syncPolicy:
     automated:
       prune: true
