@@ -1,4 +1,4 @@
-# nativeseries - Complete Installation Guide
+# NativeSeries - Complete Installation Guide
 
 ## 📋 Table of Contents
 
@@ -14,7 +14,7 @@
 
 ## 🎯 Overview
 
-This guide provides comprehensive instructions for installing and deploying the nativeseries application. The application is designed to be deployed using modern cloud-native practices with Docker, Kubernetes, and GitOps.
+This guide provides comprehensive instructions for installing and deploying the NativeSeries application. The application is designed to be deployed using modern cloud-native practices with Docker, Kubernetes, and GitOps.
 
 ### What You'll Get
 
@@ -49,8 +49,8 @@ This guide provides comprehensive instructions for installing and deploying the 
 
 ```bash
 # Clone the repository
-git clone https://github.com/bonaventuresimeon/nativeseries.git
-cd nativeseries
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
 
 # Run the automated installation script
 chmod +x scripts/install-all.sh
@@ -61,8 +61,8 @@ chmod +x scripts/install-all.sh
 
 ```bash
 # Clone the repository
-git clone https://github.com/bonaventuresimeon/nativeseries.git
-cd nativeseries
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
 
 # Install Python dependencies
 pip install -r requirements.txt
@@ -149,8 +149,8 @@ argocd version --client
 #### Clone Repository
 
 ```bash
-git clone https://github.com/bonaventuresimeon/nativeseries.git
-cd nativeseries
+git clone https://github.com/bonaventuresimeon/NativeSeries.git
+cd NativeSeries
 ```
 
 #### Create Virtual Environment
@@ -644,6 +644,6 @@ All installation and deployment scripts are located in the `scripts/` directory:
 
 ---
 
-**🎉 Congratulations! Your nativeseries application is now installed and ready to use!**
+**🎉 Congratulations! Your NativeSeries application is now installed and ready to use!**
 
-For more information, visit: https://github.com/bonaventuresimeon/nativeseries
+For more information, visit: https://github.com/bonaventuresimeon/NativeSeries

@@ -1,4 +1,4 @@
-# Git Ops with Argocd
+# Git Ops with ArgoCD for NativeSeries
 We will be diving deeper with cloud native deployment using a single source of truth
 
 ### Div in to this Week Handson:
