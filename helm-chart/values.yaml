@@ -33,12 +33,27 @@ healthCheck:
   timeoutSeconds: 5
   failureThreshold: 3
 
+<<<<<<< HEAD
 # Service configuration
 service:
   type: NodePort
   port: 80
   targetPort: 8000
   nodePort: 30011  # Maps to production port on the host
+=======
+# Secrets and ConfigMaps
+secrets:
+  enabled: true
+  dbSecret:
+    name: nativeseries-db-secret
+    data:
+      username: "admin"
+      password: "password"
+  apiSecret:
+    name: nativeseries-api-secret
+    data:
+      apiKey: "my-api-key"
+>>>>>>> 2dcef11e939cf94c52908229d7b3e4ebc23e82d5
 
 # Ingress configuration
 ingress:
