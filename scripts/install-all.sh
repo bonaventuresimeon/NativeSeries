@@ -486,18 +486,8 @@ EOF
     print_status "Created app/models.py"
 fi
 
-# Run application tests
-print_info "Running application tests..."
-if [ -f "app/test_basic.py" ]; then
-    cd app && python -m pytest test_basic.py -v || {
-        print_warning "Some tests failed, but continuing with installation..."
-        print_info "This is normal if app/models.py or app/main.py don't exist yet"
-    }
-    cd ..
-else
-    print_warning "No test_basic.py found, skipping tests"
-fi
-print_status "Application tests completed"
+# Note: Tests will be run at the end after deployment
+print_info "Tests will be run after deployment is complete"
 
 # ============================================================================
 # PHASE 4: DOCKER IMAGE BUILD
@@ -914,15 +904,22 @@ else
 fi
 
 # ============================================================================
-# PHASE 8: VALIDATION AND TESTING
+# PHASE 8: COMPREHENSIVE TESTING AND VALIDATION
 # ============================================================================
 
-print_section "PHASE 8: Validation and Testing"
+print_section "PHASE 8: Comprehensive Testing and Validation"
 
-# Validate Helm chart
-print_info "Validating Helm chart..."
-helm lint helm-chart
-print_status "Helm chart validation passed"
+# Run application tests
+print_info "Running application tests..."
+if [ -f "app/test_basic.py" ]; then
+    cd app && python -m pytest test_basic.py -v || {
+        print_warning "Some tests failed, but continuing with validation..."
+        print_info "This is normal if some app files are missing or incomplete"
+    }
+    cd ..
+else
+    print_warning "No test_basic.py found, skipping application tests"
+fi
 
 # Test application endpoints
 print_info "Testing application endpoints..."
@@ -982,11 +979,140 @@ done
 # Calculate success rate
 success_rate=$(( validation_score * 100 / total_tests ))
 
+# Validate Helm chart
+print_info "Validating Helm chart..."
+helm lint helm-chart
+print_status "Helm chart validation passed"
+
 # ============================================================================
-# PHASE 9: FINAL REPORT AND CLEANUP
+# PHASE 9: SYSTEM HEALTH CHECKS
 # ============================================================================
 
-print_section "PHASE 9: Installation Complete"
+print_section "PHASE 9: System Health Checks"
+
+# Check Docker status
+print_info "Checking Docker status..."
+if docker info >/dev/null 2>&1 || sudo docker info >/dev/null 2>&1; then
+    print_status "Docker is running"
+else
+    print_error "Docker is not running"
+fi
+
+# Check Kubernetes cluster
+print_info "Checking Kubernetes cluster..."
+if kubectl cluster-info >/dev/null 2>&1; then
+    print_status "Kubernetes cluster is accessible"
+    kubectl get nodes
+else
+    print_warning "Kubernetes cluster is not accessible"
+fi
+
+# Check application deployment
+print_info "Checking application deployment..."
+if kubectl get pods -n ${NAMESPACE} >/dev/null 2>&1; then
+    print_status "Application namespace exists"
+    kubectl get pods -n ${NAMESPACE}
+else
+    print_warning "Application namespace not found"
+fi
+
+# Check ArgoCD deployment
+print_info "Checking ArgoCD deployment..."
+if kubectl get pods -n ${ARGOCD_NAMESPACE} >/dev/null 2>&1; then
+    print_status "ArgoCD namespace exists"
+    kubectl get pods -n ${ARGOCD_NAMESPACE}
+else
+    print_warning "ArgoCD namespace not found"
+fi
+
+# Check monitoring stack
+print_info "Checking monitoring stack..."
+if kubectl get pods -n ${MONITORING_NAMESPACE} >/dev/null 2>&1; then
+    print_status "Monitoring namespace exists"
+    kubectl get pods -n ${MONITORING_NAMESPACE}
+else
+    print_warning "Monitoring namespace not found"
+fi
+
+# Test application endpoints (if accessible)
+print_info "Testing application endpoints..."
+if curl -s http://localhost:8000/health >/dev/null 2>&1; then
+    print_status "Local application health check passed"
+elif curl -s http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health >/dev/null 2>&1; then
+    print_status "Remote application health check passed"
+else
+    print_warning "Application health check failed (may not be deployed yet)"
+fi
+
+# ============================================================================
+# PHASE 10: FINAL VALIDATION SCORING
+# ============================================================================
+
+print_section "PHASE 10: Final Validation Scoring"
+
+# Test application endpoints
+print_info "Running final validation tests..."
+validation_score=0
+total_tests=10
+
+# Test 1: Docker build
+if sudo docker images | grep -q ${DOCKER_IMAGE}; then
+    print_status "Docker image exists"
+    ((validation_score++))
+else
+    print_error "Docker image not found"
+fi
+
+# Test 2: Python dependencies
+if source venv/bin/activate && python -c "import fastapi, uvicorn, pymongo" 2>/dev/null; then
+    print_status "Python dependencies available"
+    ((validation_score++))
+else
+    print_error "Python dependencies missing"
+fi
+
+# Test 3: Helm chart syntax
+if helm template test helm-chart >/dev/null 2>&1; then
+    print_status "Helm chart syntax valid"
+    ((validation_score++))
+else
+    print_error "Helm chart syntax invalid"
+fi
+
+# Test 4: Kubernetes manifests
+if find deployment/production -name "*.yaml" -exec kubectl apply --dry-run=client -f {} \; >/dev/null 2>&1; then
+    print_status "Kubernetes manifests valid"
+    ((validation_score++))
+else
+    print_warning "Some Kubernetes manifests may have issues"
+fi
+
+# Test 5: Application code
+if python3 -c "import app.main" 2>/dev/null; then
+    print_status "Application code imports successfully"
+    ((validation_score++))
+else
+    print_error "Application code has import issues"
+fi
+
+# Test 6-10: Tool availability
+for tool in kubectl helm kind docker python3; do
+    if command -v $tool >/dev/null 2>&1; then
+        print_status "$tool is available"
+        ((validation_score++))
+    else
+        print_error "$tool is not available"
+    fi
+done
+
+# Calculate success rate
+success_rate=$(( validation_score * 100 / total_tests ))
+
+# ============================================================================
+# PHASE 11: FINAL REPORT AND CLEANUP
+# ============================================================================
+
+print_section "PHASE 11: Installation Complete"
 
 # Generate final deployment guide
 cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
@@ -1152,7 +1278,7 @@ chmod +x manual-install-amazon-linux.sh
 print_status "Manual installation script created: manual-install-amazon-linux.sh"
 
 # Final instructions
-print_section "PHASE 10: Final Instructions"
+print_section "PHASE 12: Final Instructions"
 
 echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
 echo ""
@@ -1171,10 +1297,10 @@ echo "- For ArgoCD password: kubectl -n argocd get secret argocd-initial-admin-s
 echo ""
 
 # ============================================================================
-# PHASE 11: MANUAL INSTALLATION GUIDE (FALLBACK)
+# PHASE 13: MANUAL INSTALLATION GUIDE (FALLBACK)
 # ============================================================================
 
-print_section "PHASE 11: Manual Installation Guide (If Automated Installation Fails)"
+print_section "PHASE 13: Manual Installation Guide (If Automated Installation Fails)"
 
 echo -e "${YELLOW}📖 Manual Installation Steps (if automated installation fails):${NC}"
 echo ""
