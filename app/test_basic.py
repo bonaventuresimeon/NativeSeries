@@ -19,11 +19,11 @@ def test_imports():
         import app.database
         
         print("✅ All modules imported successfully")
-        return True
+        assert True
     except ImportError as e:
         print(f"⚠️ Import warning (expected without dependencies): {e}")
         print("✅ Module structure is correct")
-        return True
+        assert True
 
 
 def test_models():
@@ -34,13 +34,13 @@ def test_models():
             content = f.read()
             if 'class Student' in content and 'BaseModel' in content:
                 print("✅ Student model structure is correct")
-                return True
+                assert True
             else:
                 print("❌ Student model structure is incorrect")
-                return False
+                assert False
     except Exception as e:
         print(f"❌ Model test error: {e}")
-        return False
+        assert False
 
 
 def test_config():
@@ -51,13 +51,13 @@ def test_config():
             content = f.read()
             if 'FastAPI' in content and 'APP_NAME' in content and 'APP_VERSION' in content:
                 print("✅ FastAPI app structure is correct")
-                return True
+                assert True
             else:
                 print("❌ FastAPI app structure is incorrect")
-                return False
+                assert False
     except Exception as e:
         print(f"❌ Config test error: {e}")
-        return False
+        assert False
 
 
 def test_simple_math():
@@ -65,7 +65,6 @@ def test_simple_math():
     assert 1 + 1 == 2
     assert 2 * 3 == 6
     print("✅ Basic math tests passed")
-    return True
 
 
 def test_string_operations():
@@ -73,7 +72,6 @@ def test_string_operations():
     assert "hello" + " world" == "hello world"
     assert len("test") == 4
     print("✅ String operation tests passed")
-    return True
 
 
 def test_list_operations():
@@ -82,7 +80,6 @@ def test_list_operations():
     assert len(test_list) == 3
     assert test_list[0] == 1
     print("✅ List operation tests passed")
-    return True
 
 
 if __name__ == "__main__":
