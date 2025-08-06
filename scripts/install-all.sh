@@ -175,24 +175,44 @@ install_docker() {
     
     print_status "Installing Docker..."
     
-    # Add Docker's official GPG key
+    # Install Docker using package manager
     if [ "$PKG_MANAGER" = "apt" ]; then
-        sudo apt install -y docker.io
+        print_status "Installing Docker on Ubuntu/Debian..."
+        sudo apt update
+        sudo apt install -y docker.io docker-compose
     else
-        sudo $PKG_MANAGER install -y docker.io
+        print_status "Installing Docker on CentOS/RHEL/Fedora..."
+        sudo $PKG_MANAGER install -y docker docker-compose
     fi
     
     # Start and enable Docker service
+    print_status "Starting Docker service..."
     sudo systemctl start docker || true
     sudo systemctl enable docker || true
     
     # Add user to docker group
+    print_status "Setting up Docker permissions..."
     sudo usermod -aG docker "$USER" || true
+    
+    # Wait a moment for group changes to take effect
+    sleep 2
     
     # Verify installation
     if command_exists docker; then
         print_status "Docker installed successfully!"
         docker --version
+        
+        # Test Docker with sudo if needed
+        if docker info >/dev/null 2>&1; then
+            print_status "Docker is accessible"
+        elif sudo docker info >/dev/null 2>&1; then
+            print_status "Docker requires sudo (this is normal)"
+            # Create alias for docker with sudo
+            echo 'alias docker="sudo docker"' >> ~/.bashrc
+            export docker="sudo docker"
+        else
+            print_warning "Docker may need manual setup"
+        fi
     else
         print_error "Docker installation failed!"
         return 1
@@ -211,13 +231,32 @@ install_kubectl() {
     
     print_status "Installing kubectl..."
     
-    # Download kubectl
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download kubectl with error handling
+    print_status "Downloading kubectl..."
     KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-    curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+    if ! curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"; then
+        print_error "Failed to download kubectl"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
     
     # Make executable and move to PATH
     chmod +x kubectl
-    sudo mv kubectl /usr/local/bin/
+    if ! sudo mv kubectl /usr/local/bin/; then
+        print_error "Failed to move kubectl to /usr/local/bin/"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
     
     # Verify installation
     if command_exists kubectl; then
@@ -241,12 +280,31 @@ install_kind() {
     
     print_status "Installing Kind..."
     
-    # Download Kind
-    curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download Kind with error handling
+    print_status "Downloading Kind..."
+    if ! curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"; then
+        print_error "Failed to download Kind"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
     
     # Make executable and move to PATH
     chmod +x ./kind
-    sudo mv ./kind /usr/local/bin/
+    if ! sudo mv ./kind /usr/local/bin/; then
+        print_error "Failed to move Kind to /usr/local/bin/"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
     
     # Verify installation
     if command_exists kind; then
@@ -270,12 +328,30 @@ install_helm() {
     
     print_status "Installing Helm..."
     
-    # Download Helm
-    curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar xz
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download Helm with error handling
+    print_status "Downloading Helm..."
+    if ! curl -L "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar xz; then
+        print_error "Failed to download Helm"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
     
     # Move to PATH
-    sudo mv linux-amd64/helm /usr/local/bin/
-    rm -rf linux-amd64
+    if ! sudo mv linux-amd64/helm /usr/local/bin/; then
+        print_error "Failed to move Helm to /usr/local/bin/"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
     
     # Verify installation
     if command_exists helm; then
