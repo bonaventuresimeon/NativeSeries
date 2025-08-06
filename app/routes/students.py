@@ -6,9 +6,14 @@ from typing import List, Optional
 import os
 
 from app.crud import (
-    create_student, get_student, get_all_students, 
-    update_student_progress, delete_student, search_students,
-    count_students, get_student_progress
+    create_student,
+    get_student,
+    get_all_students,
+    update_student_progress,
+    delete_student,
+    search_students,
+    count_students,
+    get_student_progress,
 )
 from app.models import Student
 
@@ -22,20 +27,24 @@ for path in template_paths:
         templates = Jinja2Templates(directory=path)
         break
 
+
 @router.get("/", response_class=HTMLResponse)
 async def list_students_page(request: Request):
     """List all students with web interface"""
     try:
         students = await get_all_students()
         student_count = await count_students()
-        
+
         if templates:
-            return templates.TemplateResponse("students.html", {
-                "request": request,
-                "students": students,
-                "student_count": student_count
-            })
-        
+            return templates.TemplateResponse(
+                "students.html",
+                {
+                    "request": request,
+                    "students": students,
+                    "student_count": student_count,
+                },
+            )
+
         # Fallback HTML
         html_content = f"""
         <!DOCTYPE html>
@@ -75,16 +84,22 @@ async def list_students_page(request: Request):
                 
                 <div class="student-grid">
         """
-        
+
         for student in students:
             progress_items = []
             for week, completed in student.progress.items():
                 status_class = "completed" if completed else "pending"
                 status_text = "✅" if completed else "⏳"
-                progress_items.append(f'<div class="progress-item"><span>{week}</span><span class="{status_class}">{status_text}</span></div>')
-            
-            progress_html = "".join(progress_items) if progress_items else '<p>No progress recorded yet</p>'
-            
+                progress_items.append(
+                    f'<div class="progress-item"><span>{week}</span><span class="{status_class}">{status_text}</span></div>'
+                )
+
+            progress_html = (
+                "".join(progress_items)
+                if progress_items
+                else "<p>No progress recorded yet</p>"
+            )
+
             html_content += f"""
                     <div class="student-card">
                         <div class="student-name">{student.name}</div>
@@ -95,7 +110,7 @@ async def list_students_page(request: Request):
                         </div>
                     </div>
             """
-        
+
         html_content += """
                 </div>
                 
@@ -108,11 +123,12 @@ async def list_students_page(request: Request):
         </body>
         </html>
         """
-        
+
         return HTMLResponse(content=html_content)
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading students: {str(e)}")
+
 
 @router.get("/api", response_model=List[Student])
 async def list_students_api():
@@ -120,7 +136,10 @@ async def list_students_api():
     try:
         return await get_all_students()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving students: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving students: {str(e)}"
+        )
+
 
 @router.post("/api", response_model=Student)
 async def create_student_api(name: str):
@@ -128,11 +147,12 @@ async def create_student_api(name: str):
     try:
         if not name or len(name.strip()) == 0:
             raise HTTPException(status_code=400, detail="Name is required")
-        
+
         student = await create_student(name.strip())
         return student
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating student: {str(e)}")
+
 
 @router.get("/api/{student_id}", response_model=Student)
 async def get_student_api(student_id: str):
@@ -145,7 +165,10 @@ async def get_student_api(student_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving student: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving student: {str(e)}"
+        )
+
 
 @router.put("/api/{student_id}/progress")
 async def update_student_progress_api(student_id: str, week: str, status: str = "true"):
@@ -154,11 +177,17 @@ async def update_student_progress_api(student_id: str, week: str, status: str = 
         student = await update_student_progress(student_id, week, status)
         if not student:
             raise HTTPException(status_code=404, detail="Student not found")
-        return {"message": f"Progress updated for {student['name']}", "student": student}
+        return {
+            "message": f"Progress updated for {student['name']}",
+            "student": student,
+        }
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error updating progress: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error updating progress: {str(e)}"
+        )
+
 
 @router.get("/api/{student_id}/progress")
 async def get_student_progress_api(student_id: str):
@@ -171,7 +200,10 @@ async def get_student_progress_api(student_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving progress: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving progress: {str(e)}"
+        )
+
 
 @router.delete("/api/{student_id}")
 async def delete_student_api(student_id: str):
@@ -186,14 +218,20 @@ async def delete_student_api(student_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting student: {str(e)}")
 
+
 @router.get("/api/search")
-async def search_students_api(name: Optional[str] = Query(None, description="Name filter")):
+async def search_students_api(
+    name: Optional[str] = Query(None, description="Name filter")
+):
     """Search students by name"""
     try:
         students = await search_students(name)
         return students
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching students: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error searching students: {str(e)}"
+        )
+
 
 @router.get("/count")
 async def get_student_count():
@@ -202,4 +240,6 @@ async def get_student_count():
         count = await count_students()
         return {"total_students": count}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error counting students: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error counting students: {str(e)}"
+        )

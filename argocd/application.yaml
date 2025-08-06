@@ -8,33 +8,17 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/bonaventuresimeon/nativeseries.git
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries
     targetRevision: HEAD
-    path: helm-chart
-    helm:
-      valueFiles:
-        - values.yaml
-      parameters:
-        - name: app.image.tag
-          value: latest
-        - name: app.image.repository
-          value: ghcr.io/bonaventuresimeon/nativeseries
+    path: argocd
   destination:
-    server: https://54.166.101.159
+    server: https://kubernetes.default.svc
     namespace: nativeseries
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false
     syncOptions:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
       - PruneLast=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-  revisionHistoryLimit: 10

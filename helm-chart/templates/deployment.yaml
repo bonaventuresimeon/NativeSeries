@@ -54,9 +54,17 @@ spec:
             failureThreshold: {{ .Values.healthCheck.failureThreshold | default 3 }}
           {{- end }}
           env:
+<<<<<<< HEAD
             {{- range .Values.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
+=======
+            {{- if .Values.app.env }}
+            {{- range .Values.app.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+>>>>>>> fcfbd93d44fb98da4850a3c3e9ce217e3bcc508a
             {{- end }}
             {{- if .Values.configMap.enabled }}
             - name: APP_NAME

@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nativeseries-config
+  namespace: nativeseries
+  labels:
+    app: nativeseries
+data:
+  # Application configuration
+  APP_ENV: "production"
+  APP_NAME: "NativeSeries"
+  APP_VERSION: "1.0.0"
+  
+  # Server configuration
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  
+  # Database configuration (if needed)
+  DATABASE_URL: "mongodb://localhost:27017/nativeseries"
+  
+  # Logging configuration
+  LOG_LEVEL: "INFO"
+  
+  # Security configuration
+  SECRET_KEY: "your-secret-key-here"
+  DEBUG: "false"

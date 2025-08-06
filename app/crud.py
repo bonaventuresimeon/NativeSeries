@@ -6,20 +6,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 async def create_student(name: str):
     """Create a new student"""
     try:
         student_id = str(uuid4())
         student = Student(id=student_id, name=name)
-        
+
         collection = get_student_collection()
         await collection.insert_one(student.dict())
-        
+
         logger.info(f"✅ Student created: {name} (ID: {student_id})")
         return student
     except Exception as e:
         logger.error(f"❌ Error creating student: {e}")
         raise
+
 
 async def get_student(student_id: str):
     """Get a student by ID"""
@@ -31,27 +33,28 @@ async def get_student(student_id: str):
         logger.error(f"❌ Error getting student {student_id}: {e}")
         return None
 
+
 async def update_progress(student_id: str, week: str):
     """Update student progress for a specific week"""
     try:
         collection = get_student_collection()
         await collection.update_one(
-            {"id": student_id},
-            {"$set": {f"progress.{week}": True}}
+            {"id": student_id}, {"$set": {f"progress.{week}": True}}
         )
         return await get_student(student_id)
     except Exception as e:
         logger.error(f"❌ Error updating progress for student {student_id}: {e}")
         raise
 
+
 async def get_all_students():
     """Get all students"""
     try:
         collection = get_student_collection()
         cursor = await collection.find({})
-        
+
         # Handle both MongoDB cursor and list
-        if hasattr(cursor, '__aiter__'):
+        if hasattr(cursor, "__aiter__"):
             students = []
             async for student in cursor:
                 students.append(Student(**student))
@@ -63,6 +66,7 @@ async def get_all_students():
         logger.error(f"❌ Error getting all students: {e}")
         return []
 
+
 async def count_students():
     """Count total number of students"""
     try:
@@ -72,6 +76,7 @@ async def count_students():
         logger.error(f"❌ Error counting students: {e}")
         return 0
 
+
 async def get_student_progress(student_id: str):
     """Get student progress information"""
     try:
@@ -79,12 +84,13 @@ async def get_student_progress(student_id: str):
         if student:
             return {
                 "student_name": student["name"],
-                "progress": student.get("progress", {})
+                "progress": student.get("progress", {}),
             }
         return {}
     except Exception as e:
         logger.error(f"❌ Error getting progress for student {student_id}: {e}")
         return {}
+
 
 async def update_student_progress(student_id: str, week: str, status: str):
     """Update student progress with specific status"""
@@ -92,20 +98,20 @@ async def update_student_progress(student_id: str, week: str, status: str):
         status_bool = status.lower() == "true"
         collection = get_student_collection()
         await collection.update_one(
-            {"id": student_id},
-            {"$set": {f"progress.{week}": status_bool}}
+            {"id": student_id}, {"$set": {f"progress.{week}": status_bool}}
         )
         return await get_student(student_id)
     except Exception as e:
         logger.error(f"❌ Error updating student progress: {e}")
         raise
 
+
 async def delete_student(student_id: str):
     """Delete a student"""
     try:
         collection = get_student_collection()
         # Note: MockCollection doesn't support delete, but MongoDB would
-        if hasattr(collection, 'delete_one'):
+        if hasattr(collection, "delete_one"):
             result = await collection.delete_one({"id": student_id})
             return result.deleted_count > 0
         else:
@@ -114,6 +120,7 @@ async def delete_student(student_id: str):
     except Exception as e:
         logger.error(f"❌ Error deleting student {student_id}: {e}")
         return False
+
 
 async def search_students(name_filter: str = None):
     """Search students by name"""
