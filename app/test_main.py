@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 # Import app only if available
 try:
     from app.main import app
+
     client = TestClient(app)
     APP_AVAILABLE = True
 except ImportError:
@@ -83,11 +84,9 @@ def test_progress_form_post():
 @pytest.mark.skipif(not APP_AVAILABLE, reason="App not available")
 def test_update_form_post():
     """Test POST /update with form data."""
-    response = client.post("/update", data={
-        "name": "Test Student",
-        "week": "week1",
-        "status": "completed"
-    })
+    response = client.post(
+        "/update", data={"name": "Test Student", "week": "week1", "status": "completed"}
+    )
     assert response.status_code in [200, 500]
 
 

@@ -7,6 +7,7 @@ from datetime import datetime
 
 router = APIRouter()
 
+
 @router.get("/health")
 async def api_health():
     """API health check endpoint"""
@@ -14,8 +15,8 @@ async def api_health():
         # Get system information
         cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
-        
+        disk = psutil.disk_usage("/")
+
         return {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
@@ -23,15 +24,16 @@ async def api_health():
                 "cpu_percent": cpu_percent,
                 "memory_percent": memory.percent,
                 "disk_percent": disk.percent,
-                "uptime": time.time() - psutil.boot_time()
+                "uptime": time.time() - psutil.boot_time(),
             },
             "environment": {
                 "python_version": os.sys.version,
-                "platform": os.sys.platform
-            }
+                "platform": os.sys.platform,
+            },
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
 
 @router.get("/info")
 async def api_info():
@@ -44,10 +46,11 @@ async def api_info():
             "students": "/students/api",
             "health": "/api/v1/health",
             "docs": "/docs",
-            "metrics": "/metrics"
+            "metrics": "/metrics",
         },
-        "production_url": "http://54.166.101.159:30011"
+        "production_url": "http://54.166.101.159:30011",
     }
+
 
 @router.get("/stats")
 async def api_stats():
@@ -55,7 +58,7 @@ async def api_stats():
     try:
         # Get process information
         process = psutil.Process()
-        
+
         return {
             "process": {
                 "pid": process.pid,
@@ -63,19 +66,24 @@ async def api_stats():
                 "memory_percent": process.memory_percent(),
                 "memory_info": {
                     "rss": process.memory_info().rss,
-                    "vms": process.memory_info().vms
+                    "vms": process.memory_info().vms,
                 },
                 "num_threads": process.num_threads(),
-                "create_time": datetime.fromtimestamp(process.create_time()).isoformat()
+                "create_time": datetime.fromtimestamp(
+                    process.create_time()
+                ).isoformat(),
             },
             "system": {
                 "cpu_count": psutil.cpu_count(),
                 "memory_total": psutil.virtual_memory().total,
-                "disk_total": psutil.disk_usage('/').total
-            }
+                "disk_total": psutil.disk_usage("/").total,
+            },
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Stats collection failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Stats collection failed: {str(e)}"
+        )
+
 
 @router.get("/config")
 async def api_config():
@@ -85,10 +93,12 @@ async def api_config():
         "debug": os.getenv("DEBUG", "false").lower() == "true",
         "database": {
             "type": "mongodb" if os.getenv("MONGO_URI") else "in-memory",
-            "configured": bool(os.getenv("MONGO_URI"))
+            "configured": bool(os.getenv("MONGO_URI")),
         },
         "vault": {
             "configured": bool(os.getenv("VAULT_ADDR")),
-            "enabled": bool(os.getenv("VAULT_ROLE_ID") and os.getenv("VAULT_SECRET_ID"))
-        }
+            "enabled": bool(
+                os.getenv("VAULT_ROLE_ID") and os.getenv("VAULT_SECRET_ID")
+            ),
+        },
     }
