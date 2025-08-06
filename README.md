@@ -7,23 +7,19 @@
 [![Grafana](https://img.shields.io/badge/Grafana-F46800?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
 [![ArgoCD](https://img.shields.io/badge/ArgoCD-326CE5?style=for-the-badge&logo=argo&logoColor=white)](https://argoproj.github.io/argo-cd/)
 [![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)](https://helm.sh/)
+[![Loki](https://img.shields.io/badge/Loki-F7B93E?style=for-the-badge&logo=loki&logoColor=white)](https://grafana.com/oss/loki/)
 
 ## 📋 Table of Contents
 
 - [Overview](#overview)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
-- [Configuration](#configuration)
-- [Monitoring & Observability](#monitoring--observability)
-- [Security & Auto-scaling](#security--auto-scaling)
-- [Development](#development)
 - [Production Deployment](#production-deployment)
+- [Monitoring & Observability](#monitoring--observability)
 - [API Documentation](#api-documentation)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
 
 ## 🎯 Overview
 
@@ -98,46 +94,23 @@ graph TB
     subgraph "Kubernetes Infrastructure"
         K8s[Kubernetes Cluster]
         ArgoCD[ArgoCD GitOps]
-        Docker[Docker Registry]
-        Ingress[Ingress Controller]
-        Service[K8s Service]
-        Pod[Application Pods]
+        Prometheus[Prometheus]
+        Grafana[Grafana Dashboard]
+        Loki[Loki Log Aggregator]
     end
     
-    subgraph "Monitoring & Observability"
-        Prometheus[Prometheus Server]
-        Grafana[Grafana Dashboards]
-        Loki[Loki Log Aggregator]
-        AlertManager[Alert Manager]
+    subgraph "Monitoring Stack"
         ServiceMonitor[ServiceMonitor]
         PodMonitor[PodMonitor]
-        PrometheusRule[PrometheusRules]
-    end
-    
-    subgraph "Security & Auto-scaling"
+        PrometheusRule[PrometheusRule]
         HPA[Horizontal Pod Autoscaler]
         PDB[Pod Disruption Budget]
-        NetworkPolicy[Network Policies]
-        Secrets[K8s Secrets]
-        ConfigMaps[ConfigMaps]
-        RBAC[RBAC Policies]
+        NetworkPolicy[Network Policy]
     end
     
-    subgraph "CI/CD Pipeline"
-        GitHub[GitHub Repository]
-        Actions[GitHub Actions]
-        Build[Build & Test]
-        Security[Security Scans]
-        Deploy[Deploy to K8s]
-        Sync[ArgoCD Sync]
-    end
-    
-    UI --> Ingress
-    API --> Ingress
-    Mobile --> Ingress
-    Ingress --> Service
-    Service --> Pod
-    Pod --> FastAPI
+    UI --> FastAPI
+    API --> FastAPI
+    Mobile --> FastAPI
     FastAPI --> Auth
     FastAPI --> Cache
     FastAPI --> Metrics
@@ -147,798 +120,380 @@ graph TB
     FastAPI --> Memory
     FastAPI --> Logs
     
-    Pod --> Prometheus
-    Pod --> Loki
-    ServiceMonitor --> Prometheus
-    PodMonitor --> Prometheus
-    Prometheus --> Grafana
-    Prometheus --> AlertManager
-    PrometheusRule --> AlertManager
-    Loki --> Grafana
-    
+    FastAPI --> K8s
     K8s --> ArgoCD
-    ArgoCD --> Docker
+    K8s --> Prometheus
+    K8s --> Grafana
+    K8s --> Loki
+    
+    Prometheus --> ServiceMonitor
+    Prometheus --> PodMonitor
+    Prometheus --> PrometheusRule
     K8s --> HPA
     K8s --> PDB
     K8s --> NetworkPolicy
-    K8s --> Secrets
-    K8s --> ConfigMaps
-    K8s --> RBAC
     
-    GitHub --> Actions
-    Actions --> Build
-    Actions --> Security
-    Build --> Deploy
-    Deploy --> K8s
-    ArgoCD --> Sync
-    Sync --> K8s
-```
-
-### Monitoring Architecture
-
-```mermaid
-graph LR
-    subgraph "Application"
-        App[FastAPI Application]
-        Metrics[/metrics endpoint/]
-        Logs[Application Logs]
-        Health[/health endpoint/]
-    end
-
-    subgraph "Kubernetes CRDs"
-        ServiceMonitor[ServiceMonitor]
-        PodMonitor[PodMonitor]
-        PrometheusRule[PrometheusRule]
-    end
-
-    subgraph "Monitoring Stack"
-        Prometheus[Prometheus]
-        Loki[Loki]
-        Grafana[Grafana]
-        AlertManager[AlertManager]
-    end
-
-    App -- "exposes" --> Metrics
-    App -- "writes" --> Logs
-    App -- "exposes" --> Health
-
-    Metrics -- "scraped by" --> ServiceMonitor
-    Metrics -- "scraped by" --> PodMonitor
-    ServiceMonitor -- "configures" --> Prometheus
-    PodMonitor -- "configures" --> Prometheus
-    Health -- "scraped by" --> ServiceMonitor
-
-    Logs -- "collected by" --> Loki
-
-    Prometheus -- "sends alerts" --> AlertManager
-    PrometheusRule -- "defines alerts" --> Prometheus
-
-    Prometheus -- "visualized in" --> Grafana
-    Loki -- "visualized in" --> Grafana
-```
-
-### Auto-scaling & Security Architecture
-
-```mermaid
-graph TB
-    subgraph "Load & Traffic"
-        Users[Users/API Clients]
-        LoadBalancer[Load Balancer]
-        Ingress[Ingress Controller]
-        Traffic[Traffic Flow]
-    end
-    
-    subgraph "Application Layer"
-        Pod1[Pod 1]
-        Pod2[Pod 2]
-        PodN[Pod N]
-        Service[K8s Service]
-    end
-    
-    subgraph "Auto-scaling"
-        HPA[Horizontal Pod Autoscaler]
-        MetricsServer[Metrics Server]
-        CPU[CPU Usage]
-        Memory[Memory Usage]
-        Scaling[Scaling Decision]
-    end
-    
-    subgraph "Security Layer"
-        NetworkPolicy[Network Policies]
-        RBAC[RBAC Policies]
-        Secrets[K8s Secrets]
-        ConfigMaps[ConfigMaps]
-        SecurityContext[Security Context]
-    end
-    
-    subgraph "High Availability"
-        PDB[Pod Disruption Budget]
-        ReplicaSet[ReplicaSet]
-        RollingUpdate[Rolling Updates]
-        HealthChecks[Health Checks]
-    end
-    
-    Users --> LoadBalancer
-    LoadBalancer --> Ingress
-    Ingress --> Traffic
-    Traffic --> Service
-    Service --> Pod1
-    Service --> Pod2
-    Service --> PodN
-    
-    Pod1 --> CPU
-    Pod2 --> CPU
-    PodN --> CPU
-    Pod1 --> Memory
-    Pod2 --> Memory
-    PodN --> Memory
-    
-    CPU --> MetricsServer
-    Memory --> MetricsServer
-    MetricsServer --> HPA
-    HPA --> Scaling
-    Scaling --> ReplicaSet
-    ReplicaSet --> Pod1
-    ReplicaSet --> Pod2
-    ReplicaSet --> PodN
-    
-    Pod1 --> NetworkPolicy
-    Pod2 --> NetworkPolicy
-    PodN --> NetworkPolicy
-    NetworkPolicy --> RBAC
-    RBAC --> Secrets
-    RBAC --> ConfigMaps
-    Secrets --> SecurityContext
-    ConfigMaps --> SecurityContext
-    
-    PDB --> ReplicaSet
-    ReplicaSet --> RollingUpdate
-    RollingUpdate --> HealthChecks
-    HealthChecks --> Pod1
-    HealthChecks --> Pod2
-    HealthChecks --> PodN
+    Logs --> Loki
+    Loki --> Grafana
 ```
 
 ## 🛠️ Technology Stack
 
-### Backend Technologies
-- **FastAPI**: Modern, high-performance web framework for building APIs
-- **Python 3.11+**: Latest Python features and performance improvements
+### Backend
+- **FastAPI**: Modern Python web framework
+- **Python 3.13**: Latest Python version
+- **Uvicorn**: ASGI server for FastAPI
 - **Pydantic**: Data validation and settings management
-- **Uvicorn**: ASGI server for production deployment
 
 ### Database & Caching
-- **MongoDB**: Document-oriented NoSQL database
-- **Redis**: In-memory data structure store for caching
-- **Motor**: Async MongoDB driver for Python
+- **MongoDB**: Document database for data persistence
+- **Redis**: In-memory caching layer
+- **In-Memory Fallback**: Graceful degradation when external DB unavailable
 
 ### Containerization & Orchestration
-- **Docker**: Containerization platform
+- **Docker**: Container runtime and image building
 - **Kubernetes**: Container orchestration platform
+- **Kind**: Local Kubernetes cluster for development
 - **Helm**: Kubernetes package manager
-- **Kind**: Kubernetes in Docker for local development
 
-### CI/CD & GitOps
-- **GitHub Actions**: Automated CI/CD pipeline
-- **ArgoCD**: GitOps continuous delivery tool
-- **Docker Hub**: Container registry
+### GitOps & CI/CD
+- **ArgoCD**: GitOps continuous deployment
+- **GitHub Actions**: CI/CD pipeline automation
+- **Git**: Version control and collaboration
 
 ### Monitoring & Observability
-- **Prometheus**: Metrics collection and monitoring
-- **Grafana**: Data visualization and dashboards
-- **Loki**: Log aggregation system
-- **AlertManager**: Alert routing and notification
+- **Prometheus**: Metrics collection and storage
+- **Grafana**: Metrics visualization and dashboards
+- **Loki**: Log aggregation and querying
+- **ServiceMonitor**: Kubernetes service monitoring
+- **PodMonitor**: Pod-level metrics collection
 
-### Security & Configuration
-- **Kubernetes Secrets**: Secure credential storage
+### Security & Scaling
+- **Kubernetes Secrets**: Secure credential management
 - **ConfigMaps**: Configuration management
-- **Network Policies**: Traffic control
-- **RBAC**: Role-based access control
-- **HashiCorp Vault**: Secrets management (optional)
-
-### Auto-scaling & High Availability
+- **Network Policies**: Traffic control and security
 - **Horizontal Pod Autoscaler**: Automatic scaling
-- **Pod Disruption Budget**: Availability guarantees
-- **Health Checks**: Liveness and readiness probes
-- **Resource Limits**: CPU and memory constraints
+- **Pod Disruption Budget**: High availability
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Docker**: Version 20.10 or higher
-- **Kind**: Version 0.20 or higher
-- **kubectl**: Version 1.28 or higher
-- **Helm**: Version 3.12 or higher
-- **System Resources**: Minimum 8GB RAM, 4 CPU cores, 20GB storage
+- **Operating System**: Linux (Ubuntu 20.04+, CentOS 8+, Amazon Linux 2)
+- **Memory**: Minimum 8GB RAM (16GB recommended for monitoring stack)
+- **Storage**: Minimum 50GB free space (for monitoring data)
+- **Network**: Internet connection for downloading dependencies
 
 ### Automated Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/nativeseries.git
+git clone https://github.com/bonaventuresimeon/nativeseries.git
 cd nativeseries
 
-# Run the complete installation script
+# Run the automated installation script
 chmod +x scripts/install-all.sh
 ./scripts/install-all.sh
 ```
 
+This script will install:
+1. All required tools (Docker, kubectl, Helm, Kind, ArgoCD)
+2. Kubernetes cluster with Kind
+3. Application deployment
+4. **Monitoring stack (Prometheus + Grafana)**
+5. **Logging stack (Loki)**
+6. **Secrets and ConfigMaps**
+7. **Auto-scaling configuration (HPA)**
+8. **Network policies and security**
+
 ### Manual Installation
 
 ```bash
-# 1. Create Kubernetes cluster
-kind create cluster --config infra/kind/cluster-config.yaml
+# Clone the repository
+git clone https://github.com/bonaventuresimeon/nativeseries.git
+cd nativeseries
 
-# 2. Install ArgoCD
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# Install Python dependencies
+pip install -r requirements.txt
 
-# 3. Deploy application with Helm
-helm install nativeseries ./helm-chart \
-  --namespace default \
-  --set monitoring.enabled=true \
-  --set logging.enabled=true \
-  --set hpa.enabled=true \
-  --set networkPolicy.enabled=true
+# Build Docker image
+docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest .
+
+# Run locally
+docker run -p 8000:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
 ```
 
 ## 📦 Installation
 
-### Complete Setup Process
+### System Requirements
 
-The installation process includes the following components:
+- **Operating System**: Linux (Ubuntu 20.04+, CentOS 8+, Amazon Linux 2)
+- **Memory**: Minimum 8GB RAM (16GB recommended for monitoring stack)
+- **Storage**: Minimum 50GB free space (for monitoring data)
+- **Network**: Internet connection for downloading dependencies
 
-1. **Kubernetes Cluster Setup**
-   - Kind cluster creation with custom configuration
-   - Namespace creation (default, monitoring, logging)
-   - Resource allocation and port mapping
+### Required Tools
 
-2. **Application Deployment**
-   - Helm chart deployment with all features enabled
-   - Secrets and ConfigMaps creation
-   - Service and ingress configuration
+- **Python**: 3.11 or higher
+- **Docker**: 20.10 or higher
+- **kubectl**: 1.28 or higher
+- **Helm**: 3.13 or higher
+- **Kind**: 0.20.0 or higher (for local Kubernetes)
+- **ArgoCD CLI**: 2.9.3 or higher
 
-3. **Monitoring Stack Installation**
-   - Prometheus and Grafana deployment
-   - Loki log aggregation setup
-   - Custom dashboards and alert rules
+### Installation Steps
 
-4. **Security & Auto-scaling Configuration**
-   - Network policies implementation
-   - HPA and PDB configuration
-   - RBAC and security contexts
+1. **System Dependencies**: Install curl, wget, git, unzip, jq
+2. **Docker**: Install Docker with daemon setup
+3. **kubectl**: Install latest stable kubectl
+4. **Kind**: Install Kind for local Kubernetes cluster
+5. **Helm**: Install Helm for package management
+6. **Python**: Install Python with virtual environment
+7. **ArgoCD**: Install ArgoCD CLI and server
+8. **Application**: Build and deploy the application
+9. **Monitoring**: Install Prometheus, Grafana, and Loki
+10. **Security**: Configure secrets, ConfigMaps, and network policies
 
-### Verification Steps
+## 🌐 Production Deployment
+
+### Production Environment
+
+The application is deployed to production at:
+- **Application**: http://54.166.101.159:30011
+- **ArgoCD UI**: http://54.166.101.159:30080
+- **Grafana**: http://54.166.101.159:30081
+- **Prometheus**: http://54.166.101.159:30082
+- **Loki**: http://54.166.101.159:30083
+
+### Deployment Components
+
+#### Application Deployment
+- **Namespace**: `nativeseries`
+- **Service**: NodePort on port 30011
+- **Replicas**: 2-10 (auto-scaled)
+- **Health Checks**: Liveness and readiness probes
+- **Resource Limits**: CPU and memory constraints
+
+#### Monitoring Stack
+- **Namespace**: `monitoring`
+- **Prometheus**: Metrics collection and storage
+- **Grafana**: Dashboards and visualization
+- **ServiceMonitor**: Application metrics monitoring
+- **PodMonitor**: Pod-level metrics collection
+
+#### Logging Stack
+- **Namespace**: `logging`
+- **Loki**: Log aggregation and querying
+- **Log Forwarding**: Application logs to Loki
+- **Grafana Integration**: Log visualization in Grafana
+
+#### Security Configuration
+- **Secrets**: Database and API credentials
+- **ConfigMaps**: Application configuration
+- **Network Policies**: Traffic control and security
+- **RBAC**: Role-based access control
+
+#### Auto-scaling
+- **HPA**: Horizontal Pod Autoscaler
+- **Min Replicas**: 2
+- **Max Replicas**: 10
+- **CPU Threshold**: 70%
+- **Memory Threshold**: 80%
+
+## 🔍 Monitoring & Observability
+
+### Prometheus & Grafana
+
+**Access URLs:**
+- Grafana: `http://54.166.101.159:30081` (admin/admin123)
+- Prometheus: `http://54.166.101.159:30082`
+
+**Components:**
+- Prometheus Operator for metrics collection
+- Grafana dashboards for visualization
+- ServiceMonitor for application metrics
+- PodMonitor for pod-level metrics
+- PrometheusRule for alerting
+
+### Loki Logging
+
+**Access URL:**
+- Loki: `http://54.166.101.159:30083`
+
+**Components:**
+- Loki server for log aggregation
+- Log forwarding from application pods
+- Log querying and visualization in Grafana
+
+### Application Metrics
+
+The application exposes the following metrics:
+- **Health Status**: Application health and readiness
+- **Request Metrics**: HTTP request counts and latencies
+- **Resource Usage**: CPU and memory consumption
+- **Custom Metrics**: Application-specific metrics
+
+### Alerting Rules
+
+Configured alerts for:
+- **High CPU Usage**: CPU > 80% for 5 minutes
+- **High Memory Usage**: Memory > 85% for 5 minutes
+- **Pod Restarts**: Pod restart count > 3 in 10 minutes
+- **Service Availability**: Service down for > 2 minutes
+
+## 📚 API Documentation
+
+### Interactive Documentation
+
+- **Swagger UI**: http://54.166.101.159:30011/docs
+- **ReDoc**: http://54.166.101.159:30011/redoc
+- **OpenAPI JSON**: http://54.166.101.159:30011/openapi.json
+
+### API Endpoints
+
+#### Health & System
+- `GET /health` - Application health check
+- `GET /metrics` - Prometheus metrics
+- `GET /` - Application homepage
+- `GET /about` - Application information
+
+#### Students API
+- `GET /students` - List all students
+- `POST /students` - Create new student
+- `GET /students/{id}` - Get student by ID
+- `PUT /students/{id}` - Update student
+- `DELETE /students/{id}` - Delete student
+
+#### Courses API
+- `GET /courses` - List all courses
+- `POST /courses` - Create new course
+- `GET /courses/{id}` - Get course by ID
+- `PUT /courses/{id}` - Update course
+- `DELETE /courses/{id}` - Delete course
+
+## 🧪 Testing
+
+### Health Checks
 
 ```bash
+# Application health
+curl http://54.166.101.159:30011/health
+
+# Metrics endpoint
+curl http://54.166.101.159:30011/metrics
+
+# API documentation
+curl http://54.166.101.159:30011/docs
+```
+
+### Monitoring Tests
+
+```bash
+# Run monitoring tests
+./scripts/test-monitoring.sh
+
 # Check application status
-kubectl get pods -n default
-kubectl get services -n default
+kubectl get pods -n nativeseries
 
-# Verify monitoring stack
+# Check monitoring stack
 kubectl get pods -n monitoring
+
+# Check logging stack
 kubectl get pods -n logging
-
-# Test application endpoints
-curl http://localhost:30080/health
-curl http://localhost:30080/metrics
 ```
 
-## ⚙️ Configuration
-
-### Environment Variables
-
-| Variable | Description | Default Value |
-|----------|-------------|---------------|
-| `MONGODB_URL` | MongoDB connection string | `mongodb://localhost:27017` |
-| `REDIS_URL` | Redis connection string | `redis://localhost:6379` |
-| `JWT_SECRET` | JWT signing secret | `your-secret-key` |
-| `LOG_LEVEL` | Application log level | `INFO` |
-| `API_PORT` | Application port | `8000` |
-
-### Helm Chart Configuration
-
-```yaml
-# Application Configuration
-replicaCount: 3
-image:
-  repository: your-registry/nativeseries
-  tag: latest
-  pullPolicy: IfNotPresent
-
-# Resource Management
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
-
-# Auto-scaling Configuration
-hpa:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
-
-# Monitoring Configuration
-monitoring:
-  enabled: true
-  serviceMonitor:
-    enabled: true
-    path: /metrics
-    interval: 30s
-  prometheusRules:
-    enabled: true
-
-# Security Configuration
-security:
-  networkPolicy:
-    enabled: true
-  secrets:
-    enabled: true
-  configMaps:
-    enabled: true
-```
-
-## 📊 Monitoring & Observability
-
-### Prometheus Metrics
-
-The application exposes custom metrics for comprehensive monitoring:
-
-```python
-# Custom application metrics
-http_requests_total{method="GET", endpoint="/api/items"}
-http_request_duration_seconds{method="POST", endpoint="/api/items"}
-database_connections_active
-cache_hit_ratio
-```
-
-### Grafana Dashboards
-
-Pre-configured dashboards provide insights into:
-
-- **Application Performance**: Request rates, response times, error rates
-- **Resource Utilization**: CPU, memory, and network usage
-- **Database Metrics**: Connection pools, query performance
-- **Cache Performance**: Hit ratios and eviction rates
-- **Kubernetes Metrics**: Pod status, scaling events
-
-### Loki Log Aggregation
-
-Centralized log collection with LogQL queries:
-
-```logql
-# Application logs
-{app="nativeseries", namespace="default"}
-
-# Error logs
-{app="nativeseries", level="ERROR"}
-
-# Performance logs
-{app="nativeseries", component="database"}
-```
-
-### Alert Rules
-
-Custom Prometheus alert rules for proactive monitoring:
-
-```yaml
-# Application down alert
-- alert: AppDown
-  expr: up{app="nativeseries"} == 0
-  for: 1m
-  labels:
-    severity: critical
-  annotations:
-    summary: "Application is down"
-
-# High CPU usage alert
-- alert: HighCPUUsage
-  expr: container_cpu_usage_seconds_total{container="nativeseries"} > 0.8
-  for: 5m
-  labels:
-    severity: warning
-  annotations:
-    summary: "High CPU usage detected"
-```
-
-### Access URLs
-
-| Component | URL | Credentials |
-|-----------|-----|-------------|
-| Application | http://localhost:30080 | N/A |
-| Grafana | http://localhost:30081 | admin/admin |
-| Prometheus | http://localhost:30082 | N/A |
-| Loki | http://localhost:30083 | N/A |
-| ArgoCD | http://localhost:30084 | admin/argocd-server |
-
-## 🛡️ Security & Auto-scaling
-
-### Secrets Management
-
-Kubernetes secrets provide secure credential storage:
-
-```yaml
-# Database credentials
-apiVersion: v1
-kind: Secret
-metadata:
-  name: nativeseries-db-secret
-type: Opaque
-data:
-  username: <base64-encoded>
-  password: <base64-encoded>
-```
-
-### Network Security
-
-Network policies control traffic flow:
-
-```yaml
-# Ingress traffic control
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: nativeseries-network-policy
-spec:
-  podSelector:
-    matchLabels:
-      app: nativeseries
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: ingress-nginx
-    ports:
-    - protocol: TCP
-      port: 8000
-```
-
-### Auto-scaling Configuration
-
-Horizontal Pod Autoscaler with intelligent scaling:
-
-```yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: nativeseries-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: nativeseries
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-      - type: Percent
-        value: 10
-        periodSeconds: 60
-```
-
-### High Availability Features
-
-- **Pod Disruption Budget**: Ensures minimum availability during voluntary disruptions
-- **Health Checks**: Liveness and readiness probes for automatic recovery
-- **Rolling Updates**: Zero-downtime deployments with configurable strategies
-- **Resource Limits**: Prevents resource exhaustion and ensures fair scheduling
-
-## 🧪 Development
-
-### Local Development Setup
+### Smoke Tests
 
 ```bash
-# Clone repository
-git clone https://github.com/your-username/nativeseries.git
-cd nativeseries
+# Run smoke tests
+./scripts/smoke-tests.sh
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Run application locally
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# Validate deployment
+./scripts/validate-deployment.sh
 ```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+#### Installation Issues
+1. **Docker not starting**: Check Docker daemon and permissions
+2. **kubectl not found**: Ensure kubectl is in PATH
+3. **Helm installation failed**: Check network connectivity
+4. **Kind cluster creation failed**: Ensure Docker is running
+
+#### Application Issues
+1. **Application not starting**: Check logs with `kubectl logs`
+2. **Database connection failed**: Verify MongoDB configuration
+3. **Health checks failing**: Check application configuration
+4. **Metrics not appearing**: Verify ServiceMonitor configuration
+
+#### Monitoring Issues
+1. **Grafana not accessible**: Check NodePort service
+2. **Prometheus not collecting metrics**: Verify ServiceMonitor
+3. **Loki logs not appearing**: Check log forwarding configuration
+4. **Alerts not firing**: Verify PrometheusRule configuration
+
+### Debug Commands
+
+```bash
+# Check application logs
+kubectl logs -f deployment/nativeseries -n nativeseries
+
+# Check monitoring logs
+kubectl logs -f deployment/prometheus -n monitoring
+kubectl logs -f deployment/grafana -n monitoring
+
+# Check Loki logs
+kubectl logs -f deployment/loki -n logging
+
+# Check cluster status
+kubectl get nodes
+kubectl get pods --all-namespaces
+
+# Check services
+kubectl get svc --all-namespaces
+
+# Check events
+kubectl get events --all-namespaces --sort-by='.lastTimestamp'
+```
+
+### Log Locations
+
+- **Application Logs**: `/app/logs/app.log`
+- **Container Logs**: `kubectl logs <pod-name>`
+- **System Logs**: `/var/log/`
+- **Docker Logs**: `docker logs <container-id>`
+
+## 🤝 Contributing
+
+### Development Setup
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+### Code Standards
+
+- **Python**: Follow PEP 8 style guide
+- **Docker**: Use multi-stage builds
+- **Kubernetes**: Follow best practices
+- **Documentation**: Keep README updated
 
 ### Testing
 
 ```bash
 # Run unit tests
-pytest tests/
+python -m pytest
 
 # Run integration tests
-pytest tests/integration/
+python -m pytest tests/integration/
 
-# Test monitoring setup
+# Run monitoring tests
 ./scripts/test-monitoring.sh
-
-# Load testing for HPA
-kubectl run load-test --image=busybox --rm -it --restart=Never -- \
-  sh -c "while true; do wget -qO- http://nativeseries-service:8000/health; sleep 0.1; done"
-```
-
-### Code Quality
-
-```bash
-# Linting
-flake8 .
-black .
-isort .
-
-# Type checking
-mypy .
-
-# Security scanning
-bandit -r .
-```
-
-## 🚀 Production Deployment
-
-### Production Checklist
-
-- [ ] **Security Configuration**
-  - [ ] Secrets properly configured
-  - [ ] Network policies applied
-  - [ ] RBAC policies implemented
-  - [ ] Security contexts configured
-
-- [ ] **Monitoring Setup**
-  - [ ] Prometheus metrics collection
-  - [ ] Grafana dashboards configured
-  - [ ] Alert rules defined
-  - [ ] Log aggregation working
-
-- [ ] **Auto-scaling Configuration**
-  - [ ] HPA properly configured
-  - [ ] Resource limits set
-  - [ ] Health checks implemented
-  - [ ] PDB configured
-
-- [ ] **High Availability**
-  - [ ] Multiple replicas deployed
-  - [ ] Rolling update strategy
-  - [ ] Backup and recovery procedures
-  - [ ] Disaster recovery plan
-
-### Deployment Commands
-
-```bash
-# Production deployment
-helm install nativeseries ./helm-chart \
-  --namespace production \
-  --set replicaCount=3 \
-  --set monitoring.enabled=true \
-  --set logging.enabled=true \
-  --set hpa.enabled=true \
-  --set networkPolicy.enabled=true \
-  --set security.secrets.enabled=true \
-  --set security.configMaps.enabled=true
-
-# Verify deployment
-kubectl get pods -n production
-kubectl get hpa -n production
-kubectl get networkpolicies -n production
-```
-
-## 📚 API Documentation
-
-### Health Endpoints
-
-```bash
-# Application health
-GET /health
-Response: {"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"}
-
-# Metrics endpoint
-GET /metrics
-Response: Prometheus-formatted metrics
-
-# Readiness probe
-GET /ready
-Response: {"status": "ready"}
-```
-
-### Core API Endpoints
-
-```bash
-# Authentication
-POST /auth/login
-POST /auth/refresh
-POST /auth/logout
-
-# CRUD Operations
-GET /api/items
-POST /api/items
-GET /api/items/{item_id}
-PUT /api/items/{item_id}
-DELETE /api/items/{item_id}
-
-# Search and Filtering
-GET /api/items?search={query}&page={page}&limit={limit}
-```
-
-### API Response Format
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "item_123",
-    "name": "Sample Item",
-    "description": "Item description",
-    "created_at": "2025-08-01T00:00:00Z",
-    "updated_at": "2025-08-01T00:00:00Z"
-  },
-  "message": "Item retrieved successfully",
-  "timestamp": "2025-08-01T00:00:00Z"
-}
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### Application Not Starting
-
-```bash
-# Check pod status
-kubectl get pods -n default
-kubectl describe pod <pod-name>
-
-# Check logs
-kubectl logs <pod-name> -n default
-kubectl logs <pod-name> -n default --previous
-
-# Check events
-kubectl get events -n default --sort-by='.lastTimestamp'
-```
-
-#### Monitoring Issues
-
-```bash
-# Check Prometheus targets
-kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring
-
-# Check Grafana connectivity
-kubectl port-forward svc/grafana 3000:80 -n monitoring
-
-# Verify ServiceMonitor
-kubectl get servicemonitor -n default
-kubectl describe servicemonitor nativeseries-monitor
-```
-
-#### Auto-scaling Issues
-
-```bash
-# Check HPA status
-kubectl get hpa -n default
-kubectl describe hpa nativeseries-hpa
-
-# Check metrics server
-kubectl top pods -n default
-kubectl top nodes
-
-# Test scaling
-kubectl run load-test --image=busybox --rm -it --restart=Never -- \
-  sh -c "while true; do wget -qO- http://nativeseries-service:8000/health; sleep 0.1; done"
-```
-
-### Performance Optimization
-
-#### Database Optimization
-
-```python
-# Connection pooling
-MONGODB_URL = "mongodb://localhost:27017/?maxPoolSize=10&minPoolSize=5"
-
-# Index optimization
-db.items.create_index([("name", 1)])
-db.items.create_index([("created_at", -1)])
-```
-
-#### Caching Strategy
-
-```python
-# Redis caching
-@cache(expire=300)  # 5 minutes
-async def get_item(item_id: str):
-    return await db.items.find_one({"_id": item_id})
-```
-
-#### Resource Optimization
-
-```yaml
-# Resource requests and limits
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 500m
-    memory: 512Mi
-```
-
-## 🤝 Contributing
-
-### Development Workflow
-
-1. **Fork the Repository**
-   ```bash
-   git clone https://github.com/your-username/nativeseries.git
-   cd nativeseries
-   ```
-
-2. **Create Feature Branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Make Changes**
-   - Follow coding standards
-   - Add tests for new features
-   - Update documentation
-
-4. **Test Changes**
-   ```bash
-   # Run tests
-   pytest tests/
-   
-   # Test monitoring
-   ./scripts/test-monitoring.sh
-   
-   # Build and test locally
-   docker build -t nativeseries:test .
-   ```
-
-5. **Submit Pull Request**
-   - Provide clear description
-   - Include test results
-   - Update documentation
-
-### Code Standards
-
-- **Python**: PEP 8 compliance, type hints, docstrings
-- **YAML**: Consistent indentation, clear structure
-- **Documentation**: Clear, concise, and up-to-date
-- **Testing**: Minimum 80% code coverage
-
-### Testing Guidelines
-
-```bash
-# Unit tests
-pytest tests/unit/ -v
-
-# Integration tests
-pytest tests/integration/ -v
-
-# End-to-end tests
-pytest tests/e2e/ -v
-
-# Performance tests
-pytest tests/performance/ -v
 ```
 
 ## 📄 License
@@ -947,24 +502,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- **Kubernetes Community**: For the excellent orchestration platform
-- **Prometheus Team**: For comprehensive monitoring solutions
-- **Grafana Labs**: For powerful visualization tools
-- **ArgoCD Team**: For GitOps implementation
-- **FastAPI Community**: For the modern web framework
-- **Open Source Contributors**: For continuous improvements
-
-## 📞 Support
-
-For support and questions:
-
-- **Documentation**: [Project Wiki](https://github.com/your-username/nativeseries/wiki)
-- **Issues**: [GitHub Issues](https://github.com/your-username/nativeseries/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/nativeseries/discussions)
-- **Email**: contact@bonaventure.org.ng
+- **FastAPI**: Modern Python web framework
+- **Kubernetes**: Container orchestration platform
+- **Prometheus**: Metrics collection and monitoring
+- **Grafana**: Metrics visualization and dashboards
+- **Loki**: Log aggregation and querying
+- **ArgoCD**: GitOps continuous deployment
 
 ---
 
-**NativeSeries** - Enterprise-Grade Kubernetes Application Platform
-
-*Built with ❤️ for modern DevOps practices and production excellence.*
+**🎉 Happy coding with GitOps! 🚀**

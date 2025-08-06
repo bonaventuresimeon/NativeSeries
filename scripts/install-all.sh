@@ -123,6 +123,280 @@ if ! command -v docker >/dev/null 2>&1; then
         sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
         sleep 10
     fi
+}
+
+# Function to install Docker
+install_docker() {
+    print_section "Installing Docker"
+    
+    if command_exists docker; then
+        print_status "Docker is already installed"
+        docker --version
+        return 0
+    fi
+    
+    print_status "Installing Docker..."
+    
+    # Install Docker using package manager
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        print_status "Installing Docker on Ubuntu/Debian..."
+        sudo apt update
+        sudo apt install -y docker.io docker-compose
+    else
+        print_status "Installing Docker on CentOS/RHEL/Fedora..."
+        sudo $PKG_MANAGER install -y docker docker-compose
+    fi
+    
+    # Start and enable Docker service
+    print_status "Starting Docker service..."
+    sudo systemctl start docker || true
+    sudo systemctl enable docker || true
+    
+    # Add user to docker group
+    print_status "Setting up Docker permissions..."
+    sudo usermod -aG docker "$USER" || true
+    
+    # Wait a moment for group changes to take effect
+    sleep 2
+    
+    # Verify installation
+    if command_exists docker; then
+        print_status "Docker installed successfully!"
+        docker --version
+        
+        # Test Docker with sudo if needed
+        if docker info >/dev/null 2>&1; then
+            print_status "Docker is accessible"
+        elif sudo docker info >/dev/null 2>&1; then
+            print_status "Docker requires sudo (this is normal)"
+            # Create alias for docker with sudo
+            echo 'alias docker="sudo docker"' >> ~/.bashrc
+            export docker="sudo docker"
+        else
+            print_warning "Docker may need manual setup"
+        fi
+    else
+        print_error "Docker installation failed!"
+        return 1
+    fi
+}
+
+# Function to install kubectl
+install_kubectl() {
+    print_section "Installing kubectl"
+    
+    if command_exists kubectl; then
+        print_status "kubectl is already installed"
+        kubectl version --client
+        return 0
+    fi
+    
+    print_status "Installing kubectl..."
+    
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download kubectl with error handling
+    print_status "Downloading kubectl..."
+    KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+    if ! curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"; then
+        print_error "Failed to download kubectl"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Make executable and move to PATH
+    chmod +x kubectl
+    if ! sudo mv kubectl /usr/local/bin/; then
+        print_error "Failed to move kubectl to /usr/local/bin/"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
+    
+    # Verify installation
+    if command_exists kubectl; then
+        print_status "kubectl installed successfully!"
+        kubectl version --client
+    else
+        print_error "kubectl installation failed!"
+        return 1
+    fi
+}
+
+# Function to install Kind
+install_kind() {
+    print_section "Installing Kind"
+    
+    if command_exists kind; then
+        print_status "Kind is already installed"
+        kind version
+        return 0
+    fi
+    
+    print_status "Installing Kind..."
+    
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download Kind with error handling
+    print_status "Downloading Kind..."
+    if ! curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"; then
+        print_error "Failed to download Kind"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Make executable and move to PATH
+    chmod +x ./kind
+    if ! sudo mv ./kind /usr/local/bin/; then
+        print_error "Failed to move Kind to /usr/local/bin/"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
+    
+    # Verify installation
+    if command_exists kind; then
+        print_status "Kind installed successfully!"
+        kind version
+    else
+        print_error "Kind installation failed!"
+        return 1
+    fi
+}
+
+# Function to install Helm
+install_helm() {
+    print_section "Installing Helm"
+    
+    if command_exists helm; then
+        print_status "Helm is already installed"
+        helm version
+        return 0
+    fi
+    
+    print_status "Installing Helm..."
+    
+    # Create temporary directory
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    
+    # Download Helm with error handling
+    print_status "Downloading Helm..."
+    if ! curl -L "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar xz; then
+        print_error "Failed to download Helm"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Move to PATH
+    if ! sudo mv linux-amd64/helm /usr/local/bin/; then
+        print_error "Failed to move Helm to /usr/local/bin/"
+        cd - > /dev/null
+        rm -rf "$TEMP_DIR"
+        return 1
+    fi
+    
+    # Clean up
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
+    
+    # Verify installation
+    if command_exists helm; then
+        print_status "Helm installed successfully!"
+        helm version
+    else
+        print_error "Helm installation failed!"
+        return 1
+    fi
+}
+
+# Function to install Python and pip
+install_python() {
+    print_section "Installing Python"
+    detect_package_manager
+
+    if command_exists python3; then
+        print_status "Python is already installed"
+        python3 --version
+    else
+        print_status "Installing Python ${PYTHON_VERSION}..."
+        if [ "$PKG_MANAGER" = "apt" ]; then
+            sudo apt install -y python3 python3-pip
+        else
+            sudo $PKG_MANAGER install -y python3 python3-pip
+        fi
+    fi
+
+    # Install Python virtual environment package
+    print_status "Installing Python virtual environment package..."
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt install -y python3-venv
+    else
+        sudo $PKG_MANAGER install -y python3-venv || sudo $PKG_MANAGER install -y python3-virtualenv
+    fi
+
+    # Verify installation
+    if command_exists python3; then
+        print_status "Python installed successfully!"
+        python3 --version
+        pip3 --version
+    else
+        print_error "Python installation failed!"
+        return 1
+    fi
+}
+
+# Function to verify all tools are installed
+verify_tools() {
+    print_section "Verifying Tool Installation"
+    
+    local tools=("docker" "kubectl" "kind" "helm" "python3")
+    local missing_tools=()
+    
+    for tool in "${tools[@]}"; do
+        if command_exists "$tool"; then
+            print_status "✓ $tool is installed"
+        else
+            print_error "✗ $tool is missing"
+            missing_tools+=("$tool")
+        fi
+    done
+    
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        print_status "All tools are installed and ready!"
+        return 0
+    else
+        print_error "Missing tools: ${missing_tools[*]}"
+        return 1
+    fi
+}
+
+# Function to setup Docker environment
+setup_docker() {
+    print_section "Setting up Docker Environment"
+    
+    # Start Docker daemon if not running
+    if ! docker info >/dev/null 2>&1; then
+        print_status "Starting Docker daemon..."
+        # For container environments without systemctl
+        sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
+        sleep 10
+    fi
     print_status "Docker installed and started"
 else
     print_status "Docker already installed"
