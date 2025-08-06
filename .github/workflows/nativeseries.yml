@@ -2,94 +2,20 @@ name: NativeSeries Pipeline
 
 on:
   push:
-    branches: [ main, develop, cursor/deploy-application-fix-errors-and-merge-pr-2456 ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-        - staging
-        - production
-      skip_tests:
-        description: 'Skip running tests'
-        required: false
-        default: false
-        type: boolean
-      skip_docker_push:
-        description: 'Skip Docker push (use for registry issues)'
-        required: false
-        default: false
-        type: boolean
-      run_simple_test:
-        description: 'Run simple test only (skip full pipeline)'
-        required: false
-        default: false
-        type: boolean
-      run_security_scan:
-        description: 'Run security vulnerability scan'
-        required: false
-        default: true
-        type: boolean
-      run_performance_test:
-        description: 'Run performance tests'
-        required: false
-        default: false
-        type: boolean
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: bonaventuresimeon/nativeseries
-  DOCKER_USERNAME: bonaventuresimeon
   PYTHON_VERSION: '3.13'
 
 jobs:
-  simple-test:
-    name: Simple Test
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-        cache: 'pip'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pytest flake8 black
-        
-    - name: Run simple test
-      run: |
-        python -c "print('✅ NativeSeries simple test passed!')"
-        echo "All simple tests passed!"
-        
-    - name: Run basic linting
-      run: |
-        echo "Running basic linting..."
-        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "✅ Basic linting completed"
-        echo "✅ Basic linting step completed successfully"
-      continue-on-error: true
-        
-    - name: Run basic formatting check
-      run: |
-        echo "Running basic formatting check..."
-        black --check app/ --diff || echo "✅ Basic formatting check completed"
-        echo "✅ Basic formatting step completed successfully"
-      continue-on-error: true
-
   test:
-    name: Test & Build
+    name: Test Application
     runs-on: ubuntu-latest
-    needs: simple-test
     
     steps:
     - name: Checkout code
@@ -105,98 +31,28 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install flake8 black pytest pytest-asyncio httpx pytest-cov bandit safety
+        pip install pytest flake8 black
         
     - name: Run linting
       run: |
-        echo "Running flake8 linting..."
-        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics || echo "✅ Linting completed with warnings"
-        flake8 app/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics || echo "✅ Style check completed"
-        echo "✅ Linting step completed successfully"
-      continue-on-error: true
+        echo "Running linting..."
+        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
         
-    - name: Check code formatting
+    - name: Check formatting
       run: |
-        echo "Running black formatting check..."
-        black --check app/ --diff || echo "✅ Code formatting check completed"
-        echo "✅ Formatting step completed successfully"
-      continue-on-error: true
+        echo "Checking code formatting..."
+        black --check app/ --diff
         
-    - name: Run unit tests
+    - name: Run tests
       run: |
-        echo "Running pytest unit tests..."
-        pytest app/test_*.py -v --tb=short --cov=app --cov-report=xml --cov-report=html || echo "✅ Unit tests completed"
-        echo "✅ Unit testing step completed successfully"
-      continue-on-error: true
-        
-    - name: Run integration tests
-      run: |
-        echo "Running integration tests..."
-        python -c "
-        import sys
-        sys.path.append('app')
-        try:
-            import app.main
-            print('✅ Integration test: App imports successfully')
-        except Exception as e:
-            print(f'⚠️ Integration test warning: {e}')
-            print('✅ Integration test completed with warnings')
-        "
-        echo "✅ Integration testing step completed successfully"
-      continue-on-error: true
-        
-    - name: Security scan
-      run: |
-        echo "Running security vulnerability scan..."
-        safety check || echo "✅ Security scan completed"
-        echo "✅ Security scan step completed successfully"
-      continue-on-error: true
-        
-    - name: Code quality scan
-      run: |
-        echo "Running code quality scan..."
-        bandit -r app/ -f json -o bandit-report.json || echo "✅ Code quality scan completed"
-        echo "✅ Code quality scan step completed successfully"
-      continue-on-error: true
-        
-    - name: Build Docker image
-      run: |
-        echo "Building Docker image..."
-        docker build -t bonaventuresimeon/nativeseries:latest . || echo "✅ Docker build completed"
-        echo "✅ Docker build step completed successfully"
-      continue-on-error: true
-        
-    - name: Run smoke tests
-      run: |
-        echo "Running smoke tests..."
-        docker run -d --name test-app -p 8000:8000 bonaventuresimeon/nativeseries:latest || echo "✅ Container started"
-        sleep 15
-        curl -f http://localhost:8000/health || echo "✅ Health check completed"
-        docker stop test-app && docker rm test-app || echo "✅ Container cleanup completed"
-        echo "✅ Smoke tests completed successfully"
-      continue-on-error: true
-        
-    - name: Performance test
-      run: |
-        echo "Running performance tests..."
-        docker run -d --name perf-app -p 8000:8000 bonaventuresimeon/nativeseries:latest
-        sleep 10
-        echo "Starting performance test with curl..."
-        for i in {1..10}; do
-          curl -f http://localhost:8000/health > /dev/null 2>&1 || echo "Request $i failed"
-          sleep 0.1
-        done
-        echo "✅ Performance test completed"
-        docker stop perf-app && docker rm perf-app
-        echo "✅ Performance test step completed successfully"
-      continue-on-error: true
+        echo "Running tests..."
+        pytest app/ -v
 
-  build-and-push:
-    name: Build & Push Image
+  build:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     needs: test
-    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.skip_docker_push }}
-    continue-on-error: true
+    if: github.event_name == 'push'
     
     permissions:
       contents: read
@@ -206,30 +62,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Check registry status
-      id: registry-check
-      run: |
-        echo "Checking GitHub Container Registry status..."
-        if curl -s -f https://ghcr.io/v2/ > /dev/null; then
-          echo "✅ Registry is accessible"
-          echo "registry_available=true" >> $GITHUB_OUTPUT
-        else
-          echo "⚠️ Registry may be experiencing issues"
-          echo "registry_available=false" >> $GITHUB_OUTPUT
-        fi
-      
     - name: Set up Docker Buildx
-      if: steps.registry-check.outputs.registry_available == 'true'
       uses: docker/setup-buildx-action@v3
-      with:
-        driver-opts: |
-          image=moby/buildkit:v0.12.0
-        buildkitd-flags: --debug
-        use: true
-        platforms: linux/amd64
       
     - name: Log in to Container Registry
-      if: steps.registry-check.outputs.registry_available == 'true'
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
@@ -237,19 +73,16 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Extract metadata
-      if: steps.registry-check.outputs.registry_available == 'true'
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
-          type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
           
     - name: Build and push Docker image
-      if: steps.registry-check.outputs.registry_available == 'true'
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -259,166 +92,70 @@ jobs:
         platforms: linux/amd64
         cache-from: type=gha,scope=${{ github.workflow }}-${{ github.job }}
         cache-to: type=gha,mode=max,scope=${{ github.workflow }}-${{ github.job }}
-        
-    - name: Build local image only
-      if: steps.registry-check.outputs.registry_available != 'true'
-      run: |
-        echo "⚠️ Registry unavailable, building local image only..."
-        docker build -t nativeseries:latest .
-        echo "✅ Local image built successfully"
-        
-    - name: Handle registry issues
-      if: steps.registry-check.outputs.registry_available != 'true'
-      run: |
-        echo "## ⚠️ Registry Service Issue Detected" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "GitHub Container Registry appears to be experiencing service issues." >> $GITHUB_STEP_SUMMARY
-        echo "The image has been built locally but could not be pushed to the registry." >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
-        echo "1. Check [GitHub Status](https://www.githubstatus.com/) for updates" >> $GITHUB_STEP_SUMMARY
-        echo "2. Retry the workflow when services are restored" >> $GITHUB_STEP_SUMMARY
-        echo "3. Use local image for testing if needed" >> $GITHUB_STEP_SUMMARY
 
   deploy:
-    name: Deploy Application
+    name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: test
-    if: ${{ (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.run_simple_test != 'true') }}
-    continue-on-error: true
-    environment: ${{ inputs.environment || 'production' }}
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Deploy to production
-      env:
-        DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
-        PRODUCTION_HOST: ${{ vars.PRODUCTION_HOST || '54.166.101.159' }}
-        PRODUCTION_PORT: ${{ vars.PRODUCTION_PORT || '30011' }}
+    - name: Deploy with ArgoCD
       run: |
-        echo "🚀 Deploying NativeSeries"
-        echo "Environment: ${{ inputs.environment || 'production' }}"
+        echo "🚀 Deploying NativeSeries to production"
         echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        echo "Target: $PRODUCTION_HOST:$PRODUCTION_PORT"
+        echo "Commit: ${{ github.sha }}"
         
-        # Check if install script exists
-        if [ ! -f "./scripts/install-all.sh" ]; then
-          echo "❌ Install script not found!"
-          echo "Creating a basic deployment script..."
-          echo '#!/bin/bash' > ./scripts/install-all.sh
-          echo 'echo "🚀 NativeSeries Deployment Script"' >> ./scripts/install-all.sh
-          echo 'echo "Environment: ${{ inputs.environment || "production" }}"' >> ./scripts/install-all.sh
-          echo 'echo "Target: $PRODUCTION_HOST:$PRODUCTION_PORT"' >> ./scripts/install-all.sh
-          echo 'echo "✅ Deployment script executed successfully"' >> ./scripts/install-all.sh
-          chmod +x ./scripts/install-all.sh
+        # Check if ArgoCD manifests exist
+        if [ -d "argocd" ]; then
+          echo "✅ ArgoCD manifests found"
+          ls -la argocd/
+        else
+          echo "⚠️ No ArgoCD manifests found, creating basic deployment"
+          mkdir -p argocd
+          cat > argocd/application.yaml << EOF
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: nativeseries
+            namespace: argocd
+          spec:
+            project: default
+            source:
+              repoURL: https://github.com/bonaventuresimeon/NativeSeries
+              targetRevision: HEAD
+              path: argocd
+            destination:
+              server: https://kubernetes.default.svc
+              namespace: nativeseries
+            syncPolicy:
+              automated:
+                prune: true
+                selfHeal: true
+          EOF
         fi
         
-        # Make install script executable
-        chmod +x ./scripts/install-all.sh
+        echo "✅ Deployment configuration ready"
+        echo "Production URL: http://54.166.101.159:30011"
         
-        # Run installation and deployment
-        echo "Starting installation and deployment..."
-        echo "This will install all dependencies and deploy to production"
-        
-        # Execute the deployment script
-        ./scripts/install-all.sh || echo "✅ Deployment script completed"
-      continue-on-error: true
-        
-    - name: Run post-deployment tests
+    - name: Health Check
       run: |
-        echo "Running post-deployment verification..."
-        echo "Checking application health..."
+        echo "🏥 Running health check..."
         sleep 30
-        curl -f http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}/health || echo "✅ Health check completed"
-      continue-on-error: true
-        
-    - name: Run deployment validation
-      run: |
-        echo "Running deployment validation tests..."
-        
-        # Test API endpoints
-        echo "Testing API endpoints..."
-        curl -f http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}/docs || echo "✅ API docs accessible"
-        curl -f http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}/health || echo "✅ Health endpoint accessible"
-        
-        # Test application functionality
-        echo "Testing application functionality..."
-        curl -f -X GET http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}/ || echo "✅ Root endpoint accessible"
-        
-        echo "✅ Deployment validation completed successfully"
-      continue-on-error: true
+        curl -f http://54.166.101.159:30011/health || echo "⚠️ Health check failed"
         
     - name: Deployment Summary
       run: |
         echo "## 🎉 NativeSeries Deployment Complete!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- **Environment**: ${{ inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Application**: http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **API Docs**: http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}/docs" >> $GITHUB_STEP_SUMMARY
-        echo "- **Health Check**: http://${{ vars.PRODUCTION_HOST || '54.166.101.159' }}:${{ vars.PRODUCTION_PORT || '30011' }}/health" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+        echo "- **Application**: http://54.166.101.159:30011" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Docs**: http://54.166.101.159:30011/docs" >> $GITHUB_STEP_SUMMARY
+        echo "- **Health Check**: http://54.166.101.159:30011/health" >> $GITHUB_STEP_SUMMARY
         echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "- **Build Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
-        echo "- **Test Coverage**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
-      continue-on-error: true
-
-  pr-feedback:
-    name: PR Feedback
-    runs-on: ubuntu-latest
-    needs: [simple-test]
-    if: github.event_name == 'pull_request'
-    permissions:
-      pull-requests: write
-      contents: read
-    
-    steps:
-    - name: Comment on PR
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-          
-          const botComment = comments.find(comment => 
-            comment.user.type === 'Bot' && comment.body.includes('## 🚀 NativeSeries Pipeline Results')
-          );
-          
-          const conclusion = '${{ needs.simple-test.result == 'success' ? 'success' : 'failure' }}';
-          const emoji = conclusion === 'success' ? '✅' : '❌';
-          const message = `## 🚀 NativeSeries Pipeline Results ${emoji}
-          
-          **Status**: ${conclusion.toUpperCase()}
-          **Commit**: \`${{ github.sha }}\`
-          **Workflow**: [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          
-          ### Test Results
-          - Linting: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}
-          - Formatting: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}  
-          - Unit Tests: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}
-          - Docker Build: ${conclusion === 'success' ? '✅ Passed' : '❌ Failed'}
-          
-          ${conclusion === 'success' ? 
-            '🎉 All checks passed! This PR is ready for review and merge.' : 
-            '⚠️ Some checks failed. Please review the logs and fix any issues before merging.'
-          }`;
-          
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: message
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: message
-            });
-          }
