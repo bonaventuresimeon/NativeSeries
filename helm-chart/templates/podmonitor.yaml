@@ -7,7 +7,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "nativeseries.labels" . | nindent 4 }}
+    {{- if .Values.podMonitor.labels }}
     {{- toYaml .Values.podMonitor.labels | nindent 4 }}
+    {{- end }}
 spec:
   selector:
     matchLabels:
