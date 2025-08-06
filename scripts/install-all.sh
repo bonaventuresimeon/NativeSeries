@@ -111,39 +111,91 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # ============================================================================
-# PHASE 1: SYSTEM DEPENDENCIES INSTALLATION
+# PHASE 1: TOOL DETECTION AND INSTALLATION
 # ============================================================================
 
-print_section "PHASE 1: Installing System Dependencies"
+print_section "PHASE 1: Tool Detection and Installation"
 
-# Update system packages
-print_info "Updating system packages..."
+# Detect package manager first
 detect_package_manager
 
+# Function to install missing tools
+install_missing_tool() {
+    local tool_name="$1"
+    local install_command="$2"
+    local check_command="$3"
+    
+    if command_exists "$tool_name"; then
+        print_status "✓ $tool_name is already installed"
+        if [ -n "$check_command" ]; then
+            eval "$check_command"
+        fi
+        return 0
+    else
+        print_info "Installing $tool_name..."
+        if eval "$install_command"; then
+            print_status "✓ $tool_name installed successfully"
+            return 0
+        else
+            print_error "✗ Failed to install $tool_name"
+            return 1
+        fi
+    fi
+}
+
+# List of tools to check and install
+declare -A tools_install_commands
+declare -A tools_check_commands
+
+# Basic system tools
+tools_install_commands["curl"]="sudo $PKG_MANAGER install -y curl"
+tools_check_commands["curl"]="curl --version"
+
+tools_install_commands["wget"]="sudo $PKG_MANAGER install -y wget"
+tools_check_commands["wget"]="wget --version"
+
+tools_install_commands["git"]="sudo $PKG_MANAGER install -y git"
+tools_check_commands["git"]="git --version"
+
+tools_install_commands["unzip"]="sudo $PKG_MANAGER install -y unzip"
+tools_check_commands["unzip"]="unzip -v"
+
+tools_install_commands["jq"]="sudo $PKG_MANAGER install -y jq"
+tools_check_commands["jq"]="jq --version"
+
+# Development tools
+tools_install_commands["gcc"]="sudo $PKG_MANAGER install -y gcc"
+tools_check_commands["gcc"]="gcc --version"
+
+tools_install_commands["make"]="sudo $PKG_MANAGER install -y make"
+tools_check_commands["make"]="make --version"
+
+# Python and related tools
+tools_install_commands["python3"]="sudo $PKG_MANAGER install -y python3"
+tools_check_commands["python3"]="python3 --version"
+
+tools_install_commands["pip3"]="sudo $PKG_MANAGER install -y python3-pip"
+tools_check_commands["pip3"]="pip3 --version"
+
+# Install all basic tools
+print_info "Checking and installing basic system tools..."
+for tool in curl wget git unzip jq gcc make python3 pip3; do
+    install_missing_tool "$tool" "${tools_install_commands[$tool]}" "${tools_check_commands[$tool]}"
+done
+
+# Install virtualenv based on system
 if [ "$PKG_MANAGER" = "apt" ]; then
-    sudo apt-get update -qq
-    sudo apt-get install -y curl wget git unzip jq build-essential \
-        software-properties-common apt-transport-https ca-certificates \
-        gnupg lsb-release python3 python3-pip python3-venv
-elif [ "$PKG_MANAGER" = "yum" ] || [ "$PKG_MANAGER" = "dnf" ]; then
-    sudo $PKG_MANAGER update -y
-    sudo $PKG_MANAGER install -y curl wget git unzip jq gcc gcc-c++ make \
-        python3 python3-pip
-    # Install virtualenv for Amazon Linux 2023 (python3-venv not available)
-    print_info "Installing virtualenv for RHEL-based systems..."
-    sudo pip3 install virtualenv || {
-        print_warning "Failed to install virtualenv via pip, trying alternative method..."
-        sudo $PKG_MANAGER install -y python3-virtualenv || {
-            print_error "Could not install virtualenv. Please run manually:"
-            echo "sudo pip3 install virtualenv"
-            exit 1
-        }
-    }
+    install_missing_tool "python3-venv" "sudo apt-get install -y python3-venv" "python3 -m venv --help"
+else
+    install_missing_tool "virtualenv" "sudo pip3 install virtualenv" "python3 -m virtualenv --help"
 fi
-print_status "System packages updated"
 
 # Install Docker
-if ! command_exists docker; then
+print_info "Checking Docker installation..."
+if command_exists docker; then
+    print_status "✓ Docker is already installed"
+    docker --version
+else
     print_info "Installing Docker..."
     if [ "$PKG_MANAGER" = "apt" ]; then
         # Ubuntu/Debian Docker installation
@@ -158,8 +210,101 @@ if ! command_exists docker; then
         sudo systemctl enable docker
         sudo usermod -aG docker $USER
     fi
-    
-    # Start Docker daemon
+    print_status "✓ Docker installed successfully"
+fi
+
+# Install kubectl
+print_info "Checking kubectl installation..."
+if command_exists kubectl; then
+    print_status "✓ kubectl is already installed"
+    kubectl version --client
+else
+    print_info "Installing kubectl..."
+    curl -LO "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
+    sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    rm -f kubectl
+    print_status "✓ kubectl installed successfully"
+fi
+
+# Install Helm
+print_info "Checking Helm installation..."
+if command_exists helm; then
+    print_status "✓ Helm is already installed"
+    helm version
+else
+    print_info "Installing Helm..."
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    print_status "✓ Helm installed successfully"
+fi
+
+# Install Kind
+print_info "Checking Kind installation..."
+if command_exists kind; then
+    print_status "✓ Kind is already installed"
+    kind version
+else
+    print_info "Installing Kind..."
+    curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}"
+    chmod +x ./kind
+    sudo mv ./kind /usr/local/bin/kind
+    print_status "✓ Kind installed successfully"
+fi
+
+# Install additional build tools for Ubuntu/Debian
+if [ "$PKG_MANAGER" = "apt" ]; then
+    print_info "Installing additional build tools for Ubuntu/Debian..."
+    sudo apt-get install -y build-essential software-properties-common \
+        apt-transport-https ca-certificates gnupg lsb-release
+fi
+
+print_status "All required tools are installed and ready!"
+
+# Verify all tools are working
+print_info "Verifying all tools are working correctly..."
+tools_status=0
+
+# Check each tool
+for tool in curl wget git unzip jq gcc make python3 pip3 docker kubectl helm kind; do
+    if command_exists "$tool"; then
+        print_status "✓ $tool is working"
+    else
+        print_error "✗ $tool is not working"
+        tools_status=1
+    fi
+done
+
+# Check virtual environment tools
+if [ "$PKG_MANAGER" = "apt" ]; then
+    if python3 -m venv --help >/dev/null 2>&1; then
+        print_status "✓ python3-venv is working"
+    else
+        print_error "✗ python3-venv is not working"
+        tools_status=1
+    fi
+else
+    if python3 -m virtualenv --help >/dev/null 2>&1; then
+        print_status "✓ virtualenv is working"
+    else
+        print_error "✗ virtualenv is not working"
+        tools_status=1
+    fi
+fi
+
+if [ $tools_status -eq 0 ]; then
+    print_status "All tools are verified and ready!"
+else
+    print_warning "Some tools may need manual installation. Check the manual installation guide at the end."
+fi
+
+# ============================================================================
+# PHASE 2: DOCKER SETUP AND VERIFICATION
+# ============================================================================
+
+print_section "PHASE 2: Docker Setup and Verification"
+
+# Start Docker daemon if not running
+if ! docker info >/dev/null 2>&1; then
+    print_info "Starting Docker daemon..."
     if command -v systemctl >/dev/null 2>&1; then
         sudo systemctl start docker
         sudo systemctl enable docker
@@ -168,287 +313,24 @@ if ! command_exists docker; then
         sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
         sleep 10
     fi
-    print_status "Docker installed and configured"
-else
-    print_status "Docker already installed"
 fi
 
-# Function to install Docker
-install_docker() {
-    print_section "Installing Docker"
-    
-    if command_exists docker; then
-        print_status "Docker is already installed"
-        docker --version
-        return 0
-    fi
-    
-    print_status "Installing Docker..."
-    
-    # Install Docker using package manager
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        print_status "Installing Docker on Ubuntu/Debian..."
-        sudo apt update
-        sudo apt install -y docker.io docker-compose
-    else
-        print_status "Installing Docker on CentOS/RHEL/Fedora..."
-        sudo $PKG_MANAGER install -y docker docker-compose
-    fi
-    
-    # Start and enable Docker service
-    print_status "Starting Docker service..."
-    sudo systemctl start docker || true
-    sudo systemctl enable docker || true
-    
-    # Add user to docker group
-    print_status "Setting up Docker permissions..."
-    sudo usermod -aG docker "$USER" || true
-    
-    # Wait a moment for group changes to take effect
-    sleep 2
-    
-    # Verify installation
-    if command_exists docker; then
-        print_status "Docker installed successfully!"
-        docker --version
-        
-        # Test Docker with sudo if needed
-        if docker info >/dev/null 2>&1; then
-            print_status "Docker is accessible"
-        elif sudo docker info >/dev/null 2>&1; then
-            print_status "Docker requires sudo (this is normal)"
-            # Create alias for docker with sudo
-            echo 'alias docker="sudo docker"' >> ~/.bashrc
-            export docker="sudo docker"
-        else
-            print_warning "Docker may need manual setup"
-        fi
-    else
-        print_error "Docker installation failed!"
-        return 1
-    fi
-}
-
-# Function to install kubectl
-install_kubectl() {
-    print_section "Installing kubectl"
-    
-    if command_exists kubectl; then
-        print_status "kubectl is already installed"
-        kubectl version --client
-        return 0
-    fi
-    
-    print_status "Installing kubectl..."
-    
-    # Create temporary directory
-    TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-    
-    # Download kubectl with error handling
-    print_status "Downloading kubectl..."
-    KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-    if ! curl -LO "https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"; then
-        print_error "Failed to download kubectl"
-        cd - > /dev/null
-        rm -rf "$TEMP_DIR"
-        return 1
-    fi
-    
-    # Make executable and move to PATH
-    chmod +x kubectl
-    if ! sudo mv kubectl /usr/local/bin/; then
-        print_error "Failed to move kubectl to /usr/local/bin/"
-        cd - > /dev/null
-        rm -rf "$TEMP_DIR"
-        return 1
-    fi
-    
-    # Clean up
-    cd - > /dev/null
-    rm -rf "$TEMP_DIR"
-    
-    # Verify installation
-    if command_exists kubectl; then
-        print_status "kubectl installed successfully!"
-        kubectl version --client
-    else
-        print_error "kubectl installation failed!"
-        return 1
-    fi
-}
-
-# Function to install Kind
-install_kind() {
-    print_section "Installing Kind"
-    
-    if command_exists kind; then
-        print_status "Kind is already installed"
-        kind version
-        return 0
-    fi
-    
-    print_status "Installing Kind..."
-    
-    # Create temporary directory
-    TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-    
-    # Download Kind with error handling
-    print_status "Downloading Kind..."
-    if ! curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"; then
-        print_error "Failed to download Kind"
-        cd - > /dev/null
-        rm -rf "$TEMP_DIR"
-        return 1
-    fi
-    
-    # Make executable and move to PATH
-    chmod +x ./kind
-    if ! sudo mv ./kind /usr/local/bin/; then
-        print_error "Failed to move Kind to /usr/local/bin/"
-        cd - > /dev/null
-        rm -rf "$TEMP_DIR"
-        return 1
-    fi
-    
-    # Clean up
-    cd - > /dev/null
-    rm -rf "$TEMP_DIR"
-    
-    # Verify installation
-    if command_exists kind; then
-        print_status "Kind installed successfully!"
-        kind version
-    else
-        print_error "Kind installation failed!"
-        return 1
-    fi
-}
-
-# Function to install Helm
-install_helm() {
-    print_section "Installing Helm"
-    
-    if command_exists helm; then
-        print_status "Helm is already installed"
-        helm version
-        return 0
-    fi
-    
-    print_status "Installing Helm..."
-    
-    # Create temporary directory
-    TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-    
-    # Download Helm with error handling
-    print_status "Downloading Helm..."
-    if ! curl -L "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar xz; then
-        print_error "Failed to download Helm"
-        cd - > /dev/null
-        rm -rf "$TEMP_DIR"
-        return 1
-    fi
-    
-    # Move to PATH
-    if ! sudo mv linux-amd64/helm /usr/local/bin/; then
-        print_error "Failed to move Helm to /usr/local/bin/"
-        cd - > /dev/null
-        rm -rf "$TEMP_DIR"
-        return 1
-    fi
-    
-    # Clean up
-    cd - > /dev/null
-    rm -rf "$TEMP_DIR"
-    
-    # Verify installation
-    if command_exists helm; then
-        print_status "Helm installed successfully!"
-        helm version
-    else
-        print_error "Helm installation failed!"
-        return 1
-    fi
-}
-
-# Function to install Python and pip
-install_python() {
-    print_section "Installing Python"
-    detect_package_manager
-
-    if command_exists python3; then
-        print_status "Python is already installed"
-        python3 --version
-    else
-        print_status "Installing Python ${PYTHON_VERSION}..."
-        if [ "$PKG_MANAGER" = "apt" ]; then
-            sudo apt install -y python3 python3-pip
-        else
-            sudo $PKG_MANAGER install -y python3 python3-pip
-        fi
-    fi
-
-    # Install Python virtual environment package
-    print_status "Installing Python virtual environment package..."
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        sudo apt install -y python3-venv
-    else
-        sudo $PKG_MANAGER install -y python3-venv || sudo $PKG_MANAGER install -y python3-virtualenv
-    fi
-
-    # Verify installation
-    if command_exists python3; then
-        print_status "Python installed successfully!"
-        python3 --version
-        pip3 --version
-    else
-        print_error "Python installation failed!"
-        return 1
-    fi
-}
-
-# Function to verify all tools are installed
-verify_tools() {
-    print_section "Verifying Tool Installation"
-    
-    local tools=("docker" "kubectl" "kind" "helm" "python3")
-    local missing_tools=()
-    
-    for tool in "${tools[@]}"; do
-        if command_exists "$tool"; then
-            print_status "✓ $tool is installed"
-        else
-            print_error "✗ $tool is missing"
-            missing_tools+=("$tool")
-        fi
-    done
-    
-    if [ ${#missing_tools[@]} -eq 0 ]; then
-        print_status "All tools are installed and ready!"
-        return 0
-    else
-        print_error "Missing tools: ${missing_tools[*]}"
-        return 1
-    fi
-}
-
-# Function to setup Docker environment
-setup_docker() {
-    print_section "Setting up Docker Environment"
-    
-    # Start Docker daemon if not running
-    if ! docker info >/dev/null 2>&1; then
-        print_status "Starting Docker daemon..."
-        # For container environments without systemctl
-        sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
-        sleep 10
-    fi
-    print_status "Docker installed and started"
-else
-    print_status "Docker already installed"
+# Verify Docker is running
+if ! sudo docker info >/dev/null 2>&1; then
+    print_warning "Docker daemon not running, attempting to start..."
+    sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
+    sleep 10
 fi
+
+# Check if user is in docker group
+if ! groups $USER | grep -q docker; then
+    print_warning "User not in docker group. You may need to log out and back in, or run: newgrp docker"
+    print_info "Alternatively, you can use 'sudo docker' for this session"
+fi
+
+# ============================================================================
+# PHASE 3: APPLICATION SETUP
+# ============================================================================
 
 # Verify Docker is running
 if ! sudo docker info >/dev/null 2>&1; then
@@ -495,10 +377,10 @@ else
 fi
 
 # ============================================================================
-# PHASE 2: APPLICATION SETUP
+# PHASE 3: APPLICATION SETUP
 # ============================================================================
 
-print_section "PHASE 2: Setting up Application Environment"
+print_section "PHASE 3: Setting up Application Environment"
 
 # Setup Python virtual environment
 if [ ! -d "venv" ]; then
@@ -537,10 +419,10 @@ cd app && python -m pytest test_basic.py -v && cd ..
 print_status "Application tests passed"
 
 # ============================================================================
-# PHASE 3: DOCKER IMAGE BUILD
+# PHASE 4: DOCKER IMAGE BUILD
 # ============================================================================
 
-print_section "PHASE 3: Building Docker Image"
+print_section "PHASE 4: Building Docker Image"
 
 print_info "Building Docker image..."
 $DOCKER_CMD build -t ${DOCKER_IMAGE}:latest . --network=host
@@ -575,10 +457,10 @@ $DOCKER_CMD stop test-app || true
 $DOCKER_CMD rm test-app || true
 
 # ============================================================================
-# PHASE 4: KUBERNETES CLUSTER SETUP
+# PHASE 5: KUBERNETES CLUSTER SETUP
 # ============================================================================
 
-print_section "PHASE 4: Setting up Kubernetes Cluster"
+print_section "PHASE 5: Setting up Kubernetes Cluster"
 
 # Create Kind cluster configuration
 mkdir -p infra/kind
@@ -645,10 +527,10 @@ if command -v kind >/dev/null 2>&1 && kind get clusters | grep -q gitops-cluster
 fi
 
 # ============================================================================
-# PHASE 5: DEPLOYMENT PREPARATION
+# PHASE 6: DEPLOYMENT PREPARATION
 # ============================================================================
 
-print_section "PHASE 5: Preparing Deployment Manifests"
+print_section "PHASE 6: Preparing Deployment Manifests"
 
 # Create deployment directories
 mkdir -p deployment/production
@@ -844,10 +726,10 @@ EOF
 print_status "Deployment manifests generated"
 
 # ============================================================================
-# PHASE 6: KUBERNETES DEPLOYMENT
+# PHASE 7: KUBERNETES DEPLOYMENT
 # ============================================================================
 
-print_section "PHASE 6: Deploying to Kubernetes"
+print_section "PHASE 7: Deploying to Kubernetes"
 
 # Deploy if cluster is available
 if kubectl cluster-info >/dev/null 2>&1; then
@@ -883,10 +765,10 @@ else
 fi
 
 # ============================================================================
-# PHASE 7: VALIDATION AND TESTING
+# PHASE 8: VALIDATION AND TESTING
 # ============================================================================
 
-print_section "PHASE 7: Validation and Testing"
+print_section "PHASE 8: Validation and Testing"
 
 # Validate Helm chart
 print_info "Validating Helm chart..."
@@ -952,10 +834,10 @@ done
 success_rate=$(( validation_score * 100 / total_tests ))
 
 # ============================================================================
-# PHASE 8: FINAL REPORT AND CLEANUP
+# PHASE 9: FINAL REPORT AND CLEANUP
 # ============================================================================
 
-print_section "PHASE 8: Installation Complete"
+print_section "PHASE 9: Installation Complete"
 
 # Generate final deployment guide
 cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
@@ -1121,7 +1003,7 @@ chmod +x manual-install-amazon-linux.sh
 print_status "Manual installation script created: manual-install-amazon-linux.sh"
 
 # Final instructions
-print_section "PHASE 9: Final Instructions"
+print_section "PHASE 10: Final Instructions"
 
 echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
 echo ""
@@ -1140,10 +1022,10 @@ echo "- For ArgoCD password: kubectl -n argocd get secret argocd-initial-admin-s
 echo ""
 
 # ============================================================================
-# PHASE 10: MANUAL INSTALLATION GUIDE (FALLBACK)
+# PHASE 11: MANUAL INSTALLATION GUIDE (FALLBACK)
 # ============================================================================
 
-print_section "PHASE 10: Manual Installation Guide (If Automated Installation Fails)"
+print_section "PHASE 11: Manual Installation Guide (If Automated Installation Fails)"
 
 echo -e "${YELLOW}📖 Manual Installation Steps (if automated installation fails):${NC}"
 echo ""
