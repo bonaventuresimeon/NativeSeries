@@ -58,15 +58,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
+            {{- if .Values.app.env }}
             {{- range .Values.app.env }}
             - name: {{ .name }}
-              {{- if .value }}
               value: {{ .value | quote }}
-              {{- end }}
-              {{- if .valueFrom }}
-              valueFrom:
-                {{- toYaml .valueFrom | nindent 16 }}
-              {{- end }}
+            {{- end }}
             {{- end }}
             {{- if .Values.configMaps.enabled }}
             - name: APP_NAME

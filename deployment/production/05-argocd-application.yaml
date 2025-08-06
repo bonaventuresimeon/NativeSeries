@@ -15,12 +15,14 @@ spec:
       valueFiles:
         - values.yaml
       parameters:
-        - name: app.image.tag
-          value: latest
         - name: app.image.repository
           value: ghcr.io/bonaventuresimeon/nativeseries
+        - name: app.image.tag
+          value: latest
+        - name: service.nodePort
+          value: "30011"
   destination:
-    server: https://54.166.101.159
+    server: https://kubernetes.default.svc
     namespace: nativeseries
   syncPolicy:
     automated:
