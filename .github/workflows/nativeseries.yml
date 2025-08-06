@@ -133,26 +133,30 @@ jobs:
         else
           echo "⚠️ No ArgoCD manifests found, creating basic deployment"
           mkdir -p argocd
-          cat > argocd/application.yaml << EOF
-          apiVersion: argoproj.io/v1alpha1
-          kind: Application
-          metadata:
-            name: nativeseries
-            namespace: argocd
-          spec:
-            project: default
-            source:
-              repoURL: https://github.com/bonaventuresimeon/NativeSeries
-              targetRevision: HEAD
-              path: argocd
-            destination:
-              server: https://kubernetes.default.svc
-              namespace: nativeseries
-            syncPolicy:
-              automated:
-                prune: true
-                selfHeal: true
-          EOF
+          cat > argocd/application.yaml << 'EOF'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nativeseries
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/NativeSeries
+    targetRevision: HEAD
+    path: argocd
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nativeseries
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+EOF
         fi
         
         echo "✅ Deployment configuration ready"
