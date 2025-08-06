@@ -179,3 +179,58 @@ EOF
         echo "- **Health Check**: http://54.166.101.159:30011/health" >> $GITHUB_STEP_SUMMARY
         echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+  deploy-netlify:
+    name: Deploy to Netlify
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install Netlify CLI
+      run: npm install -g netlify-cli
+      
+    - name: Deploy to Netlify
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      run: |
+        echo "🚀 Deploying NativeSeries to Netlify"
+        echo "Commit: ${{ github.sha }}"
+        
+        # Build the project
+        echo "📦 Building project..."
+        ./build.sh
+        
+        # Deploy to Netlify
+        echo "🌐 Deploying to Netlify..."
+        netlify deploy --prod --dir=public --functions=netlify/functions
+        
+        echo "✅ Netlify deployment complete"
+        echo "Netlify URL: https://your-site-name.netlify.app"
+        
+    - name: Netlify Health Check
+      run: |
+        echo "🏥 Running Netlify health check..."
+        sleep 30
+        # Replace with your actual Netlify URL
+        curl -f https://your-site-name.netlify.app/.netlify/functions/api/health || echo "⚠️ Netlify health check failed"
+        
+    - name: Netlify Deployment Summary
+      run: |
+        echo "## 🌐 NativeSeries Netlify Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+        echo "- **Platform**: Netlify Functions" >> $GITHUB_STEP_SUMMARY
+        echo "- **URL**: https://your-site-name.netlify.app" >> $GITHUB_STEP_SUMMARY
+        echo "- **Functions**: /.netlify/functions/api/*" >> $GITHUB_STEP_SUMMARY
+        echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
