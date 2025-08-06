@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Student Tracker - Complete Installation & Deployment Script
-# Version: 5.0.0 - Unified Installation, Build, and Deployment to 54.166.101.159
+# Version: 5.1.0 - Amazon Linux 2023 Compatible Installation
 # This script combines all installation, deployment, monitoring, and validation scripts
+# Updated for Amazon Linux 2023 compatibility with virtualenv and proper package detection
 
 set -euo pipefail
 
@@ -49,6 +50,29 @@ case "${ARCH}" in
     armv7l) ARCH="arm" ;;
 esac
 
+# Function to detect package manager and OS
+detect_package_manager() {
+    if command -v apt-get >/dev/null 2>&1; then
+        PKG_MANAGER="apt"
+        OS_TYPE="debian"
+    elif command -v yum >/dev/null 2>&1; then
+        PKG_MANAGER="yum"
+        OS_TYPE="rhel"
+    elif command -v dnf >/dev/null 2>&1; then
+        PKG_MANAGER="dnf"
+        OS_TYPE="rhel"
+    else
+        print_error "Unsupported package manager detected"
+        exit 1
+    fi
+    print_info "Detected package manager: $PKG_MANAGER on $OS_TYPE"
+}
+
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
 # Function to print section headers
 print_section() {
     echo ""
@@ -94,25 +118,39 @@ print_section "PHASE 1: Installing System Dependencies"
 
 # Update system packages
 print_info "Updating system packages..."
-if command -v apt-get >/dev/null 2>&1; then
+detect_package_manager
+
+if [ "$PKG_MANAGER" = "apt" ]; then
     sudo apt-get update -qq
     sudo apt-get install -y curl wget git unzip jq build-essential \
         software-properties-common apt-transport-https ca-certificates \
         gnupg lsb-release python3 python3-pip python3-venv
-elif command -v yum >/dev/null 2>&1; then
-    sudo yum update -y
-    sudo yum install -y curl wget git unzip jq gcc gcc-c++ make \
-        python3 python3-pip python3-venv
+elif [ "$PKG_MANAGER" = "yum" ] || [ "$PKG_MANAGER" = "dnf" ]; then
+    sudo $PKG_MANAGER update -y
+    sudo $PKG_MANAGER install -y curl wget git unzip jq gcc gcc-c++ make \
+        python3 python3-pip
+    # Install virtualenv for Amazon Linux 2023 (python3-venv not available)
+    print_info "Installing virtualenv for RHEL-based systems..."
+    sudo pip3 install virtualenv
 fi
 print_status "System packages updated"
 
 # Install Docker
-if ! command -v docker >/dev/null 2>&1; then
+if ! command_exists docker; then
     print_info "Installing Docker..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sudo sh get-docker.sh
-    sudo usermod -aG docker $USER
-    rm -f get-docker.sh
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        # Ubuntu/Debian Docker installation
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sudo sh get-docker.sh
+        sudo usermod -aG docker $USER
+        rm -f get-docker.sh
+    else
+        # Amazon Linux 2023 Docker installation
+        sudo $PKG_MANAGER install -y docker
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo usermod -aG docker $USER
+    fi
     
     # Start Docker daemon
     if command -v systemctl >/dev/null 2>&1; then
@@ -123,7 +161,10 @@ if ! command -v docker >/dev/null 2>&1; then
         sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
         sleep 10
     fi
-}
+    print_status "Docker installed and configured"
+else
+    print_status "Docker already installed"
+fi
 
 # Function to install Docker
 install_docker() {
@@ -409,6 +450,12 @@ if ! sudo docker info >/dev/null 2>&1; then
     sleep 10
 fi
 
+# Check if user is in docker group
+if ! groups $USER | grep -q docker; then
+    print_warning "User not in docker group. You may need to log out and back in, or run: newgrp docker"
+    print_info "Alternatively, you can use 'sudo docker' for this session"
+fi
+
 # Install kubectl
 if ! command -v kubectl >/dev/null 2>&1; then
     print_info "Installing kubectl..."
@@ -449,7 +496,13 @@ print_section "PHASE 2: Setting up Application Environment"
 # Setup Python virtual environment
 if [ ! -d "venv" ]; then
     print_info "Creating Python virtual environment..."
-    python3 -m venv venv
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        # Ubuntu/Debian - use venv
+        python3 -m venv venv
+    else
+        # Amazon Linux 2023 - use virtualenv
+        python3 -m virtualenv venv
+    fi
     print_status "Virtual environment created"
 fi
 
@@ -457,7 +510,18 @@ fi
 print_info "Installing Python dependencies..."
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
+
+# Install requirements with retry logic
+if [ -f "requirements.txt" ]; then
+    print_info "Installing requirements from requirements.txt..."
+    pip install -r requirements.txt || {
+        print_warning "Failed to install from requirements.txt, trying individual packages..."
+        pip install fastapi uvicorn pymongo python-multipart
+    }
+else
+    print_warning "requirements.txt not found, installing basic packages..."
+    pip install fastapi uvicorn pymongo python-multipart
+fi
 print_status "Python dependencies installed"
 
 # Run application tests
@@ -472,12 +536,21 @@ print_status "Application tests passed"
 print_section "PHASE 3: Building Docker Image"
 
 print_info "Building Docker image..."
-sudo docker build -t ${DOCKER_IMAGE}:latest . --network=host
+$DOCKER_CMD build -t ${DOCKER_IMAGE}:latest . --network=host
 print_status "Docker image built successfully"
 
 # Test the application locally
 print_info "Testing application locally..."
-sudo docker run -d --name test-app -p 8001:8000 ${DOCKER_IMAGE}:latest
+
+# Use appropriate Docker command based on system
+if groups $USER | grep -q docker; then
+    DOCKER_CMD="docker"
+else
+    DOCKER_CMD="sudo docker"
+    print_info "Using sudo for Docker commands"
+fi
+
+$DOCKER_CMD run -d --name test-app -p 8001:8000 ${DOCKER_IMAGE}:latest
 sleep 30
 
 # Health check
@@ -485,14 +558,14 @@ if curl -s http://localhost:8001/health | grep -q "healthy"; then
     print_status "Application health check passed"
 else
     print_error "Application health check failed"
-    sudo docker logs test-app
-    sudo docker stop test-app || true
-    sudo docker rm test-app || true
+    $DOCKER_CMD logs test-app
+    $DOCKER_CMD stop test-app || true
+    $DOCKER_CMD rm test-app || true
     exit 1
 fi
 
-sudo docker stop test-app || true
-sudo docker rm test-app || true
+$DOCKER_CMD stop test-app || true
+$DOCKER_CMD rm test-app || true
 
 # ============================================================================
 # PHASE 4: KUBERNETES CLUSTER SETUP
@@ -953,4 +1026,24 @@ echo ""
 
 # Clean up temporary files
 rm -f get-docker.sh
+
+# Final instructions
+print_section "PHASE 9: Final Instructions"
+
+echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
+echo ""
+echo -e "${CYAN}📋 Next Steps:${NC}"
+echo "1. If you're not in the docker group, run: newgrp docker"
+echo "2. Or use 'sudo docker' for Docker commands"
+echo "3. Access your application at: http://54.166.101.159:30011"
+echo "4. Access ArgoCD at: http://54.166.101.159:30080"
+echo "5. Access Grafana at: http://54.166.101.159:30081"
+echo "6. Access Prometheus at: http://54.166.101.159:30082"
+echo ""
+echo -e "${YELLOW}🔧 Troubleshooting:${NC}"
+echo "- If Docker commands fail, try: sudo docker <command>"
+echo "- If kubectl fails, check if cluster is running"
+echo "- For ArgoCD password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+echo ""
+
 print_status "Installation completed successfully!"
