@@ -12,12 +12,23 @@ pip install -r requirements.txt
 echo "🧪 Running tests..."
 python -m pytest app/ -v
 
+# Test Netlify Functions
+echo "🧪 Testing Netlify Functions..."
+cd netlify/functions
+python test_api.py || echo "⚠️ Netlify function tests failed (continuing...)"
+cd ../..
+
 # Create public directory if it doesn't exist
 mkdir -p public
 
 # Copy static files
 echo "📁 Setting up static files..."
 cp -r templates/* public/ 2>/dev/null || echo "No templates to copy"
+
+# Copy app directory for Netlify Functions
+echo "📁 Setting up app directory for functions..."
+mkdir -p netlify/functions/app
+cp -r app/* netlify/functions/app/ 2>/dev/null || echo "No app files to copy"
 
 # Create a simple health check file
 echo "🏥 Creating health check..."
