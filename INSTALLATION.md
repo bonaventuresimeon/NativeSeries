@@ -8,10 +8,8 @@
 - [Detailed Installation](#detailed-installation)
 - [Production Deployment](#production-deployment)
 - [Monitoring & Observability](#monitoring--observability)
-- [Security & Auto-scaling](#security--auto-scaling)
 - [Testing & Verification](#testing--verification)
 - [Troubleshooting](#troubleshooting)
-- [Next Steps](#next-steps)
 
 ## 🎯 Overview
 
@@ -23,15 +21,12 @@ This guide provides comprehensive instructions for installing and deploying the 
 - ✅ **Docker Containerization**: Portable and scalable deployment
 - ✅ **Kubernetes Orchestration**: Production-ready container orchestration
 - ✅ **ArgoCD GitOps**: Automated deployment and management
-- ✅ **GitHub Actions CI/CD**: Automated testing and deployment
 - ✅ **Prometheus & Grafana**: Complete monitoring stack
 - ✅ **Loki Logging**: Centralized log aggregation
 - ✅ **Secrets & ConfigMaps**: Secure configuration management
 - ✅ **Horizontal Pod Autoscaler**: Automatic scaling based on CPU/memory
 - ✅ **Pod Disruption Budget**: High availability during updates
 - ✅ **Network Policies**: Security and traffic control
-- ✅ **Custom Dashboards**: Application-specific monitoring
-- ✅ **Alerting**: Prometheus-based alerting system
 
 ## 🔧 Prerequisites
 
@@ -53,7 +48,7 @@ This guide provides comprehensive instructions for installing and deploying the 
 
 ## 🚀 Quick Installation
 
-### Option 1: Automated Installation Script (Recommended)
+### Automated Installation Script (Recommended)
 
 ```bash
 # Clone the repository
@@ -75,7 +70,7 @@ This script will install:
 7. **Auto-scaling configuration (HPA)**
 8. **Network policies and security**
 
-### Option 2: Manual Installation
+### Manual Installation
 
 ```bash
 # Clone the repository
@@ -526,51 +521,6 @@ Configured alerts for:
 - **Pod Restarts**: Pod restart count > 3 in 10 minutes
 - **Service Availability**: Service down for > 2 minutes
 
-## 🛡️ Security & Auto-scaling
-
-### Security Features
-
-#### Kubernetes Secrets
-- **Database Credentials**: MongoDB connection secrets
-- **API Keys**: JWT secrets and API keys
-- **Base64 Encoded**: Secure credential storage
-
-#### ConfigMaps
-- **Application Config**: Environment-specific settings
-- **Logging Config**: Log level and format configuration
-- **Monitoring Config**: Metrics collection settings
-
-#### Network Policies
-- **Ingress Rules**: Allow traffic from ingress-nginx and monitoring
-- **Egress Rules**: Allow database access and DNS resolution
-- **Pod Isolation**: Restrict unnecessary network access
-
-#### Security Contexts
-- **Non-root Execution**: Containers run as non-root user
-- **Read-only Filesystem**: Where applicable
-- **Resource Limits**: CPU and memory constraints
-
-### Auto-scaling Configuration
-
-#### Horizontal Pod Autoscaler
-- **Min Replicas**: 2
-- **Max Replicas**: 10
-- **CPU Threshold**: 70%
-- **Memory Threshold**: 80%
-- **Scale Down Delay**: 5 minutes
-- **Scale Up Delay**: 3 minutes
-
-#### Pod Disruption Budget
-- **Min Available**: 1 pod
-- **Ensures**: High availability during updates
-- **Rolling Updates**: Zero-downtime deployments
-
-#### Resource Management
-- **CPU Requests**: 100m
-- **CPU Limits**: 500m
-- **Memory Requests**: 128Mi
-- **Memory Limits**: 512Mi
-
 ## 🧪 Testing & Verification
 
 ### Health Checks
@@ -690,73 +640,6 @@ kubectl get events --all-namespaces --sort-by='.lastTimestamp'
 - **Container Logs**: `kubectl logs <pod-name>`
 - **System Logs**: `/var/log/`
 - **Docker Logs**: `docker logs <container-id>`
-
-## 🚀 Next Steps
-
-### Production Checklist
-
-- [ ] **Security Configuration**
-  - [ ] Secrets properly configured
-  - [ ] Network policies applied
-  - [ ] RBAC policies implemented
-  - [ ] Security contexts configured
-
-- [ ] **Monitoring Setup**
-  - [ ] Prometheus metrics collection
-  - [ ] Grafana dashboards configured
-  - [ ] Alert rules defined
-  - [ ] Log aggregation working
-
-- [ ] **Auto-scaling Configuration**
-  - [ ] HPA properly configured
-  - [ ] Resource limits set
-  - [ ] Health checks implemented
-  - [ ] PDB configured
-
-- [ ] **High Availability**
-  - [ ] Multiple replicas deployed
-  - [ ] Rolling update strategy
-  - [ ] Backup and recovery procedures
-  - [ ] Disaster recovery plan
-
-### Maintenance Tasks
-
-1. **Regular Updates**
-   - Update application dependencies
-   - Update Kubernetes components
-   - Update monitoring stack
-
-2. **Monitoring**
-   - Review Grafana dashboards
-   - Check Prometheus alerts
-   - Monitor Loki logs
-
-3. **Security**
-   - Rotate secrets regularly
-   - Update network policies
-   - Review RBAC permissions
-
-4. **Performance**
-   - Monitor HPA scaling
-   - Review resource usage
-   - Optimize configurations
-
-### Scaling Considerations
-
-1. **Horizontal Scaling**
-   - Increase max replicas in HPA
-   - Add more nodes to cluster
-   - Implement load balancing
-
-2. **Vertical Scaling**
-   - Increase resource limits
-   - Optimize application code
-   - Add caching layers
-
-3. **Database Scaling**
-   - Implement database clustering
-   - Add read replicas
-   - Optimize queries
 
 ---
 

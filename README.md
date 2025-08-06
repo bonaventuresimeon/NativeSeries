@@ -14,16 +14,12 @@
 - [Overview](#overview)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
-- [Technology Stack](#technology-stack)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
 - [Production Deployment](#production-deployment)
 - [Monitoring & Observability](#monitoring--observability)
-- [Security & Auto-scaling](#security--auto-scaling)
-- [Development](#development)
 - [API Documentation](#api-documentation)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
 
 ## 🎯 Overview
 
@@ -139,22 +135,6 @@ graph TB
     
     Logs --> Loki
     Loki --> Grafana
-```
-
-### Monitoring Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Application   │    │   Prometheus    │    │     Grafana     │
-│   (nativeseries)│◄──►│   (Monitoring)  │◄──►│   (Dashboard)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│      Loki       │    │  ServiceMonitor │    │  PrometheusRule│
-│   (Logging)     │    │   (Metrics)     │    │   (Alerts)     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ## 🛠️ Technology Stack
@@ -361,50 +341,35 @@ Configured alerts for:
 - **Pod Restarts**: Pod restart count > 3 in 10 minutes
 - **Service Availability**: Service down for > 2 minutes
 
-## 🛡️ Security & Auto-scaling
+## 📚 API Documentation
 
-### Security Features
+### Interactive Documentation
 
-#### Kubernetes Secrets
-- **Database Credentials**: MongoDB connection secrets
-- **API Keys**: JWT secrets and API keys
-- **Base64 Encoded**: Secure credential storage
+- **Swagger UI**: http://54.166.101.159:30011/docs
+- **ReDoc**: http://54.166.101.159:30011/redoc
+- **OpenAPI JSON**: http://54.166.101.159:30011/openapi.json
 
-#### ConfigMaps
-- **Application Config**: Environment-specific settings
-- **Logging Config**: Log level and format configuration
-- **Monitoring Config**: Metrics collection settings
+### API Endpoints
 
-#### Network Policies
-- **Ingress Rules**: Allow traffic from ingress-nginx and monitoring
-- **Egress Rules**: Allow database access and DNS resolution
-- **Pod Isolation**: Restrict unnecessary network access
+#### Health & System
+- `GET /health` - Application health check
+- `GET /metrics` - Prometheus metrics
+- `GET /` - Application homepage
+- `GET /about` - Application information
 
-#### Security Contexts
-- **Non-root Execution**: Containers run as non-root user
-- **Read-only Filesystem**: Where applicable
-- **Resource Limits**: CPU and memory constraints
+#### Students API
+- `GET /students` - List all students
+- `POST /students` - Create new student
+- `GET /students/{id}` - Get student by ID
+- `PUT /students/{id}` - Update student
+- `DELETE /students/{id}` - Delete student
 
-### Auto-scaling Configuration
-
-#### Horizontal Pod Autoscaler
-- **Min Replicas**: 2
-- **Max Replicas**: 10
-- **CPU Threshold**: 70%
-- **Memory Threshold**: 80%
-- **Scale Down Delay**: 5 minutes
-- **Scale Up Delay**: 3 minutes
-
-#### Pod Disruption Budget
-- **Min Available**: 1 pod
-- **Ensures**: High availability during updates
-- **Rolling Updates**: Zero-downtime deployments
-
-#### Resource Management
-- **CPU Requests**: 100m
-- **CPU Limits**: 500m
-- **Memory Requests**: 128Mi
-- **Memory Limits**: 512Mi
+#### Courses API
+- `GET /courses` - List all courses
+- `POST /courses` - Create new course
+- `GET /courses/{id}` - Get course by ID
+- `PUT /courses/{id}` - Update course
+- `DELETE /courses/{id}` - Delete course
 
 ## 🧪 Testing
 
@@ -446,75 +411,6 @@ kubectl get pods -n logging
 # Validate deployment
 ./scripts/validate-deployment.sh
 ```
-
-## 🔧 Development
-
-### Local Development
-
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Docker Development
-
-```bash
-# Build development image
-docker build -t nativeseries:dev .
-
-# Run with volume mount
-docker run -p 8000:8000 -v $(pwd):/app nativeseries:dev
-```
-
-### Kubernetes Development
-
-```bash
-# Create Kind cluster
-kind create cluster --name nativeseries
-
-# Deploy to cluster
-kubectl apply -f helm-chart/
-
-# Access application
-kubectl port-forward svc/nativeseries 30011:30011
-```
-
-## 📚 API Documentation
-
-### Interactive Documentation
-
-- **Swagger UI**: http://54.166.101.159:30011/docs
-- **ReDoc**: http://54.166.101.159:30011/redoc
-- **OpenAPI JSON**: http://54.166.101.159:30011/openapi.json
-
-### API Endpoints
-
-#### Health & System
-- `GET /health` - Application health check
-- `GET /metrics` - Prometheus metrics
-- `GET /` - Application homepage
-- `GET /about` - Application information
-
-#### Students API
-- `GET /students` - List all students
-- `POST /students` - Create new student
-- `GET /students/{id}` - Get student by ID
-- `PUT /students/{id}` - Update student
-- `DELETE /students/{id}` - Delete student
-
-#### Courses API
-- `GET /courses` - List all courses
-- `POST /courses` - Create new course
-- `GET /courses/{id}` - Get course by ID
-- `PUT /courses/{id}` - Update course
-- `DELETE /courses/{id}` - Delete course
 
 ## 🐛 Troubleshooting
 
