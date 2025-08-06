@@ -9,11 +9,17 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'app'))
 
 try:
+    # Import Netlify-specific database
+    from database_netlify import get_student_collection, get_database_stats, init_database
     from main import app
     from fastapi import Request
     from fastapi.responses import JSONResponse
     import uvicorn
     from mangum import Adapter
+    
+    # Initialize database for Netlify
+    init_database()
+    
 except ImportError as e:
     print(f"Import error: {e}")
 
@@ -53,19 +59,55 @@ def handler(event, context):
             }
         
         elif path == '/api/students':
-            return {
-                'statusCode': 200,
-                'headers': {'Content-Type': 'application/json'},
-                'body': json.dumps({
-                    'students': [
-                        {'id': 1, 'name': 'John Doe', 'email': 'john@example.com', 'course': 'Computer Science'},
-                        {'id': 2, 'name': 'Jane Smith', 'email': 'jane@example.com', 'course': 'Mathematics'},
-                        {'id': 3, 'name': 'Bob Johnson', 'email': 'bob@example.com', 'course': 'Physics'}
-                    ],
-                    'count': 3,
-                    'environment': 'netlify'
-                })
-            }
+            try:
+                # Use the Netlify database
+                collection = get_student_collection()
+                students = await collection.find()
+                stats = get_database_stats()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'students': students,
+                        'count': len(students),
+                        'environment': 'netlify',
+                        'database_stats': stats
+                    })
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': 'Database error',
+                        'message': str(e),
+                        'environment': 'netlify'
+                    })
+                }
+        
+        elif path == '/api/stats':
+            try:
+                stats = get_database_stats()
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'database_stats': stats,
+                        'environment': 'netlify',
+                        'timestamp': str(datetime.now(timezone.utc))
+                    })
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': 'Stats error',
+                        'message': str(e),
+                        'environment': 'netlify'
+                    })
+                }
         
         elif path == '/docs':
             return {

@@ -30,6 +30,11 @@ echo "📁 Setting up app directory for functions..."
 mkdir -p netlify/functions/app
 cp -r app/* netlify/functions/app/ 2>/dev/null || echo "No app files to copy"
 
+# Copy database configuration
+echo "📁 Setting up database configuration..."
+cp app/database_netlify.py netlify/functions/ 2>/dev/null || echo "Database file not found"
+cp netlify/functions/.env.example netlify/functions/.env 2>/dev/null || echo "Env file not found"
+
 # Create a simple health check file
 echo "🏥 Creating health check..."
 cat > public/health.json << EOF
