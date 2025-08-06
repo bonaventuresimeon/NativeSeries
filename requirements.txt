@@ -37,3 +37,6 @@ flake8>=6.0.0
 # Additional dependencies for production
 gunicorn>=21.0.0
 psutil>=5.9.0
+
+# Netlify Functions support
+mangum>=0.17.0
