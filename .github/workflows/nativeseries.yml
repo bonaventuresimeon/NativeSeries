@@ -201,7 +201,7 @@ jobs:
     name: Build & Push Image
     runs-on: ubuntu-latest
     needs: test
-    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.skip_docker_push }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && !inputs.skip_docker_push && !(github.event_name == 'workflow_dispatch' && inputs.run_simple_test == 'true') }}
     continue-on-error: true
     
     permissions:
@@ -289,7 +289,7 @@ jobs:
   deploy:
     name: Deploy Application
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, build-and-push]
     if: ${{ (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && inputs.run_simple_test != 'true') }}
     continue-on-error: true
     environment: ${{ inputs.environment || 'production' }}
@@ -330,6 +330,7 @@ jobs:
         
         # Execute the deployment script
         ./scripts/install-all.sh || echo "✅ Deployment script completed"
+      continue-on-error: true
         
     - name: Run post-deployment tests
       run: |
@@ -367,6 +368,7 @@ jobs:
         echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
         echo "- **Build Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
         echo "- **Test Coverage**: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true
 
   pr-feedback:
     name: PR Feedback
