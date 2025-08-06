@@ -10,7 +10,7 @@ on:
       environment:
         description: 'Environment to deploy to'
         required: true
-        default: 'staging'
+        default: 'production'
         type: choice
         options:
         - staging
@@ -51,7 +51,6 @@ jobs:
   simple-test:
     name: Simple Test
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.run_simple_test == 'true') }}
     
     steps:
     - name: Checkout code
@@ -90,7 +89,7 @@ jobs:
   test:
     name: Test & Build
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.run_simple_test == 'true') }}
+    needs: simple-test
     
     steps:
     - name: Checkout code
@@ -124,7 +123,6 @@ jobs:
       continue-on-error: true
         
     - name: Run unit tests
-      if: ${{ !inputs.skip_tests }}
       run: |
         echo "Running pytest unit tests..."
         pytest app/test_*.py -v --tb=short --cov=app --cov-report=xml --cov-report=html || echo "✅ Unit tests completed"
@@ -132,7 +130,6 @@ jobs:
       continue-on-error: true
         
     - name: Run integration tests
-      if: ${{ !inputs.skip_tests }}
       run: |
         echo "Running integration tests..."
         python -c "
@@ -149,7 +146,6 @@ jobs:
       continue-on-error: true
         
     - name: Security scan
-      if: ${{ inputs.run_security_scan != 'false' }}
       run: |
         echo "Running security vulnerability scan..."
         safety check || echo "✅ Security scan completed"
@@ -157,7 +153,6 @@ jobs:
       continue-on-error: true
         
     - name: Code quality scan
-      if: ${{ !inputs.skip_tests }}
       run: |
         echo "Running code quality scan..."
         bandit -r app/ -f json -o bandit-report.json || echo "✅ Code quality scan completed"
@@ -182,7 +177,6 @@ jobs:
       continue-on-error: true
         
     - name: Performance test
-      if: ${{ inputs.run_performance_test == 'true' }}
       run: |
         echo "Running performance tests..."
         docker run -d --name perf-app -p 8000:8000 bonaventuresimeon/nativeseries:latest
