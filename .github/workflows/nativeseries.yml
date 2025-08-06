@@ -2,7 +2,7 @@ name: NativeSeries Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, cursor/deploy-application-fix-errors-and-merge-pr-2456 ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
