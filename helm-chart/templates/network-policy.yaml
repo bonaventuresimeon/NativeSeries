@@ -14,17 +14,32 @@ spec:
   - Ingress
   - Egress
   ingress:
-  {{- range .Values.networkPolicy.ingress }}
   - from:
-    {{- toYaml .from | nindent 4 }}
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
     ports:
-    {{- toYaml .ports | nindent 4 }}
-  {{- end }}
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8000
   egress:
-  {{- range .Values.networkPolicy.egress }}
   - to:
-    {{- toYaml .to | nindent 4 }}
+    - namespaceSelector:
+        matchLabels:
+          name: nativeseries
     ports:
-    {{- toYaml .ports | nindent 4 }}
-  {{- end }}
+    - protocol: TCP
+      port: 5432
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
 {{- end }}
