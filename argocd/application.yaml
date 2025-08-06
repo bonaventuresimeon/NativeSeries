@@ -20,7 +20,7 @@ spec:
         - name: app.image.repository
           value: ghcr.io/bonaventuresimeon/nativeseries
   destination:
-    server: https://kubernetes.default.svc
+    server: https://54.166.101.159
     namespace: nativeseries
   syncPolicy:
     automated:
