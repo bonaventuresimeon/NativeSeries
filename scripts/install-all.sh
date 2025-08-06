@@ -131,7 +131,14 @@ elif [ "$PKG_MANAGER" = "yum" ] || [ "$PKG_MANAGER" = "dnf" ]; then
         python3 python3-pip
     # Install virtualenv for Amazon Linux 2023 (python3-venv not available)
     print_info "Installing virtualenv for RHEL-based systems..."
-    sudo pip3 install virtualenv
+    sudo pip3 install virtualenv || {
+        print_warning "Failed to install virtualenv via pip, trying alternative method..."
+        sudo $PKG_MANAGER install -y python3-virtualenv || {
+            print_error "Could not install virtualenv. Please run manually:"
+            echo "sudo pip3 install virtualenv"
+            exit 1
+        }
+    }
 fi
 print_status "System packages updated"
 
@@ -1027,6 +1034,92 @@ echo ""
 # Clean up temporary files
 rm -f get-docker.sh
 
+# Create manual installation script as backup
+print_info "Creating manual installation backup script..."
+cat > manual-install-amazon-linux.sh << 'EOF'
+#!/bin/bash
+
+# Manual Installation Script for Amazon Linux 2023
+# Use this if the automated installation fails
+
+set -euo pipefail
+
+echo "🚀 Manual Installation for Amazon Linux 2023"
+echo "=============================================="
+
+# Step 1: Install missing python3-venv package
+echo "Step 1: Installing python3-pip and virtualenv..."
+sudo yum install -y python3-pip
+sudo pip3 install virtualenv
+
+# Step 2: Create virtual environment manually
+echo "Step 2: Creating virtual environment..."
+python3 -m virtualenv venv
+source venv/bin/activate
+
+# Step 3: Install Python dependencies
+echo "Step 3: Installing Python dependencies..."
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Step 4: Install Docker
+echo "Step 4: Installing Docker..."
+sudo yum update -y
+sudo yum install -y docker
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+# Step 5: Install kubectl
+echo "Step 5: Installing kubectl..."
+curl -LO "https://dl.k8s.io/release/v1.33.3/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm -f kubectl
+
+# Step 6: Install Helm
+echo "Step 6: Installing Helm..."
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Step 7: Install Kind
+echo "Step 7: Installing Kind..."
+curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64"
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+# Step 8: Build Docker image
+echo "Step 8: Building Docker image..."
+sudo docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest . --network=host
+
+# Step 9: Create Kind cluster
+echo "Step 9: Creating Kind cluster..."
+sudo kind create cluster --name gitops-cluster
+sudo kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name gitops-cluster
+
+# Step 10: Deploy to Kubernetes
+echo "Step 10: Deploying to Kubernetes..."
+kubectl apply -f deployment/production/01-namespace.yaml
+kubectl apply -f deployment/production/02-application.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
+kubectl apply -f deployment/production/04-argocd-service.yaml
+kubectl apply -f deployment/production/06-monitoring-stack.yaml
+kubectl apply -f deployment/production/05-argocd-application.yaml
+
+# Step 11: Verify deployment
+echo "Step 11: Verifying deployment..."
+kubectl get pods -A
+kubectl get services -A
+
+echo "🎉 Manual installation completed!"
+echo "Access URLs:"
+echo "Application: http://54.166.101.159:30011"
+echo "ArgoCD: http://54.166.101.159:30080"
+echo "Grafana: http://54.166.101.159:30081"
+echo "Prometheus: http://54.166.101.159:30082"
+EOF
+
+chmod +x manual-install-amazon-linux.sh
+print_status "Manual installation script created: manual-install-amazon-linux.sh"
+
 # Final instructions
 print_section "PHASE 9: Final Instructions"
 
@@ -1044,6 +1137,124 @@ echo -e "${YELLOW}🔧 Troubleshooting:${NC}"
 echo "- If Docker commands fail, try: sudo docker <command>"
 echo "- If kubectl fails, check if cluster is running"
 echo "- For ArgoCD password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+echo ""
+
+# ============================================================================
+# PHASE 10: MANUAL INSTALLATION GUIDE (FALLBACK)
+# ============================================================================
+
+print_section "PHASE 10: Manual Installation Guide (If Automated Installation Fails)"
+
+echo -e "${YELLOW}📖 Manual Installation Steps (if automated installation fails):${NC}"
+echo ""
+echo -e "${CYAN}Step 1: Install missing python3-venv package${NC}"
+echo "# For Amazon Linux 2023, install python3-venv manually"
+echo "sudo yum install -y python3-pip"
+echo "sudo pip3 install virtualenv"
+echo ""
+echo -e "${CYAN}Step 2: Create virtual environment manually${NC}"
+echo "# Create virtual environment using virtualenv instead of venv"
+echo "python3 -m virtualenv venv"
+echo "source venv/bin/activate"
+echo ""
+echo -e "${CYAN}Step 3: Install Python dependencies${NC}"
+echo "# Activate virtual environment and install dependencies"
+echo "source venv/bin/activate"
+echo "pip install --upgrade pip"
+echo "pip install -r requirements.txt"
+echo ""
+echo -e "${CYAN}Step 4: Install Docker${NC}"
+echo "# Install Docker"
+echo "sudo yum update -y"
+echo "sudo yum install -y docker"
+echo "sudo systemctl start docker"
+echo "sudo systemctl enable docker"
+echo "sudo usermod -aG docker ec2-user"
+echo "# Log out and back in for group changes to take effect"
+echo ""
+echo -e "${CYAN}Step 5: Install kubectl${NC}"
+echo "# Install kubectl"
+echo "curl -LO \"https://dl.k8s.io/release/v1.33.3/bin/linux/amd64/kubectl\""
+echo "sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl"
+echo "rm -f kubectl"
+echo ""
+echo -e "${CYAN}Step 6: Install Helm${NC}"
+echo "# Install Helm"
+echo "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"
+echo ""
+echo -e "${CYAN}Step 7: Install Kind${NC}"
+echo "# Install Kind"
+echo "curl -Lo ./kind \"https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64\""
+echo "chmod +x ./kind"
+echo "sudo mv ./kind /usr/local/bin/kind"
+echo ""
+echo -e "${CYAN}Step 8: Build Docker image${NC}"
+echo "# Build the Docker image"
+echo "sudo docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest . --network=host"
+echo ""
+echo -e "${CYAN}Step 9: Create Kind cluster${NC}"
+echo "# Create Kind cluster"
+echo "sudo kind create cluster --name gitops-cluster"
+echo "sudo kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name gitops-cluster"
+echo ""
+echo -e "${CYAN}Step 10: Deploy to Kubernetes${NC}"
+echo "# Apply the deployment manifests"
+echo "kubectl apply -f deployment/production/01-namespace.yaml"
+echo "kubectl apply -f deployment/production/02-application.yaml"
+echo "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml"
+echo "kubectl apply -f deployment/production/04-argocd-service.yaml"
+echo "kubectl apply -f deployment/production/06-monitoring-stack.yaml"
+echo "kubectl apply -f deployment/production/05-argocd-application.yaml"
+echo ""
+echo -e "${CYAN}Step 11: Verify deployment${NC}"
+echo "# Check deployment status"
+echo "kubectl get pods -A"
+echo "kubectl get services -A"
+echo ""
+echo -e "${CYAN}Step 12: Access the application${NC}"
+echo "# Get ArgoCD admin password"
+echo "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d"
+echo ""
+echo -e "${GREEN}📋 Complete one-liner for all steps:${NC}"
+echo "# Run this complete installation script"
+echo "sudo yum install -y python3-pip && \\"
+echo "sudo pip3 install virtualenv && \\"
+echo "python3 -m virtualenv venv && \\"
+echo "source venv/bin/activate && \\"
+echo "pip install --upgrade pip && \\"
+echo "pip install -r requirements.txt && \\"
+echo "sudo yum install -y docker && \\"
+echo "sudo systemctl start docker && \\"
+echo "sudo systemctl enable docker && \\"
+echo "sudo usermod -aG docker ec2-user && \\"
+echo "curl -LO \"https://dl.k8s.io/release/v1.33.3/bin/linux/amd64/kubectl\" && \\"
+echo "sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && \\"
+echo "rm -f kubectl && \\"
+echo "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash && \\"
+echo "curl -Lo ./kind \"https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64\" && \\"
+echo "chmod +x ./kind && \\"
+echo "sudo mv ./kind /usr/local/bin/kind && \\"
+echo "sudo docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest . --network=host && \\"
+echo "sudo kind create cluster --name gitops-cluster && \\"
+echo "sudo kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name gitops-cluster && \\"
+echo "kubectl apply -f deployment/production/01-namespace.yaml && \\"
+echo "kubectl apply -f deployment/production/02-application.yaml && \\"
+echo "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml && \\"
+echo "kubectl apply -f deployment/production/04-argocd-service.yaml && \\"
+echo "kubectl apply -f deployment/production/06-monitoring-stack.yaml && \\"
+echo "kubectl apply -f deployment/production/05-argocd-application.yaml"
+echo ""
+echo -e "${BLUE}🌐 Access URLs after deployment:${NC}"
+echo "Application: http://54.166.101.159:30011"
+echo "ArgoCD: http://54.166.101.159:30080"
+echo "Grafana: http://54.166.101.159:30081"
+echo "Prometheus: http://54.166.101.159:30082"
+echo ""
+echo -e "${YELLOW}💡 Note: The main issue was that python3-venv package doesn't exist on Amazon Linux 2023, so we need to use virtualenv instead.${NC}"
+echo ""
+echo -e "${GREEN}📁 Backup Script Created:${NC}"
+echo "If the automated installation fails, you can run the manual installation script:"
+echo "  ./manual-install-amazon-linux.sh"
 echo ""
 
 print_status "Installation completed successfully!"
