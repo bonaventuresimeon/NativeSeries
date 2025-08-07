@@ -354,9 +354,52 @@ else
 fi
 
 # Install kubectl
-install_binary_tool "kubectl" "$KUBECTL_VERSION" \
-    "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
-    "kubectl"
+print_info "Installing kubectl v${KUBECTL_VERSION}..."
+if command_exists kubectl; then
+    current_version=$(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 | sed 's/v//')
+    if [ "$current_version" = "$KUBECTL_VERSION" ]; then
+        print_status "✓ kubectl v${KUBECTL_VERSION} is already installed"
+        kubectl version --client --short
+    else
+        print_info "Updating kubectl from v${current_version} to v${KUBECTL_VERSION}..."
+        install_binary_tool "kubectl" "$KUBECTL_VERSION" \
+            "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
+            "kubectl"
+    fi
+else
+    install_binary_tool "kubectl" "$KUBECTL_VERSION" \
+        "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
+        "kubectl"
+fi
+
+# Verify kubectl installation and setup
+print_info "Verifying kubectl installation..."
+if kubectl version --client --short >/dev/null 2>&1; then
+    print_status "✓ kubectl installation verified"
+    
+    # Setup kubectl configuration directory
+    mkdir -p ~/.kube
+    chmod 700 ~/.kube
+    
+    # Create kubectl completion
+    if [ ! -f ~/.bashrc ] || ! grep -q "kubectl completion" ~/.bashrc; then
+        echo "source <(kubectl completion bash)" >> ~/.bashrc
+        echo "alias k=kubectl" >> ~/.bashrc
+        echo "complete -o default -F __start_kubectl k" >> ~/.bashrc
+        print_status "✓ kubectl completion and aliases added to ~/.bashrc"
+    fi
+    
+    # Verify kubectl can connect to cluster (if one exists)
+    if kubectl cluster-info >/dev/null 2>&1; then
+        print_status "✓ kubectl can connect to existing cluster"
+        kubectl cluster-info
+    else
+        print_info "No existing cluster found - will create one in Phase 5"
+    fi
+else
+    print_error "✗ kubectl installation verification failed"
+    exit 1
+fi
 
 # Install Helm
 if command_exists helm; then
@@ -489,9 +532,43 @@ EOF
 if ! kubectl cluster-info >/dev/null 2>&1; then
     print_info "Creating Kind cluster..."
     sudo kind create cluster --config infra/kind/cluster-config.yaml
+    
+    # Configure kubectl for the new cluster
+    print_info "Configuring kubectl for Kind cluster..."
+    sudo kind export kubeconfig --name gitops-cluster
+    
+    # Ensure proper permissions on kubeconfig
+    if [ -f ~/.kube/config ]; then
+        chmod 600 ~/.kube/config
+        print_status "✓ kubectl configured for Kind cluster"
+    else
+        print_error "✗ Failed to configure kubectl for Kind cluster"
+        exit 1
+    fi
+    
     print_status "✓ Kind cluster created successfully"
 else
     print_status "✓ Using existing Kubernetes cluster"
+fi
+
+# Verify cluster connectivity
+print_info "Verifying cluster connectivity..."
+if kubectl cluster-info >/dev/null 2>&1; then
+    print_status "✓ Successfully connected to Kubernetes cluster"
+    kubectl cluster-info
+else
+    print_error "✗ Failed to connect to Kubernetes cluster"
+    exit 1
+fi
+
+# Verify kubectl can access the cluster
+print_info "Testing kubectl cluster access..."
+if kubectl get nodes >/dev/null 2>&1; then
+    print_status "✓ kubectl can access cluster nodes"
+    kubectl get nodes
+else
+    print_error "✗ kubectl cannot access cluster nodes"
+    exit 1
 fi
 
 # Load Docker image into Kind cluster
@@ -499,6 +576,16 @@ if command -v kind >/dev/null 2>&1 && kind get clusters | grep -q gitops-cluster
     print_info "Loading Docker image into Kind cluster..."
     sudo kind load docker-image ${DOCKER_IMAGE}:latest --name gitops-cluster
     print_status "✓ Docker image loaded into cluster"
+fi
+
+# Verify cluster is ready for deployments
+print_info "Verifying cluster readiness..."
+if kubectl get nodes --no-headers | grep -q "Ready"; then
+    ready_nodes=$(kubectl get nodes --no-headers | grep "Ready" | wc -l)
+    total_nodes=$(kubectl get nodes --no-headers | wc -l)
+    print_status "✓ Cluster is ready ($ready_nodes/$total_nodes nodes ready)"
+else
+    print_warning "⚠ Cluster nodes may not be fully ready"
 fi
 
 # ============================================================================
@@ -862,6 +949,8 @@ deploy_with_retry() {
     local max_retries=3
     local retry_count=0
     
+    print_info "Deploying $manifest..."
+    
     while [ $retry_count -lt $max_retries ]; do
         if kubectl apply -f "$manifest"; then
             print_status "✓ Successfully applied $manifest"
@@ -869,7 +958,13 @@ deploy_with_retry() {
         else
             retry_count=$((retry_count + 1))
             print_warning "⚠ Failed to apply $manifest (attempt $retry_count/$max_retries)"
+            
+            # Show detailed error information
+            print_info "Error details:"
+            kubectl apply -f "$manifest" 2>&1 | head -10
+            
             if [ $retry_count -lt $max_retries ]; then
+                print_info "Retrying in 5 seconds..."
                 sleep 5
             fi
         fi
@@ -879,36 +974,259 @@ deploy_with_retry() {
     return 1
 }
 
+# Function to verify kubectl is working
+verify_kubectl() {
+    print_info "Verifying kubectl functionality..."
+    
+    if ! kubectl version --client --short >/dev/null 2>&1; then
+        print_error "✗ kubectl client is not working"
+        return 1
+    fi
+    
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_error "✗ kubectl cannot connect to cluster"
+        return 1
+    fi
+    
+    if ! kubectl get nodes >/dev/null 2>&1; then
+        print_error "✗ kubectl cannot access cluster nodes"
+        return 1
+    fi
+    
+    print_status "✓ kubectl is working correctly"
+    return 0
+}
+
+# Function to troubleshoot kubectl issues
+troubleshoot_kubectl() {
+    print_info "🔧 Kubectl Troubleshooting Guide"
+    echo ""
+    echo -e "${YELLOW}Common kubectl issues and solutions:${NC}"
+    echo ""
+    echo -e "${WHITE}1. kubectl not found:${NC}"
+    echo "   - Ensure kubectl is installed: which kubectl"
+    echo "   - Check PATH: echo \$PATH"
+    echo "   - Reinstall kubectl if needed"
+    echo ""
+    echo -e "${WHITE}2. Cannot connect to cluster:${NC}"
+    echo "   - Check cluster status: kubectl cluster-info"
+    echo "   - Verify kubeconfig: kubectl config view"
+    echo "   - Check cluster is running: kind get clusters"
+    echo ""
+    echo -e "${WHITE}3. Permission denied:${NC}"
+    echo "   - Check kubeconfig permissions: ls -la ~/.kube/config"
+    echo "   - Fix permissions: chmod 600 ~/.kube/config"
+    echo "   - Check user permissions: whoami"
+    echo ""
+    echo -e "${WHITE}4. Context issues:${NC}"
+    echo "   - List contexts: kubectl config get-contexts"
+    echo "   - Switch context: kubectl config use-context <context-name>"
+    echo "   - Set context: kubectl config set-context --current --namespace=<namespace>"
+    echo ""
+    echo -e "${WHITE}5. Cluster not ready:${NC}"
+    echo "   - Check nodes: kubectl get nodes"
+    echo "   - Check node status: kubectl describe nodes"
+    echo "   - Restart cluster: kind delete cluster && kind create cluster"
+    echo ""
+    echo -e "${WHITE}6. Resource issues:${NC}"
+    echo "   - Check events: kubectl get events --all-namespaces"
+    echo "   - Check pod logs: kubectl logs -n <namespace> <pod-name>"
+    echo "   - Describe resources: kubectl describe <resource> <name> -n <namespace>"
+    echo ""
+    echo -e "${WHITE}7. Network issues:${NC}"
+    echo "   - Check services: kubectl get services --all-namespaces"
+    echo "   - Check endpoints: kubectl get endpoints --all-namespaces"
+    echo "   - Test connectivity: kubectl run test-pod --image=busybox --rm -it --restart=Never -- nslookup <service>"
+    echo ""
+}
+
+# Function to check kubectl health
+check_kubectl_health() {
+    print_info "🏥 Checking kubectl health..."
+    
+    local health_status=true
+    
+    # Check kubectl installation
+    if ! command_exists kubectl; then
+        print_error "✗ kubectl is not installed"
+        health_status=false
+    else
+        print_status "✓ kubectl is installed"
+        kubectl version --client --short
+    fi
+    
+    # Check cluster connectivity
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        print_error "✗ Cannot connect to cluster"
+        health_status=false
+    else
+        print_status "✓ Cluster connectivity OK"
+        kubectl cluster-info
+    fi
+    
+    # Check node access
+    if ! kubectl get nodes >/dev/null 2>&1; then
+        print_error "✗ Cannot access cluster nodes"
+        health_status=false
+    else
+        print_status "✓ Node access OK"
+        kubectl get nodes
+    fi
+    
+    # Check kubeconfig
+    if [ ! -f ~/.kube/config ]; then
+        print_error "✗ kubeconfig file not found"
+        health_status=false
+    else
+        print_status "✓ kubeconfig file exists"
+        ls -la ~/.kube/config
+    fi
+    
+    # Check context
+    if ! kubectl config current-context >/dev/null 2>&1; then
+        print_error "✗ No current context set"
+        health_status=false
+    else
+        print_status "✓ Current context: $(kubectl config current-context)"
+    fi
+    
+    if [ "$health_status" = false ]; then
+        print_warning "⚠ kubectl health check failed"
+        troubleshoot_kubectl
+        return 1
+    else
+        print_status "✓ kubectl health check passed"
+        return 0
+    fi
+}
+
+# Function to setup kubectl context and namespaces
+setup_kubectl_context() {
+    print_info "🔧 Setting up kubectl context and namespaces..."
+    
+    # Get current context
+    local current_context=$(kubectl config current-context 2>/dev/null || echo "")
+    print_info "Current context: $current_context"
+    
+    # List all contexts
+    print_info "Available contexts:"
+    kubectl config get-contexts
+    
+    # Set default namespace for current context
+    if [ -n "$current_context" ]; then
+        print_info "Setting default namespace for context: $current_context"
+        kubectl config set-context --current --namespace=default
+        
+        # Create namespaces if they don't exist
+        local namespaces=("$NAMESPACE" "$ARGOCD_NAMESPACE" "$MONITORING_NAMESPACE" "$LOGGING_NAMESPACE")
+        
+        for ns in "${namespaces[@]}"; do
+            if ! kubectl get namespace "$ns" >/dev/null 2>&1; then
+                print_info "Creating namespace: $ns"
+                kubectl create namespace "$ns"
+            else
+                print_status "✓ Namespace $ns already exists"
+            fi
+        done
+        
+        print_status "✓ kubectl context setup completed"
+    else
+        print_warning "⚠ No current context found"
+        return 1
+    fi
+}
+
+# Setup kubectl context before deployment
+print_section "KUBECTL CONTEXT SETUP"
+if ! setup_kubectl_context; then
+    print_warning "⚠ kubectl context setup failed, but continuing..."
+fi
+
+# Add kubectl health check before deployment
+print_section "KUBECTL HEALTH CHECK"
+if ! check_kubectl_health; then
+    print_error "kubectl health check failed. Please fix the issues above before proceeding."
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Verify kubectl before starting deployment
+if ! verify_kubectl; then
+    print_error "kubectl verification failed. Cannot proceed with deployment."
+    exit 1
+fi
+
 # Deploy namespaces first
 print_info "Deploying namespaces..."
-deploy_with_retry "deployment/production/01-namespace.yaml"
+if ! deploy_with_retry "deployment/production/01-namespace.yaml"; then
+    print_error "Failed to deploy namespaces. Cannot proceed."
+    exit 1
+fi
 
 # Wait for namespaces to be ready
 print_info "Waiting for namespaces to be ready..."
-kubectl wait --for=condition=Active namespace/${NAMESPACE} --timeout=60s
-kubectl wait --for=condition=Active namespace/${ARGOCD_NAMESPACE} --timeout=60s
+if ! kubectl wait --for=condition=Active namespace/${NAMESPACE} --timeout=60s; then
+    print_error "Namespace ${NAMESPACE} failed to become active"
+    kubectl describe namespace ${NAMESPACE}
+    exit 1
+fi
+
+if ! kubectl wait --for=condition=Active namespace/${ARGOCD_NAMESPACE} --timeout=60s; then
+    print_error "Namespace ${ARGOCD_NAMESPACE} failed to become active"
+    kubectl describe namespace ${ARGOCD_NAMESPACE}
+    exit 1
+fi
+
+print_status "✓ All namespaces are active"
 
 # Deploy application
 print_info "Deploying application..."
-deploy_with_retry "deployment/production/02-application.yaml"
+if ! deploy_with_retry "deployment/production/02-application.yaml"; then
+    print_error "Failed to deploy application. Checking for issues..."
+    kubectl get events --all-namespaces --sort-by='.lastTimestamp' | tail -20
+    exit 1
+fi
 
 # Install ArgoCD
 print_info "Installing ArgoCD..."
-kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
+if ! kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml; then
+    print_error "Failed to install ArgoCD"
+    exit 1
+fi
 
 # Wait for ArgoCD to be ready
 print_info "Waiting for ArgoCD to be ready..."
-kubectl wait --for=condition=Available deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=300s
+if ! kubectl wait --for=condition=Available deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=300s; then
+    print_error "ArgoCD failed to become available"
+    kubectl get pods -n ${ARGOCD_NAMESPACE}
+    kubectl describe deployment argocd-server -n ${ARGOCD_NAMESPACE}
+    exit 1
+fi
 
 # Deploy ArgoCD service
 print_info "Deploying ArgoCD service..."
-deploy_with_retry "deployment/production/04-argocd-service.yaml"
+if ! deploy_with_retry "deployment/production/04-argocd-service.yaml"; then
+    print_error "Failed to deploy ArgoCD service"
+    exit 1
+fi
 
 # Deploy ArgoCD application
 print_info "Deploying ArgoCD application..."
-deploy_with_retry "deployment/production/05-argocd-application.yaml"
+if ! deploy_with_retry "deployment/production/05-argocd-application.yaml"; then
+    print_error "Failed to deploy ArgoCD application"
+    exit 1
+fi
 
 print_status "✓ All resources deployed successfully"
+
+# Verify all deployments
+print_info "Verifying all deployments..."
+kubectl get deployments --all-namespaces
+kubectl get services --all-namespaces
+kubectl get pods --all-namespaces
 
 # ============================================================================
 # PHASE 10: VERIFICATION AND MONITORING
