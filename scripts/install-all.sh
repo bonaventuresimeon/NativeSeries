@@ -1,14 +1,55 @@
 #!/bin/bash
 
-# NativeSeries - Complete Installation & Deployment Script
-# Version: 6.3.0 - Enhanced with comprehensive tool installation and error handling
-# This script combines all installation, deployment, monitoring, and validation scripts
-# Updated for NativeSeries with corrected manifests and Helm charts
+# NativeSeries - Complete Installation & Deployment Script (RESTRUCTURED)
+# Version: 7.0.0 - Comprehensive fixes for all deployment issues
+# This script fixes cluster, namespace, manifests, and resource application issues
 
 set -euo pipefail
 
 # Global error handling
 trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Production Configuration
+PRODUCTION_HOST="54.166.101.159"
+PRODUCTION_PORT="30011"
+ARGOCD_PORT="30080"
+GRAFANA_PORT="30081"
+PROMETHEUS_PORT="30082"
+LOKI_PORT="30083"
+APP_NAME="nativeseries"
+NAMESPACE="nativeseries"
+ARGOCD_NAMESPACE="argocd"
+MONITORING_NAMESPACE="monitoring"
+LOGGING_NAMESPACE="logging"
+DOCKER_USERNAME="bonaventuresimeon"
+DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
+
+# Tool versions
+KUBECTL_VERSION="1.33.3"
+HELM_VERSION="3.18.4"
+KIND_VERSION="0.20.0"
+ARGOCD_VERSION="v2.9.3"
+
+# Get OS information
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+ARCH="$(uname -m)"
+
+# Normalize architecture
+case "${ARCH}" in
+    x86_64) ARCH="amd64" ;;
+    aarch64) ARCH="arm64" ;;
+    armv7l) ARCH="arm" ;;
+esac
 
 # Function to handle errors
 error_handler() {
@@ -33,8 +74,6 @@ error_handler() {
     echo -e "${WHITE}2. Verify system requirements and permissions${NC}"
     echo -e "${WHITE}3. Run cleanup script: ./scripts/cleanup-direct.sh${NC}"
     echo -e "${WHITE}4. Check logs and try again${NC}"
-    echo ""
-    echo -e "${CYAN}📖 For more help, check the troubleshooting section in the script${NC}"
     echo ""
     
     # Cleanup on error
@@ -65,69 +104,6 @@ cleanup_on_error() {
     echo -e "${GREEN}✓ Emergency cleanup completed${NC}"
 }
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
-
-# Production Configuration - Updated for NativeSeries
-PRODUCTION_HOST="54.166.101.159"
-PRODUCTION_PORT="30011"
-ARGOCD_PORT="30080"
-GRAFANA_PORT="30081"
-PROMETHEUS_PORT="30082"
-LOKI_PORT="30083"
-APP_NAME="nativeseries"
-NAMESPACE="nativeseries"
-ARGOCD_NAMESPACE="argocd"
-MONITORING_NAMESPACE="monitoring"
-LOGGING_NAMESPACE="logging"
-DOCKER_USERNAME="bonaventuresimeon"
-DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
-
-# Tool versions
-KUBECTL_VERSION="1.33.3"
-HELM_VERSION="3.18.4"
-KIND_VERSION="0.20.0"
-ARGOCD_VERSION="v2.9.3"
-
-# Repository configuration
-REPO_URL="https://github.com/bonaventuresimeon/nativeseries.git"
-
-# Get OS information
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
-
-# Normalize architecture
-case "${ARCH}" in
-    x86_64) ARCH="amd64" ;;
-    aarch64) ARCH="arm64" ;;
-    armv7l) ARCH="arm" ;;
-esac
-
-# Function to detect package manager and OS
-detect_package_manager() {
-    if command -v apt-get >/dev/null 2>&1; then
-        PKG_MANAGER="apt"
-        OS_TYPE="debian"
-    elif command -v yum >/dev/null 2>&1; then
-        PKG_MANAGER="yum"
-        OS_TYPE="rhel"
-    elif command -v dnf >/dev/null 2>&1; then
-        PKG_MANAGER="dnf"
-        OS_TYPE="rhel"
-    else
-        print_error "Unsupported package manager detected"
-        exit 1
-    fi
-    print_info "Detected package manager: $PKG_MANAGER on $OS_TYPE"
-}
-
 # Function to check if command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -147,10 +123,23 @@ print_warning() { echo -e "${YELLOW}[⚠️  WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[❌ ERROR]${NC} $1"; }
 print_info() { echo -e "${CYAN}[ℹ️  INFO]${NC} $1"; }
 
+# Banner
+echo -e "${PURPLE}"
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║          🚀 NativeSeries - Complete Installation (FIXED)         ║"
+echo "║              Target: ${PRODUCTION_HOST}:${PRODUCTION_PORT}                  ║"
+echo "║              Comprehensive Fixes Applied                        ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
+
+# ============================================================================
+# PHASE 1: SYSTEM REQUIREMENTS CHECK
+# ============================================================================
+
+print_section "PHASE 1: System Requirements Check"
+
 # Function to check system requirements
 check_system_requirements() {
-    print_section "System Requirements Check"
-    
     local requirements_met=true
     
     # Check OS
@@ -220,16 +209,6 @@ check_system_requirements() {
     print_status "✓ All system requirements met"
 }
 
-# Banner
-echo -e "${PURPLE}"
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║          🚀 NativeSeries - Complete Installation                  ║"
-echo "║              Target: ${PRODUCTION_HOST}:${PRODUCTION_PORT}                  ║"
-echo "║              Full Stack Deployment with Monitoring              ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-
-# Check system requirements first
 check_system_requirements
 
 # Confirmation
@@ -248,83 +227,30 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # ============================================================================
-# PHASE 1: MANIFEST VALIDATION AND FIXES
+# PHASE 2: TOOL INSTALLATION
 # ============================================================================
 
-print_section "PHASE 1: Validating and Fixing Manifests"
+print_section "PHASE 2: Tool Installation"
 
-# Validate Helm chart
-print_info "Validating Helm chart..."
-if helm template test helm-chart >/dev/null 2>&1; then
-    print_status "Helm chart validation passed"
-else
-    print_error "Helm chart validation failed"
-    exit 1
-fi
-
-# Validate ArgoCD application
-print_info "Validating ArgoCD application..."
-if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))" >/dev/null 2>&1; then
-    print_status "ArgoCD application validation passed"
-else
-    print_error "ArgoCD application validation failed"
-    exit 1
-fi
-
-# Validate all Kubernetes manifests
-print_info "Validating Kubernetes manifests..."
-for manifest in argocd/*.yaml deployment/production/*.yaml; do
-    if [ -f "$manifest" ]; then
-        if python3 -c "import yaml; list(yaml.safe_load_all(open('$manifest')))" >/dev/null 2>&1; then
-            print_status "✓ $manifest validation passed"
-        else
-            print_error "✗ $manifest validation failed"
-            exit 1
-        fi
-    fi
-done
-
-# ============================================================================
-# PHASE 2: TOOL DETECTION AND INSTALLATION
-# ============================================================================
-
-print_section "PHASE 2: Tool Detection and Installation"
-
-# Detect package manager first
-detect_package_manager
-
-# Function to install missing tools with comprehensive error handling
-install_missing_tool() {
-    local tool_name="$1"
-    local install_command="$2"
-    local check_command="$3"
-    local version_command="$4"
-    
-    if command_exists "$tool_name"; then
-        print_status "✓ $tool_name is already installed"
-        if [ -n "$version_command" ]; then
-            eval "$version_command"
-        fi
-        if [ -n "$check_command" ]; then
-            eval "$check_command"
-        fi
-        return 0
+# Function to detect package manager and OS
+detect_package_manager() {
+    if command -v apt-get >/dev/null 2>&1; then
+        PKG_MANAGER="apt"
+        OS_TYPE="debian"
+    elif command -v yum >/dev/null 2>&1; then
+        PKG_MANAGER="yum"
+        OS_TYPE="rhel"
+    elif command -v dnf >/dev/null 2>&1; then
+        PKG_MANAGER="dnf"
+        OS_TYPE="rhel"
     else
-        print_info "Installing $tool_name..."
-        if eval "$install_command"; then
-            print_status "✓ $tool_name installed successfully"
-            if [ -n "$version_command" ]; then
-                eval "$version_command"
-            fi
-            return 0
-        else
-            print_error "✗ Failed to install $tool_name"
-            return 1
-        fi
+        print_error "Unsupported package manager detected"
+        exit 1
     fi
+    print_info "Detected package manager: $PKG_MANAGER on $OS_TYPE"
 }
 
-# Function to download and install binary tools
+# Function to install binary tools
 install_binary_tool() {
     local tool_name="$1"
     local version="$2"
@@ -360,38 +286,10 @@ install_binary_tool() {
     fi
 }
 
-# Function to install Node.js and npm
-install_nodejs() {
-    if command_exists node && command_exists npm; then
-        print_status "✓ Node.js and npm are already installed"
-        node --version
-        npm --version
-        return 0
-    fi
-    
-    print_info "Installing Node.js and npm..."
-    
-    # Install Node.js using NodeSource repository
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-    else
-        curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-        sudo yum install -y nodejs
-    fi
-    
-    if command_exists node && command_exists npm; then
-        print_status "✓ Node.js and npm installed successfully"
-        node --version
-        npm --version
-        return 0
-    else
-        print_error "✗ Failed to install Node.js and npm"
-        return 1
-    fi
-}
+# Detect package manager first
+detect_package_manager
 
-# Install basic system tools with comprehensive package list
+# Install basic system tools
 print_info "Installing basic system tools..."
 if [ "$PKG_MANAGER" = "apt" ]; then
     sudo apt-get update
@@ -411,14 +309,7 @@ else
 fi
 print_status "✓ Basic system tools installed"
 
-# Install Python virtual environment tools
-if [ "$PKG_MANAGER" = "apt" ]; then
-    install_missing_tool "python3-venv" "sudo apt-get install -y python3-venv" "python3 -m venv --help" "python3 -m venv --version"
-else
-    install_missing_tool "virtualenv" "sudo pip3 install virtualenv" "python3 -m virtualenv --help" "python3 -m virtualenv --version"
-fi
-
-# Install Docker with comprehensive setup
+# Install Docker
 print_info "Checking Docker installation..."
 if command_exists docker; then
     print_status "✓ Docker is already installed"
@@ -462,324 +353,92 @@ else
     fi
 fi
 
-# Install Docker Compose
-print_info "Checking Docker Compose installation..."
-if command_exists docker-compose; then
-    print_status "✓ Docker Compose is already installed"
-    docker-compose --version
-else
-    print_info "Installing Docker Compose..."
-    
-    # Install Docker Compose v2
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        sudo apt-get install -y docker-compose-plugin
-    else
-        sudo yum install -y docker-compose-plugin
-    fi
-    
-    # Fallback to manual installation if package manager fails
-    if ! command_exists docker-compose; then
-        local compose_version="v2.23.3"
-        sudo curl -L "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-${OS}-${ARCH}" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-    fi
-    
-    if command_exists docker-compose; then
-        print_status "✓ Docker Compose installed successfully"
-        docker-compose --version
-    else
-        print_error "✗ Docker Compose installation failed"
-        exit 1
-    fi
-fi
-
-# Install kubectl with version verification
-print_info "Installing kubectl..."
+# Install kubectl
 install_binary_tool "kubectl" "$KUBECTL_VERSION" \
     "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
     "kubectl"
 
-# Install Helm with comprehensive setup
-print_info "Installing Helm..."
+# Install Helm
 if command_exists helm; then
     print_status "✓ Helm is already installed"
     helm version
 else
-    print_info "Installing Helm v$HELM_VERSION..."
-    
-    # Try official installation script first
-    if curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash; then
-        print_status "✓ Helm installed via official script"
-    else
-        # Fallback to manual installation
-        install_binary_tool "helm" "$HELM_VERSION" \
-            "https://get.helm.sh/helm-v${HELM_VERSION}-${OS}-${ARCH}.tar.gz" \
-            "${OS}-${ARCH}/helm"
-    fi
-    
-    # Verify Helm installation
-    if command_exists helm; then
-        helm version
-        print_status "✓ Helm installation verified"
-    else
-        print_error "✗ Helm installation failed"
-        exit 1
-    fi
+    print_info "Installing Helm..."
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    print_status "✓ Helm installed"
 fi
 
-# Install Kind with comprehensive setup
-print_info "Installing Kind..."
+# Install Kind
 install_binary_tool "kind" "$KIND_VERSION" \
     "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}" \
     "kind"
 
-# Install ArgoCD CLI
-print_info "Installing ArgoCD CLI..."
-if command_exists argocd; then
-    print_status "✓ ArgoCD CLI is already installed"
-    argocd version --client
-else
-    print_info "Installing ArgoCD CLI..."
-    
-    # Install ArgoCD CLI
-    local argocd_cli_version="v2.9.3"
-    install_binary_tool "argocd" "$argocd_cli_version" \
-        "https://github.com/argoproj/argo-cd/releases/download/${argocd_cli_version}/argocd-${OS}-${ARCH}" \
-        "argocd"
-fi
-
-# Install Node.js and npm for Netlify CLI
-print_info "Installing Node.js and npm..."
-install_nodejs
-
-# Install Netlify CLI
-print_info "Installing Netlify CLI..."
-if command_exists netlify; then
-    print_status "✓ Netlify CLI is already installed"
-    netlify --version
-else
-    print_info "Installing Netlify CLI..."
-    if npm install -g netlify-cli; then
-        print_status "✓ Netlify CLI installed successfully"
-        netlify --version
-    else
-        print_warning "⚠ Netlify CLI installation failed, but continuing..."
-    fi
-fi
-
-# Install additional development tools
-print_info "Installing additional development tools..."
+# Install additional tools
+print_info "Installing additional tools..."
 
 # Install yq for YAML processing
 if ! command_exists yq; then
-    print_info "Installing yq..."
     install_binary_tool "yq" "v4.40.5" \
         "https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_${OS}_${ARCH}" \
         "yq"
 fi
 
-# Install jq if not already installed
-if ! command_exists jq; then
-    print_info "Installing jq..."
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        sudo apt-get install -y jq
-    else
-        sudo yum install -y jq
-    fi
-fi
-
-# Install tree for directory visualization
-if ! command_exists tree; then
-    print_info "Installing tree..."
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        sudo apt-get install -y tree
-    else
-        sudo yum install -y tree
-    fi
-fi
-
-# Install htop for system monitoring
-if ! command_exists htop; then
-    print_info "Installing htop..."
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        sudo apt-get install -y htop
-    else
-        sudo yum install -y htop
-    fi
-fi
-
-# Install additional Python tools
-print_info "Installing additional Python tools..."
-pip3 install --user --upgrade pip setuptools wheel
-pip3 install --user black flake8 pytest pytest-asyncio
-
 print_status "✓ All tools installed successfully"
 
 # ============================================================================
-# PHASE 3: TOOL VERIFICATION AND ENVIRONMENT SETUP
+# PHASE 3: APPLICATION SETUP
 # ============================================================================
 
-print_section "PHASE 3: Tool Verification and Environment Setup"
+print_section "PHASE 3: Application Setup"
 
-# Function to verify tool installation
-verify_tool_installation() {
-    local tool_name="$1"
-    local version_flag="$2"
-    
-    if command_exists "$tool_name"; then
-        print_status "✓ $tool_name is available"
-        if [ -n "$version_flag" ]; then
-            $tool_name $version_flag 2>/dev/null || print_warning "⚠ Could not get $tool_name version"
-        fi
-        return 0
-    else
-        print_error "✗ $tool_name is not available"
-        return 1
-    fi
-}
-
-# Verify all critical tools
-print_info "Verifying tool installations..."
-critical_tools=(
-    "docker:--version"
-    "kubectl:version --client"
-    "helm:version"
-    "kind:version"
-    "python3:--version"
-    "pip3:--version"
-    "git:--version"
-    "curl:--version"
-    "wget:--version"
-    "jq:--version"
-)
-
-verification_failed=false
-for tool_info in "${critical_tools[@]}"; do
-    IFS=':' read -r tool_name version_flag <<< "$tool_info"
-    if ! verify_tool_installation "$tool_name" "$version_flag"; then
-        verification_failed=true
-    fi
-done
-
-if [ "$verification_failed" = true ]; then
-    print_error "Some critical tools are missing. Please check the installation and try again."
-    exit 1
-fi
-
-print_status "✓ All critical tools verified"
-
-# Verify Docker daemon is running
-print_info "Verifying Docker daemon..."
-if sudo docker info >/dev/null 2>&1; then
-    print_status "✓ Docker daemon is running"
-else
-    print_error "✗ Docker daemon is not running. Starting Docker..."
-    sudo systemctl start docker
-    if sudo docker info >/dev/null 2>&1; then
-        print_status "✓ Docker daemon started successfully"
-    else
-        print_error "✗ Failed to start Docker daemon"
-        exit 1
-    fi
-fi
-
-# ============================================================================
-# PHASE 4: APPLICATION SETUP
-# ============================================================================
-
-print_section "PHASE 4: Setting up Application Environment"
-
-# Setup Python virtual environment with comprehensive error handling
+# Setup Python virtual environment
 if [ ! -d "venv" ]; then
     print_info "Creating Python virtual environment..."
-    if [ "$PKG_MANAGER" = "apt" ]; then
-        if python3 -m venv venv; then
-            print_status "✓ Virtual environment created using python3-venv"
-        else
-            print_error "✗ Failed to create virtual environment with python3-venv"
-            exit 1
-        fi
-    else
-        if python3 -m virtualenv venv; then
-            print_status "✓ Virtual environment created using virtualenv"
-        else
-            print_error "✗ Failed to create virtual environment with virtualenv"
-            exit 1
-        fi
-    fi
-else
-    print_status "✓ Virtual environment already exists"
+    python3 -m venv venv
+    print_status "✓ Virtual environment created"
 fi
 
-# Activate virtual environment and install Python dependencies
+# Install Python dependencies
 print_info "Installing Python dependencies..."
-if source venv/bin/activate; then
-    print_status "✓ Virtual environment activated"
-    
-    # Upgrade pip and install build tools
-    pip install --upgrade pip setuptools wheel
-    
-    # Install Python dependencies with comprehensive error handling
-    if [ -f "requirements.txt" ]; then
-        print_info "Installing dependencies from requirements.txt..."
-        if pip install -r requirements.txt; then
-            print_status "✓ Python dependencies installed from requirements.txt"
-        else
-            print_warning "⚠ Some dependencies failed to install from requirements.txt, trying fallback..."
-            # Fallback to essential packages
-            pip install fastapi uvicorn pymongo python-multipart jinja2 aiofiles httpx motor hvac python-jose passlib python-dotenv redis pytest pytest-asyncio black flake8 gunicorn psutil mangum
-            print_status "✓ Essential Python dependencies installed"
-        fi
-    else
-        print_warning "⚠ requirements.txt not found, installing essential packages..."
-        pip install fastapi uvicorn pymongo python-multipart jinja2 aiofiles httpx motor hvac python-jose passlib python-dotenv redis pytest pytest-asyncio black flake8 gunicorn psutil mangum
-        print_status "✓ Essential Python dependencies installed"
-    fi
-    
-    # Verify key Python packages
-    print_info "Verifying Python package installations..."
-    python -c "import fastapi, uvicorn, pymongo; print('✓ Core packages verified')" || print_warning "⚠ Some core packages may not be properly installed"
-    
-else
-    print_error "✗ Failed to activate virtual environment"
-    exit 1
-fi
+source venv/bin/activate
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt || pip install fastapi uvicorn pymongo python-multipart jinja2 aiofiles httpx motor hvac python-jose passlib python-dotenv redis pytest pytest-asyncio black flake8 gunicorn psutil mangum
+print_status "✓ Python dependencies installed"
 
 # ============================================================================
-# PHASE 5: DOCKER IMAGE BUILD
+# PHASE 4: DOCKER IMAGE BUILD
 # ============================================================================
 
-print_section "PHASE 5: Building Docker Image"
+print_section "PHASE 4: Building Docker Image"
 
 print_info "Building Docker image..."
-DOCKER_CMD="sudo docker"
-$DOCKER_CMD build -t ${DOCKER_IMAGE}:latest . --network=host
-print_status "Docker image built successfully"
+sudo docker build -t ${DOCKER_IMAGE}:latest . --network=host
+print_status "✓ Docker image built successfully"
 
 # Test the application locally
 print_info "Testing application locally..."
-$DOCKER_CMD run -d --name test-app -p 8001:8000 ${DOCKER_IMAGE}:latest
+sudo docker run -d --name test-app -p 8001:8000 ${DOCKER_IMAGE}:latest
 sleep 30
 
 # Health check
 if curl -s http://localhost:8001/health | grep -q "healthy"; then
-    print_status "Application health check passed"
+    print_status "✓ Application health check passed"
 else
-    print_error "Application health check failed"
-    $DOCKER_CMD logs test-app
-    $DOCKER_CMD stop test-app || true
-    $DOCKER_CMD rm test-app || true
+    print_error "✗ Application health check failed"
+    sudo docker logs test-app
+    sudo docker stop test-app || true
+    sudo docker rm test-app || true
     exit 1
 fi
 
-$DOCKER_CMD stop test-app || true
-$DOCKER_CMD rm test-app || true
+sudo docker stop test-app || true
+sudo docker rm test-app || true
 
 # ============================================================================
-# PHASE 6: KUBERNETES CLUSTER SETUP
+# PHASE 5: KUBERNETES CLUSTER SETUP
 # ============================================================================
 
-print_section "PHASE 6: Setting up Kubernetes Cluster"
+print_section "PHASE 5: Setting up Kubernetes Cluster"
 
 # Create Kind cluster configuration
 mkdir -p infra/kind
@@ -830,1192 +489,27 @@ EOF
 if ! kubectl cluster-info >/dev/null 2>&1; then
     print_info "Creating Kind cluster..."
     sudo kind create cluster --config infra/kind/cluster-config.yaml
-    print_status "Kind cluster created successfully"
+    print_status "✓ Kind cluster created successfully"
 else
-    print_status "Using existing Kubernetes cluster"
+    print_status "✓ Using existing Kubernetes cluster"
 fi
 
 # Load Docker image into Kind cluster
 if command -v kind >/dev/null 2>&1 && kind get clusters | grep -q gitops-cluster; then
     print_info "Loading Docker image into Kind cluster..."
     sudo kind load docker-image ${DOCKER_IMAGE}:latest --name gitops-cluster
-    print_status "Docker image loaded into cluster"
+    print_status "✓ Docker image loaded into cluster"
 fi
 
 # ============================================================================
-# PHASE 7: DEPLOYMENT PREPARATION
+# PHASE 6: MANIFEST VALIDATION AND FIXES
 # ============================================================================
 
-print_section "PHASE 7: Preparing Deployment Manifests"
-
-# Create deployment directories
-mkdir -p deployment/production
-mkdir -p deployment/monitoring
-
-# Generate namespace manifest
-cat > deployment/production/01-namespace.yaml << EOF
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${NAMESPACE}
-  labels:
-    name: ${NAMESPACE}
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${ARGOCD_NAMESPACE}
-  labels:
-    name: ${ARGOCD_NAMESPACE}
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${MONITORING_NAMESPACE}
-  labels:
-    name: ${MONITORING_NAMESPACE}
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ${LOGGING_NAMESPACE}
-  labels:
-    name: ${LOGGING_NAMESPACE}
-EOF
-
-# Generate application deployment using Helm
-print_info "Generating application manifests..."
-helm template ${APP_NAME} helm-chart \
-    --namespace ${NAMESPACE} \
-    --set image.repository=${DOCKER_IMAGE} \
-    --set image.tag=latest \
-    --set service.nodePort=${PRODUCTION_PORT} \
-    > deployment/production/02-application.yaml
-
-# Generate ArgoCD service with NodePort
-cat > deployment/production/04-argocd-service.yaml << EOF
-apiVersion: v1
-kind: Service
-metadata:
-  name: argocd-server-nodeport
-  namespace: ${ARGOCD_NAMESPACE}
-spec:
-  type: NodePort
-  ports:
-  - port: 80
-    targetPort: 8080
-    nodePort: ${ARGOCD_PORT}
-    protocol: TCP
-  selector:
-    app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
-EOF
-
-# Update ArgoCD application manifest for production
-sed "s|https://kubernetes.default.svc|https://${PRODUCTION_HOST}|g" argocd/application.yaml > deployment/production/05-argocd-application.yaml
-
-# Generate monitoring stack with Loki
-print_info "Generating monitoring and logging manifests..."
-cat > deployment/production/06-monitoring-stack.yaml << EOF
-# Prometheus
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: prometheus
-  namespace: ${MONITORING_NAMESPACE}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: prometheus
-  template:
-    metadata:
-      labels:
-        app: prometheus
-    spec:
-      containers:
-      - name: prometheus
-        image: prom/prometheus:latest
-        ports:
-        - containerPort: 9090
-        args:
-        - --config.file=/etc/prometheus/prometheus.yml
-        - --storage.tsdb.path=/prometheus/
-        - --web.console.libraries=/etc/prometheus/console_libraries
-        - --web.console.templates=/etc/prometheus/consoles
-        - --web.enable-lifecycle
-        volumeMounts:
-        - name: prometheus-config
-          mountPath: /etc/prometheus/
-        - name: prometheus-storage
-          mountPath: /prometheus/
-      volumes:
-      - name: prometheus-config
-        configMap:
-          name: prometheus-config
-      - name: prometheus-storage
-        emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: prometheus-service
-  namespace: ${MONITORING_NAMESPACE}
-spec:
-  type: NodePort
-  ports:
-  - port: 9090
-    targetPort: 9090
-    nodePort: ${PROMETHEUS_PORT}
-  selector:
-    app: prometheus
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-config
-  namespace: ${MONITORING_NAMESPACE}
-data:
-  prometheus.yml: |
-    global:
-      scrape_interval: 15s
-    scrape_configs:
-    - job_name: 'kubernetes-pods'
-      kubernetes_sd_configs:
-      - role: pod
-    - job_name: '${APP_NAME}'
-      static_configs:
-      - targets: ['${APP_NAME}-service.${NAMESPACE}.svc.cluster.local:8000']
-    - job_name: 'loki'
-      static_configs:
-      - targets: ['loki-service.${LOGGING_NAMESPACE}.svc.cluster.local:3100']
----
-# Grafana
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: grafana
-  namespace: ${MONITORING_NAMESPACE}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: grafana
-  template:
-    metadata:
-      labels:
-        app: grafana
-    spec:
-      containers:
-      - name: grafana
-        image: grafana/grafana:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: GF_SECURITY_ADMIN_PASSWORD
-          value: admin123
-        - name: GF_FEATURE_TOGGLES_ENABLE
-          value: "publicDashboards"
-        volumeMounts:
-        - name: grafana-storage
-          mountPath: /var/lib/grafana
-        - name: grafana-datasources
-          mountPath: /etc/grafana/provisioning/datasources
-      volumes:
-      - name: grafana-storage
-        emptyDir: {}
-      - name: grafana-datasources
-        configMap:
-          name: grafana-datasources
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana-service
-  namespace: ${MONITORING_NAMESPACE}
-spec:
-  type: NodePort
-  ports:
-  - port: 3000
-    targetPort: 3000
-    nodePort: ${GRAFANA_PORT}
-  selector:
-    app: grafana
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-datasources
-  namespace: ${MONITORING_NAMESPACE}
-data:
-  datasources.yaml: |
-    apiVersion: 1
-    datasources:
-    - name: Prometheus
-      type: prometheus
-      url: http://prometheus-service.${MONITORING_NAMESPACE}.svc.cluster.local:9090
-      access: proxy
-      isDefault: true
-    - name: Loki
-      type: loki
-      url: http://loki-service.${LOGGING_NAMESPACE}.svc.cluster.local:3100
-      access: proxy
----
-# Loki
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: loki
-  namespace: ${LOGGING_NAMESPACE}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: loki
-  template:
-    metadata:
-      labels:
-        app: loki
-    spec:
-      containers:
-      - name: loki
-        image: grafana/loki:latest
-        ports:
-        - containerPort: 3100
-        args:
-        - -config.file=/etc/loki/local-config.yaml
-        volumeMounts:
-        - name: loki-config
-          mountPath: /etc/loki
-        - name: loki-storage
-          mountPath: /loki
-      volumes:
-      - name: loki-config
-        configMap:
-          name: loki-config
-      - name: loki-storage
-        emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: loki-service
-  namespace: ${LOGGING_NAMESPACE}
-spec:
-  type: NodePort
-  ports:
-  - port: 3100
-    targetPort: 3100
-    nodePort: ${LOKI_PORT}
-  selector:
-    app: loki
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: loki-config
-  namespace: ${LOGGING_NAMESPACE}
-data:
-  local-config.yaml: |
-    auth_enabled: false
-    server:
-      http_listen_port: 3100
-    ingester:
-      lifecycler:
-        address: 127.0.0.1
-        ring:
-          kvstore:
-            store: inmemory
-          replication_factor: 1
-        final_sleep: 0s
-      chunk_idle_period: 5m
-      chunk_retain_period: 30s
-    schema_config:
-      configs:
-        - from: 2020-05-15
-          store: boltdb
-          object_store: filesystem
-          schema: v11
-          index:
-            prefix: index_
-            period: 24h
-    storage_config:
-      boltdb:
-        directory: /loki/index
-      filesystem:
-        directory: /loki/chunks
-    limits_config:
-      enforce_metric_name: false
-      reject_old_samples: true
-      reject_old_samples_max_age: 168h
-    chunk_store_config:
-      max_look_back_period: 0s
-    table_manager:
-      retention_deletes_enabled: false
-      retention_period: 0s
----
-# Promtail for log collection
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  name: promtail
-  namespace: ${LOGGING_NAMESPACE}
-spec:
-  selector:
-    matchLabels:
-      app: promtail
-  template:
-    metadata:
-      labels:
-        app: promtail
-    spec:
-      containers:
-      - name: promtail
-        image: grafana/promtail:latest
-        args:
-        - -config.file=/etc/promtail/config.yml
-        volumeMounts:
-        - name: promtail-config
-          mountPath: /etc/promtail
-        - name: varlog
-          mountPath: /var/log
-        - name: varlibdockercontainers
-          mountPath: /var/lib/docker/containers
-          readOnly: true
-      volumes:
-      - name: promtail-config
-        configMap:
-          name: promtail-config
-      - name: varlog
-        hostPath:
-          path: /var/log
-      - name: varlibdockercontainers
-        hostPath:
-          path: /var/lib/docker/containers
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: promtail-config
-  namespace: ${LOGGING_NAMESPACE}
-data:
-  config.yml: |
-    server:
-      http_listen_port: 9080
-      grpc_listen_port: 0
-    positions:
-      filename: /tmp/positions.yaml
-    clients:
-    - url: http://loki-service.${LOGGING_NAMESPACE}.svc.cluster.local:3100/loki/api/v1/push
-    scrape_configs:
-    - job_name: system
-      static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: varlogs
-          __path__: /var/log/*log
-    - job_name: containers
-      static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: containerlogs
-          __path__: /var/lib/docker/containers/*/*log
-EOF
-
-print_status "Deployment manifests generated"
-
-# ============================================================================
-# PHASE 7: KUBERNETES DEPLOYMENT
-# ============================================================================
-
-print_section "PHASE 7: Deploying to Kubernetes"
-
-# Deploy if cluster is available
-if kubectl cluster-info >/dev/null 2>&1; then
-    print_info "Deploying to Kubernetes cluster..."
-    
-    # Apply manifests in order
-    kubectl apply -f deployment/production/01-namespace.yaml
-    print_status "Namespaces created"
-    
-    # PHASE 7.1: Comprehensive Resource Cleanup
-    print_info "Performing comprehensive resource cleanup in ${NAMESPACE} namespace..."
-    
-    # Check if Helm release exists and uninstall it first
-    if helm list -n ${NAMESPACE} | grep -q "${APP_NAME}"; then
-        print_info "Existing Helm release found, uninstalling..."
-        helm uninstall ${APP_NAME} -n ${NAMESPACE} --ignore-not-found=true
-        print_status "Existing Helm release uninstalled"
-    fi
-    
-    # Clean up all resources that might conflict with Helm
-    print_info "Cleaning up existing Kubernetes resources..."
-    kubectl delete networkpolicy -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete secret -n ${NAMESPACE} --field-selector type!=kubernetes.io/service-account-token --ignore-not-found=true
-    kubectl delete configmap -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete deployment -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete service -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete ingress -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete hpa -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete pdb -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete job -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete serviceaccount -n ${NAMESPACE} --all --ignore-not-found=true
-    
-    # Wait for cleanup to complete
-    print_info "Waiting for cleanup to complete..."
-    sleep 10
-    
-    # Verify namespace is clean
-    remaining_resources=$(kubectl get all -n ${NAMESPACE} --no-headers 2>/dev/null | wc -l || echo "0")
-    if [ "$remaining_resources" -gt 0 ]; then
-        print_warning "Some resources still exist, forcing deletion..."
-        kubectl delete all -n ${NAMESPACE} --all --ignore-not-found=true
-        kubectl delete networkpolicy,secret,configmap,ingress,hpa,pdb,job,serviceaccount -n ${NAMESPACE} --all --ignore-not-found=true
-    fi
-    
-    print_status "Comprehensive resource cleanup completed"
-    
-    # PHASE 7.2: Helm Chart Validation
-    print_info "Validating Helm chart before deployment..."
-    if ! validate_helm_chart "helm-chart" "${NAMESPACE}"; then
-        print_error "Helm chart validation failed. Cannot proceed with deployment."
-        exit 1
-    fi
-    
-    # PHASE 7.3: Helm Deployment with Retry Logic
-    print_info "Deploying application using Helm to ${NAMESPACE} namespace..."
-    
-    # Function to attempt Helm deployment with retries
-    deploy_with_helm() {
-        local max_attempts=3
-        local attempt=1
-        
-        while [ $attempt -le $max_attempts ]; do
-            print_info "Helm deployment attempt $attempt of $max_attempts..."
-            
-            if helm upgrade --install ${APP_NAME} helm-chart \
-                --namespace ${NAMESPACE} \
-                --create-namespace \
-                --set image.repository=${DOCKER_IMAGE} \
-                --set image.tag=latest \
-                --set service.nodePort=${PRODUCTION_PORT} \
-                --wait \
-                --timeout=10m; then
-                
-                print_success "✅ Helm deployment successful on attempt $attempt"
-                return 0
-            else
-                print_warning "⚠️ Helm deployment failed on attempt $attempt"
-                
-                if [ $attempt -lt $max_attempts ]; then
-                    print_info "Cleaning up and retrying..."
-                    helm uninstall ${APP_NAME} -n ${NAMESPACE} --ignore-not-found=true
-                    sleep 15
-                fi
-                
-                attempt=$((attempt + 1))
-            fi
-        done
-        
-        print_error "❌ All Helm deployment attempts failed"
-        return 1
-    }
-    
-    # Execute Helm deployment with retry logic
-    if deploy_with_helm; then
-        print_status "Application deployed successfully to ${NAMESPACE} namespace"
-    else
-        print_error "Failed to deploy application to ${NAMESPACE} namespace"
-        
-        # Diagnose the issue
-        handle_helm_issues ${NAMESPACE} ${APP_NAME}
-        
-        # Ask user if they want to perform emergency cleanup
-        echo
-        print_warning "Helm deployment failed. Would you like to perform emergency cleanup and retry?"
-        read -p "Perform emergency cleanup? (y/N): " emergency_cleanup_choice
-        
-        if [[ $emergency_cleanup_choice =~ ^[Yy]$ ]]; then
-            if emergency_cleanup ${NAMESPACE} ${APP_NAME}; then
-                print_info "Retrying Helm deployment after emergency cleanup..."
-                if deploy_with_helm; then
-                    print_success "✅ Application deployed successfully after emergency cleanup"
-                else
-                    print_error "❌ Deployment still failed after emergency cleanup"
-                    print_info "You can try running the fix script: ./scripts/fix-helm-deployment.sh"
-                    exit 1
-                fi
-            else
-                print_error "Emergency cleanup failed"
-                print_info "You can try running the fix script: ./scripts/fix-helm-deployment.sh"
-                exit 1
-            fi
-        else
-            print_info "Skipping emergency cleanup. You can try running the fix script: ./scripts/fix-helm-deployment.sh"
-            exit 1
-        fi
-    fi
-    
-    # Install ArgoCD
-    kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
-    kubectl apply -f deployment/production/04-argocd-service.yaml
-    print_status "ArgoCD installed"
-    
-    # Wait for ArgoCD to be ready
-    print_info "Waiting for ArgoCD to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n ${ARGOCD_NAMESPACE} || true
-    
-    # Deploy monitoring and logging stack
-    kubectl apply -f deployment/production/06-monitoring-stack.yaml
-    print_status "Monitoring and logging stack deployed"
-    
-    # Create ArgoCD application
-    sleep 30
-    kubectl apply -f deployment/production/05-argocd-application.yaml || true
-    print_status "ArgoCD application created"
-    
-else
-    print_warning "No Kubernetes cluster available. Deployment manifests are ready in deployment/production/"
-fi
-
-# ============================================================================
-# PHASE 8: COMPREHENSIVE VERIFICATION AND STATUS CHECKING
-# ============================================================================
-
-print_section "PHASE 8: Comprehensive Verification and Status Checking"
-
-# Function to handle Helm deployment issues
-handle_helm_issues() {
-    local namespace=$1
-    local app_name=$2
-    
-    print_info "Diagnosing Helm deployment issues in namespace $namespace..."
-    
-    # Check for common issues
-    print_info "Checking for common Helm deployment issues..."
-    
-    # 1. Check for existing resources without Helm ownership
-    local conflicting_resources=$(kubectl get all,networkpolicy,secret,configmap,ingress,hpa,pdb -n $namespace --no-headers 2>/dev/null | wc -l || echo "0")
-    if [ "$conflicting_resources" -gt 0 ]; then
-        print_warning "Found $conflicting_resources existing resources that may conflict with Helm"
-        print_info "These resources will be cleaned up automatically"
-    fi
-    
-    # 2. Check Helm release status
-    if helm list -n $namespace | grep -q "$app_name"; then
-        print_info "Existing Helm release found, checking status..."
-        helm status $app_name -n $namespace
-    else
-        print_info "No existing Helm release found"
-    fi
-    
-    # 3. Check namespace status
-    print_info "Checking namespace status..."
-    kubectl get namespace $namespace -o yaml | grep -E "(status|phase)" || true
-    
-    # 4. Check for resource quotas or limits
-    print_info "Checking for resource constraints..."
-    kubectl get resourcequota -n $namespace 2>/dev/null || print_info "No resource quotas found"
-    kubectl get limitrange -n $namespace 2>/dev/null || print_info "No limit ranges found"
-}
-
-# Function to validate Helm chart
-validate_helm_chart() {
-    local chart_path=$1
-    local namespace=$2
-    
-    print_info "Validating Helm chart at $chart_path..."
-    
-    # Check if chart directory exists
-    if [ ! -d "$chart_path" ]; then
-        print_error "Helm chart directory not found: $chart_path"
-        return 1
-    fi
-    
-    # Check if Chart.yaml exists
-    if [ ! -f "$chart_path/Chart.yaml" ]; then
-        print_error "Chart.yaml not found in $chart_path"
-        return 1
-    fi
-    
-    # Validate chart structure
-    print_info "Validating chart structure..."
-    if ! helm lint "$chart_path"; then
-        print_error "Helm chart validation failed"
-        return 1
-    fi
-    
-    # Test template rendering
-    print_info "Testing template rendering..."
-    if ! helm template test-release "$chart_path" --namespace "$namespace" --dry-run >/dev/null 2>&1; then
-        print_error "Helm template rendering failed"
-        return 1
-    fi
-    
-    print_success "✅ Helm chart validation passed"
-    return 0
-}
-
-# Function to perform emergency cleanup
-emergency_cleanup() {
-    local namespace=$1
-    local app_name=$2
-    
-    print_warning "Performing emergency cleanup for namespace $namespace..."
-    
-    # Force delete all resources
-    print_info "Force deleting all resources in namespace $namespace..."
-    kubectl delete all,networkpolicy,secret,configmap,ingress,hpa,pdb,job,serviceaccount -n $namespace --all --ignore-not-found=true --grace-period=0 --force
-    
-    # Uninstall Helm release
-    print_info "Uninstalling Helm release..."
-    helm uninstall $app_name -n $namespace --ignore-not-found=true
-    
-    # Wait for cleanup
-    print_info "Waiting for cleanup to complete..."
-    sleep 20
-    
-    # Verify cleanup
-    local remaining=$(kubectl get all -n $namespace --no-headers 2>/dev/null | wc -l || echo "0")
-    if [ "$remaining" -eq 0 ]; then
-        print_success "Emergency cleanup completed successfully"
-        return 0
-    else
-        print_warning "Some resources still remain after emergency cleanup"
-        return 1
-    fi
-}
-
-# Function to wait for pods to be ready
-wait_for_pods() {
-    local namespace=$1
-    local label_selector=$2
-    local timeout=300
-    local interval=10
-    
-    print_info "Waiting for pods in namespace $namespace with selector $label_selector..."
-    
-    local elapsed=0
-    while [ $elapsed -lt $timeout ]; do
-        if kubectl get pods -n $namespace -l $label_selector --no-headers | grep -q "Running"; then
-            local ready_pods=$(kubectl get pods -n $namespace -l $label_selector --no-headers | grep "Running" | wc -l)
-            local total_pods=$(kubectl get pods -n $namespace -l $label_selector --no-headers | wc -l)
-            if [ "$ready_pods" -eq "$total_pods" ] && [ "$total_pods" -gt 0 ]; then
-                print_status "All pods in $namespace are ready ($ready_pods/$total_pods)"
-                return 0
-            fi
-        fi
-        sleep $interval
-        elapsed=$((elapsed + interval))
-        print_info "Still waiting... ($elapsed/$timeout seconds elapsed)"
-    done
-    
-    print_warning "Timeout waiting for pods in $namespace"
-    return 1
-}
-
-# Function to check service endpoints
-check_service_endpoints() {
-    local namespace=$1
-    local service_name=$2
-    local port=$3
-    
-    print_info "Checking service $service_name in namespace $namespace..."
-    
-    # Check if service exists
-    if kubectl get service $service_name -n $namespace >/dev/null 2>&1; then
-        print_status "✓ Service $service_name exists"
-        
-        # Check if endpoints are available
-        local endpoints=$(kubectl get endpoints $service_name -n $namespace -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)
-        if [ -n "$endpoints" ]; then
-            print_status "✓ Service $service_name has endpoints: $endpoints"
-            return 0
-        else
-            print_warning "⚠ Service $service_name has no endpoints yet"
-            return 1
-        fi
-    else
-        print_error "✗ Service $service_name not found"
-        return 1
-    fi
-}
-
-# Function to test application health
-test_application_health() {
-    local url=$1
-    local service_name=$2
-    local max_retries=30
-    local retry_interval=10
-    
-    print_info "Testing $service_name health at $url..."
-    
-    for i in $(seq 1 $max_retries); do
-        if curl -s -f "$url" >/dev/null 2>&1; then
-            print_status "✓ $service_name is healthy and responding"
-            return 0
-        else
-            print_info "Attempt $i/$max_retries: $service_name not ready yet..."
-            sleep $retry_interval
-        fi
-    done
-    
-    print_warning "⚠ $service_name health check failed after $max_retries attempts"
-    return 1
-}
-
-# Wait for all components to be ready
-print_info "Waiting for all components to be ready..."
-
-# Wait for application pods
-wait_for_pods $NAMESPACE "app.kubernetes.io/name=$APP_NAME"
-
-# Wait for ArgoCD pods
-wait_for_pods $ARGOCD_NAMESPACE "app.kubernetes.io/name=argocd-server"
-
-# Wait for monitoring pods
-wait_for_pods $MONITORING_NAMESPACE "app=prometheus"
-wait_for_pods $MONITORING_NAMESPACE "app=grafana"
-
-# Wait for logging pods
-wait_for_pods $LOGGING_NAMESPACE "app=loki"
-wait_for_pods $LOGGING_NAMESPACE "app=promtail"
-
-# Check all services
-print_info "Verifying all services..."
-
-# Application service
-check_service_endpoints $NAMESPACE "${APP_NAME}-service" $PRODUCTION_PORT
-
-# ArgoCD service
-check_service_endpoints $ARGOCD_NAMESPACE "argocd-server-nodeport" $ARGOCD_PORT
-
-# Monitoring services
-check_service_endpoints $MONITORING_NAMESPACE "prometheus-service" $PROMETHEUS_PORT
-check_service_endpoints $MONITORING_NAMESPACE "grafana-service" $GRAFANA_PORT
-
-# Logging services
-check_service_endpoints $LOGGING_NAMESPACE "loki-service" $LOKI_PORT
-
-# Test application health endpoints
-print_info "Testing application health endpoints..."
-
-# Test application
-test_application_health "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" "NativeSeries Application"
-
-# Test ArgoCD
-test_application_health "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" "ArgoCD"
-
-# Test Prometheus
-test_application_health "http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}/-/ready" "Prometheus"
-
-# Test Grafana
-test_application_health "http://${PRODUCTION_HOST}:${GRAFANA_PORT}/api/health" "Grafana"
-
-# Test Loki
-test_application_health "http://${PRODUCTION_HOST}:${LOKI_PORT}/ready" "Loki"
-
-# ============================================================================
-# PHASE 9: SHOW RUNNING STATUS
-# ============================================================================
-
-print_section "PHASE 9: Current Running Status"
-
-# Show cluster status
-print_info "Kubernetes Cluster Status:"
-kubectl cluster-info
-
-# Show all namespaces
-print_info "All Namespaces:"
-kubectl get namespaces
-
-# Show application status
-print_info "Application Status ($NAMESPACE namespace):"
-kubectl get pods,services,ingress -n $NAMESPACE
-
-# Show ArgoCD status
-print_info "ArgoCD Status ($ARGOCD_NAMESPACE namespace):"
-kubectl get pods,services -n $ARGOCD_NAMESPACE
-
-# Show monitoring status
-print_info "Monitoring Status ($MONITORING_NAMESPACE namespace):"
-kubectl get pods,services -n $MONITORING_NAMESPACE
-
-# Show logging status
-print_info "Logging Status ($LOGGING_NAMESPACE namespace):"
-kubectl get pods,services -n $LOGGING_NAMESPACE
-
-# Show all services across namespaces
-print_info "All Services (NodePort):"
-kubectl get services --all-namespaces -o wide | grep NodePort
-
-# Show resource usage
-print_info "Resource Usage:"
-kubectl top nodes 2>/dev/null || print_warning "Metrics server not available"
-kubectl top pods --all-namespaces 2>/dev/null || print_warning "Pod metrics not available"
-
-# ============================================================================
-# PHASE 10: VALIDATION AND TESTING
-# ============================================================================
-
-print_section "PHASE 10: Final Validation and Testing"
-
-# Validate Helm chart
-print_info "Validating Helm chart..."
-helm lint helm-chart
-print_status "Helm chart validation passed"
-
-# Test application endpoints
-print_info "Running final validation tests..."
-validation_score=0
-total_tests=8
-
-# Test 1: Docker image
-if $DOCKER_CMD images | grep -q ${DOCKER_IMAGE}; then
-    print_status "Docker image exists"
-    ((validation_score++))
-else
-    print_error "Docker image not found"
-fi
-
-# Test 2: Python dependencies
-if source venv/bin/activate && python -c "import fastapi, uvicorn, pymongo" 2>/dev/null; then
-    print_status "Python dependencies available"
-    ((validation_score++))
-else
-    print_error "Python dependencies missing"
-fi
-
-# Test 3: Helm chart syntax
-if helm template test helm-chart >/dev/null 2>&1; then
-    print_status "Helm chart syntax valid"
-    ((validation_score++))
-else
-    print_error "Helm chart syntax invalid"
-fi
-
-# Test 4: Kubernetes manifests
-if find deployment/production -name "*.yaml" -exec kubectl apply --dry-run=client -f {} \; >/dev/null 2>&1; then
-    print_status "Kubernetes manifests valid"
-    ((validation_score++))
-else
-    print_warning "Some Kubernetes manifests may have issues"
-fi
-
-# Test 5: Application code
-if python3 -c "import app.main" 2>/dev/null; then
-    print_status "Application code imports successfully"
-    ((validation_score++))
-else
-    print_error "Application code has import issues"
-fi
-
-# Test 6: Application health
-if curl -s "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" | grep -q "healthy" 2>/dev/null; then
-    print_status "Application health check passed"
-    ((validation_score++))
-else
-    print_warning "Application health check failed (may not be deployed yet)"
-fi
-
-# Test 7: ArgoCD health
-if curl -s "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" >/dev/null 2>&1; then
-    print_status "ArgoCD is accessible"
-    ((validation_score++))
-else
-    print_warning "ArgoCD not accessible yet"
-fi
-
-# Test 8: Monitoring stack health
-if curl -s "http://${PRODUCTION_HOST}:${GRAFANA_PORT}/api/health" >/dev/null 2>&1; then
-    print_status "Monitoring stack is accessible"
-    ((validation_score++))
-else
-    print_warning "Monitoring stack not accessible yet"
-fi
-
-# Calculate success rate
-success_rate=$(( validation_score * 100 / total_tests ))
-
-# ============================================================================
-# PHASE 11: FINAL REPORT AND ACCESS LINKS
-# ============================================================================
-
-print_section "PHASE 11: Installation Complete - Access Your NativeSeries Stack"
-
-# Generate final deployment guide
-cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
-# 🎉 NativeSeries - Complete Installation Summary
-
-## ✅ Installation Status: COMPLETE
-**Success Rate:** ${success_rate}%  
-**Target Server:** ${PRODUCTION_HOST}  
-**Date:** $(date)
-
-## 🌐 Access URLs
-
-### 📱 NativeSeries Application
-- **URL:** http://${PRODUCTION_HOST}:${PRODUCTION_PORT}
-- **Health Check:** http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health
-- **API Documentation:** http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/docs
-
-### 🎯 ArgoCD GitOps Dashboard
-- **URL:** http://${PRODUCTION_HOST}:${ARGOCD_PORT}
-- **Username:** admin
-- **Password:** Get with: \`kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d\`
-
-### 📊 Monitoring Stack
-- **Grafana:** http://${PRODUCTION_HOST}:${GRAFANA_PORT} (admin/admin123)
-- **Prometheus:** http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}
-
-### 📝 Logging Stack
-- **Loki:** http://${PRODUCTION_HOST}:${LOKI_PORT}
-- **Grafana Logs:** Access through Grafana UI (Loki data source pre-configured)
-
-## 🚀 Quick Deploy Commands
-
-If cluster is not available, use these commands to deploy:
-
-\`\`\`bash
-# Create cluster (if needed)
-kind create cluster --name gitops-cluster
-
-# Deploy everything
-kubectl apply -f deployment/production/01-namespace.yaml
-kubectl apply -f deployment/production/02-application.yaml
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
-kubectl apply -f deployment/production/04-argocd-service.yaml
-kubectl apply -f deployment/production/06-monitoring-stack.yaml
-kubectl apply -f deployment/production/05-argocd-application.yaml
-\`\`\`
-
-## 📁 Generated Files
-- \`deployment/production/\` - All Kubernetes manifests
-- \`infra/kind/cluster-config.yaml\` - Kind cluster configuration
-- \`venv/\` - Python virtual environment
-- Docker image: \`${DOCKER_IMAGE}:latest\`
-
-## 🎯 Next Steps
-1. Access the application at http://${PRODUCTION_HOST}:${PRODUCTION_PORT}
-2. Configure ArgoCD applications for GitOps
-3. Set up monitoring dashboards in Grafana
-4. Configure logging queries in Grafana with Loki
-5. Configure CI/CD pipelines
-
-## 🔧 Enhanced Features (v6.2.0)
-- **Robust Helm Deployment**: Automatic cleanup and retry logic
-- **Conflict Resolution**: Handles existing resources gracefully
-- **Emergency Cleanup**: Interactive cleanup for deployment issues
-- **Chart Validation**: Pre-deployment Helm chart validation
-- **Comprehensive Monitoring**: Full stack with Prometheus, Grafana, and Loki
-- **GitOps Ready**: ArgoCD integration for continuous deployment
-
-Installation completed successfully! 🎉
-EOF
-
-# Display final summary with access links
-echo -e "${GREEN}"
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                    🎉 INSTALLATION COMPLETE! 🎉                  ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
-echo -e "${NC}"
-
-echo -e "${WHITE}🌐 Your NativeSeries Stack is Ready! Access URLs:${NC}"
-echo ""
-echo -e "${CYAN}📱 NativeSeries Application:${NC}"
-echo -e "${WHITE}   • Main App:     http://${PRODUCTION_HOST}:${PRODUCTION_PORT}${NC}"
-echo -e "${WHITE}   • Health Check: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health${NC}"
-echo -e "${WHITE}   • API Docs:     http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/docs${NC}"
-echo ""
-echo -e "${CYAN}🎯 ArgoCD GitOps Dashboard:${NC}"
-echo -e "${WHITE}   • URL:          http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
-echo -e "${WHITE}   • Username:     admin${NC}"
-echo -e "${WHITE}   • Password:     kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
-echo ""
-echo -e "${CYAN}📊 Monitoring Stack:${NC}"
-echo -e "${WHITE}   • Grafana:      http://${PRODUCTION_HOST}:${GRAFANA_PORT} (admin/admin123)${NC}"
-echo -e "${WHITE}   • Prometheus:   http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}${NC}"
-echo ""
-echo -e "${CYAN}📝 Logging Stack:${NC}"
-echo -e "${WHITE}   • Loki:         http://${PRODUCTION_HOST}:${LOKI_PORT}${NC}"
-echo -e "${WHITE}   • Grafana Logs: Access through Grafana UI (Loki data source pre-configured)${NC}"
-echo ""
-echo -e "${GREEN}✅ Success Rate: ${success_rate}%${NC}"
-echo -e "${BLUE}📖 Full guide: FINAL_DEPLOYMENT_GUIDE.md${NC}"
-echo ""
-
-# Show current status summary
-echo -e "${YELLOW}📊 Current Status Summary:${NC}"
-echo -e "${WHITE}   • Application Pods: $(kubectl get pods -n $NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
-echo -e "${WHITE}   • ArgoCD Pods:     $(kubectl get pods -n $ARGOCD_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $ARGOCD_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
-echo -e "${WHITE}   • Monitoring Pods: $(kubectl get pods -n $MONITORING_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $MONITORING_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
-echo -e "${WHITE}   • Logging Pods:    $(kubectl get pods -n $LOGGING_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $LOGGING_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
-echo ""
-
-# Clean up temporary files
-rm -f get-docker.sh
-
-# ============================================================================
-# FINAL VERIFICATION AND CLEANUP
-# ============================================================================
-
-print_section "Final Verification and Cleanup"
-
-# Function to perform final health checks
-perform_final_health_checks() {
-    print_info "Performing final health checks..."
-    
-    local health_checks_passed=0
-    local total_health_checks=0
-    
-    # Check application health
-    total_health_checks=$((total_health_checks + 1))
-    if test_application_health "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" "NativeSeries Application"; then
-        health_checks_passed=$((health_checks_passed + 1))
-    fi
-    
-    # Check ArgoCD health
-    total_health_checks=$((total_health_checks + 1))
-    if test_application_health "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" "ArgoCD"; then
-        health_checks_passed=$((health_checks_passed + 1))
-    fi
-    
-    # Check Grafana health
-    total_health_checks=$((total_health_checks + 1))
-    if test_application_health "http://${PRODUCTION_HOST}:${GRAFANA_PORT}" "Grafana"; then
-        health_checks_passed=$((health_checks_passed + 1))
-    fi
-    
-    # Check Prometheus health
-    total_health_checks=$((total_health_checks + 1))
-    if test_application_health "http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}" "Prometheus"; then
-        health_checks_passed=$((health_checks_passed + 1))
-    fi
-    
-    # Calculate success rate
-    local final_success_rate=$((health_checks_passed * 100 / total_health_checks))
-    
-    if [ $final_success_rate -ge 80 ]; then
-        print_status "✓ Final health checks passed: $health_checks_passed/$total_health_checks ($final_success_rate%)"
-        return 0
-    else
-        print_warning "⚠ Final health checks: $health_checks_passed/$total_health_checks ($final_success_rate%)"
-        return 1
-    fi
-}
-
-# Function to clean up temporary files and directories
-cleanup_temporary_files() {
-    print_info "Cleaning up temporary files..."
-    
-    # Remove temporary files
-    rm -f get-docker.sh kind kubectl helm argocd yq
-    
-    # Clean up temporary directories
-    rm -rf /tmp/helm-* /tmp/kind-* /tmp/kubectl-* /tmp/argocd-* /tmp/yq-*
-    
-    # Clean up Docker system
-    if command_exists docker; then
-        print_info "Cleaning up Docker system..."
-        sudo docker system prune -f >/dev/null 2>&1 || true
-    fi
-    
-    print_status "✓ Temporary files cleaned up"
-}
-
-# Function to display troubleshooting information
-display_troubleshooting_info() {
-    print_info "Troubleshooting Information:"
-    echo ""
-    echo -e "${YELLOW}🔧 Common Issues and Solutions:${NC}"
-    echo ""
-    echo -e "${WHITE}1. If services are not accessible:${NC}"
-    echo -e "${CYAN}   • Check if ports are open: sudo netstat -tlnp | grep -E ':(30011|30080|30081|30082|30083)'${NC}"
-    echo -e "${CYAN}   • Verify firewall settings: sudo ufw status or sudo iptables -L${NC}"
-    echo ""
-    echo -e "${WHITE}2. If pods are not running:${NC}"
-    echo -e "${CYAN}   • Check pod status: kubectl get pods --all-namespaces${NC}"
-    echo -e "${CYAN}   • Check pod logs: kubectl logs -n <namespace> <pod-name>${NC}"
-    echo -e "${CYAN}   • Check events: kubectl get events --all-namespaces --sort-by='.lastTimestamp'${NC}"
-    echo ""
-    echo -e "${WHITE}3. If Docker issues occur:${NC}"
-    echo -e "${CYAN}   • Restart Docker: sudo systemctl restart docker${NC}"
-    echo -e "${CYAN}   • Check Docker status: sudo systemctl status docker${NC}"
-    echo ""
-    echo -e "${WHITE}4. If ArgoCD login fails:${NC}"
-    echo -e "${CYAN}   • Get admin password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
-    echo -e "${CYAN}   • Reset password: kubectl -n argocd patch secret argocd-secret -p '{"stringData":{"admin.password":"$(openssl rand -base64 32)"}}'${NC}"
-    echo ""
-    echo -e "${WHITE}5. Emergency cleanup commands:${NC}"
-    echo -e "${CYAN}   • Clean all: ./scripts/cleanup-direct.sh${NC}"
-    echo -e "${CYAN}   • Clean with backup: ./scripts/cleanup-with-backup.sh${NC}"
-    echo -e "${CYAN}   • Fix Helm deployment: ./scripts/fix-helm-deployment.sh${NC}"
-    echo ""
-}
-
-# Perform final verification
-if perform_final_health_checks; then
-    print_status "✓ All health checks passed successfully!"
-else
-    print_warning "⚠ Some health checks failed. Check the troubleshooting information below."
-fi
-
-# Clean up temporary files
-cleanup_temporary_files
-
-# Display troubleshooting information
-display_troubleshooting_info
-
-# Create a quick reference file
-cat > QUICK_REFERENCE.md << 'EOF'
-# NativeSeries Quick Reference
-
-## Access URLs
-- **Application:** http://54.166.101.159:30011
-- **ArgoCD:** http://54.166.101.159:30080
-- **Grafana:** http://54.166.101.159:30081
-- **Prometheus:** http://54.166.101.159:30082
-- **Loki:** http://54.166.101.159:30083
-
-## Quick Commands
-```bash
-# Check all pods
-kubectl get pods --all-namespaces
-
-# Check application logs
-kubectl logs -n nativeseries -l app.kubernetes.io/name=nativeseries
-
-# Get ArgoCD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
-
-# Access application shell
-kubectl exec -n nativeseries -it deployment/nativeseries -- /bin/bash
-
-# Check service endpoints
-kubectl get endpoints --all-namespaces
-```
-
-## Troubleshooting
-- Use `./scripts/cleanup-direct.sh` for emergency cleanup
-- Use `./scripts/fix-helm-deployment.sh` for deployment issues
-- Check logs with `kubectl logs -n <namespace> <pod-name>`
-EOF
-
-print_status "Installation completed successfully!"
-print_info "All services are now running and accessible!"
-print_info "Quick reference saved to: QUICK_REFERENCE.md"
-
-# ============================================================================
-# PHASE 8: DEPLOYMENT VALIDATION AND FIXES
-# ============================================================================
-
-print_section "PHASE 8: Deployment Validation and Fixes"
+print_section "PHASE 6: Manifest Validation and Fixes"
 
 # Function to validate and fix Helm chart
 validate_and_fix_helm_chart() {
-    print_info "Validating Helm chart..."
+    print_info "Validating and fixing Helm chart..."
     
     # Check if helm-chart directory exists
     if [ ! -d "helm-chart" ]; then
@@ -2023,18 +517,122 @@ validate_and_fix_helm_chart() {
         return 1
     fi
     
-    # Validate Chart.yaml
-    if [ ! -f "helm-chart/Chart.yaml" ]; then
-        print_error "✗ Chart.yaml not found"
-        return 1
-    fi
-    
-    # Validate values.yaml
-    if [ ! -f "helm-chart/values.yaml" ]; then
-        print_error "✗ values.yaml not found"
-        return 1
-    fi
-    
+    # Fix values.yaml
+    print_info "Updating Helm values.yaml..."
+    cat > helm-chart/values.yaml << 'EOF'
+# Default values for nativeseries
+app:
+  name: nativeseries
+  port: 8000
+  env:
+    - name: APP_ENV
+      value: "production"
+    - name: HOST
+      value: "0.0.0.0"
+    - name: PORT
+      value: "8000"
+    - name: LOG_LEVEL
+      value: "INFO"
+
+image:
+  repository: ghcr.io/bonaventuresimeon/nativeseries
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+healthCheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8000
+  nodePort: 30011
+
+ingress:
+  enabled: false
+
+configMap:
+  enabled: true
+  data:
+    app_name: "NativeSeries API"
+    log_level: "INFO"
+
+secret:
+  enabled: false
+  data: {}
+
+networkPolicy:
+  enabled: false
+
+argocd:
+  enabled: false
+
+podMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
+  labels: {}
+
+prometheusRules:
+  enabled: false
+  rules: []
+
+logging:
+  enabled: false
+  volume:
+    size: 1Gi
+
+cleanup:
+  enabled: true
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
+EOF
+
     # Test Helm template rendering
     if helm template test helm-chart >/dev/null 2>&1; then
         print_status "✓ Helm chart validation passed"
@@ -2047,7 +645,7 @@ validate_and_fix_helm_chart() {
 
 # Function to validate and fix ArgoCD application
 validate_and_fix_argocd_application() {
-    print_info "Validating ArgoCD application..."
+    print_info "Validating and fixing ArgoCD application..."
     
     # Check if argocd directory exists
     if [ ! -d "argocd" ]; then
@@ -2055,12 +653,56 @@ validate_and_fix_argocd_application() {
         return 1
     fi
     
-    # Validate application.yaml
-    if [ ! -f "argocd/application.yaml" ]; then
-        print_error "✗ application.yaml not found"
-        return 1
-    fi
-    
+    # Fix application.yaml
+    print_info "Updating ArgoCD application.yaml..."
+    cat > argocd/application.yaml << EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nativeseries
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: nativeseries
+    app.kubernetes.io/part-of: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/nativeseries.git
+    targetRevision: HEAD
+    path: helm-chart
+    helm:
+      values: |
+        image:
+          repository: ${DOCKER_IMAGE}
+          tag: latest
+        service:
+          type: NodePort
+          nodePort: ${PRODUCTION_PORT}
+        ingress:
+          enabled: false
+        networkPolicy:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${NAMESPACE}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+EOF
+
     # Validate YAML syntax
     if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))" >/dev/null 2>&1; then
         print_status "✓ ArgoCD application validation passed"
@@ -2071,15 +713,33 @@ validate_and_fix_argocd_application() {
     fi
 }
 
-# Function to create proper deployment manifests
-create_deployment_manifests() {
-    print_info "Creating deployment manifests..."
-    
-    # Create deployment directories
-    mkdir -p deployment/production
-    
-    # Generate namespace manifest
-    cat > deployment/production/01-namespace.yaml << 'EOF'
+# Run validation and fixes
+if validate_and_fix_helm_chart; then
+    print_status "✓ Helm chart validation passed"
+else
+    print_error "✗ Helm chart validation failed"
+    exit 1
+fi
+
+if validate_and_fix_argocd_application; then
+    print_status "✓ ArgoCD application validation passed"
+else
+    print_error "✗ ArgoCD application validation failed"
+    exit 1
+fi
+
+# ============================================================================
+# PHASE 7: DEPLOYMENT MANIFESTS CREATION
+# ============================================================================
+
+print_section "PHASE 7: Creating Deployment Manifests"
+
+# Create deployment directories
+mkdir -p deployment/production
+
+# Generate namespace manifest
+print_info "Creating namespace manifest..."
+cat > deployment/production/01-namespace.yaml << 'EOF'
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -2113,20 +773,21 @@ metadata:
     app.kubernetes.io/name: logging
 EOF
 
-    # Generate application deployment using Helm
-    print_info "Generating application manifests from Helm chart..."
-    helm template nativeseries helm-chart \
-        --set image.repository=${DOCKER_IMAGE} \
-        --set image.tag=latest \
-        --set service.type=NodePort \
-        --set service.nodePort=${PRODUCTION_PORT} \
-        --set ingress.enabled=false \
-        --set networkPolicy.enabled=false \
-        --set cleanup.enabled=true \
-        --namespace ${NAMESPACE} > deployment/production/02-application.yaml
+# Generate application deployment using Helm
+print_info "Generating application manifests from Helm chart..."
+helm template nativeseries helm-chart \
+    --set image.repository=${DOCKER_IMAGE} \
+    --set image.tag=latest \
+    --set service.type=NodePort \
+    --set service.nodePort=${PRODUCTION_PORT} \
+    --set ingress.enabled=false \
+    --set networkPolicy.enabled=false \
+    --set cleanup.enabled=true \
+    --namespace ${NAMESPACE} > deployment/production/02-application.yaml
 
-    # Generate ArgoCD service with NodePort
-    cat > deployment/production/04-argocd-service.yaml << EOF
+# Generate ArgoCD service with NodePort
+print_info "Creating ArgoCD service manifest..."
+cat > deployment/production/04-argocd-service.yaml << EOF
 apiVersion: v1
 kind: Service
 metadata:
@@ -2146,91 +807,248 @@ spec:
     app.kubernetes.io/name: argocd-server
 EOF
 
-    # Update ArgoCD application manifest for production
-    sed "s|https://kubernetes.default.svc|https://${PRODUCTION_HOST}|g" argocd/application.yaml > deployment/production/05-argocd-application.yaml
+# Update ArgoCD application manifest for production
+print_info "Creating ArgoCD application manifest..."
+sed "s|https://kubernetes.default.svc|https://${PRODUCTION_HOST}|g" argocd/application.yaml > deployment/production/05-argocd-application.yaml
 
-    print_status "✓ Deployment manifests created"
+print_status "✓ Deployment manifests created"
+
+# ============================================================================
+# PHASE 8: MANIFEST VALIDATION
+# ============================================================================
+
+print_section "PHASE 8: Manifest Validation"
+
+# Function to validate YAML files
+validate_yaml_file() {
+    local file="$1"
+    if python3 -c "import yaml; list(yaml.safe_load_all(open('$file')))" >/dev/null 2>&1; then
+        print_status "✓ $file validation passed"
+        return 0
+    else
+        print_error "✗ $file validation failed"
+        return 1
+    fi
 }
 
-# Function to validate Kubernetes manifests
-validate_kubernetes_manifests() {
-    print_info "Validating Kubernetes manifests..."
+# Validate all manifests
+print_info "Validating all manifests..."
+validation_failed=false
+
+for manifest in deployment/production/*.yaml; do
+    if [ -f "$manifest" ]; then
+        if ! validate_yaml_file "$manifest"; then
+            validation_failed=true
+        fi
+    fi
+done
+
+if [ "$validation_failed" = true ]; then
+    print_error "Some manifests failed validation. Please check the errors above."
+    exit 1
+fi
+
+print_status "✓ All manifests validated successfully"
+
+# ============================================================================
+# PHASE 9: DEPLOYMENT EXECUTION
+# ============================================================================
+
+print_section "PHASE 9: Deploying Resources"
+
+# Function to deploy with retry
+deploy_with_retry() {
+    local manifest="$1"
+    local max_retries=3
+    local retry_count=0
     
-    local validation_failed=false
-    
-    for manifest in deployment/production/*.yaml; do
-        if [ -f "$manifest" ]; then
-            if python3 -c "import yaml; list(yaml.safe_load_all(open('$manifest')))" >/dev/null 2>&1; then
-                print_status "✓ $manifest validation passed"
-            else
-                print_error "✗ $manifest validation failed"
-                validation_failed=true
+    while [ $retry_count -lt $max_retries ]; do
+        if kubectl apply -f "$manifest"; then
+            print_status "✓ Successfully applied $manifest"
+            return 0
+        else
+            retry_count=$((retry_count + 1))
+            print_warning "⚠ Failed to apply $manifest (attempt $retry_count/$max_retries)"
+            if [ $retry_count -lt $max_retries ]; then
+                sleep 5
             fi
         fi
     done
     
-    if [ "$validation_failed" = true ]; then
-        return 1
-    else
-        return 0
-    fi
+    print_error "✗ Failed to apply $manifest after $max_retries attempts"
+    return 1
 }
 
-# Function to deploy with proper error handling
-deploy_with_validation() {
-    print_info "Deploying with validation..."
+# Deploy namespaces first
+print_info "Deploying namespaces..."
+deploy_with_retry "deployment/production/01-namespace.yaml"
+
+# Wait for namespaces to be ready
+print_info "Waiting for namespaces to be ready..."
+kubectl wait --for=condition=Active namespace/${NAMESPACE} --timeout=60s
+kubectl wait --for=condition=Active namespace/${ARGOCD_NAMESPACE} --timeout=60s
+
+# Deploy application
+print_info "Deploying application..."
+deploy_with_retry "deployment/production/02-application.yaml"
+
+# Install ArgoCD
+print_info "Installing ArgoCD..."
+kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
+
+# Wait for ArgoCD to be ready
+print_info "Waiting for ArgoCD to be ready..."
+kubectl wait --for=condition=Available deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=300s
+
+# Deploy ArgoCD service
+print_info "Deploying ArgoCD service..."
+deploy_with_retry "deployment/production/04-argocd-service.yaml"
+
+# Deploy ArgoCD application
+print_info "Deploying ArgoCD application..."
+deploy_with_retry "deployment/production/05-argocd-application.yaml"
+
+print_status "✓ All resources deployed successfully"
+
+# ============================================================================
+# PHASE 10: VERIFICATION AND MONITORING
+# ============================================================================
+
+print_section "PHASE 10: Verification and Monitoring"
+
+# Function to wait for pods
+wait_for_pods() {
+    local namespace="$1"
+    local label_selector="$2"
+    local timeout=300
+    local interval=10
     
-    # Apply namespaces first
-    print_info "Applying namespaces..."
-    kubectl apply -f deployment/production/01-namespace.yaml
+    print_info "Waiting for pods in namespace $namespace..."
     
-    # Wait for namespaces to be ready
-    kubectl wait --for=condition=Active namespace/${NAMESPACE} --timeout=60s
-    kubectl wait --for=condition=Active namespace/${ARGOCD_NAMESPACE} --timeout=60s
+    local elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        if kubectl get pods -n "$namespace" -l "$label_selector" --no-headers | grep -q "Running"; then
+            local ready_pods=$(kubectl get pods -n "$namespace" -l "$label_selector" --no-headers | grep "Running" | wc -l)
+            local total_pods=$(kubectl get pods -n "$namespace" -l "$label_selector" --no-headers | wc -l)
+            if [ "$ready_pods" -eq "$total_pods" ] && [ "$total_pods" -gt 0 ]; then
+                print_status "All pods in $namespace are ready ($ready_pods/$total_pods)"
+                return 0
+            fi
+        fi
+        sleep $interval
+        elapsed=$((elapsed + interval))
+        print_info "Still waiting... ($elapsed/$timeout seconds elapsed)"
+    done
     
-    # Apply application deployment
-    print_info "Applying application deployment..."
-    kubectl apply -f deployment/production/02-application.yaml
-    
-    # Install ArgoCD
-    print_info "Installing ArgoCD..."
-    kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
-    
-    # Wait for ArgoCD to be ready
-    print_info "Waiting for ArgoCD to be ready..."
-    kubectl wait --for=condition=Available deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=300s
-    
-    # Apply ArgoCD service
-    kubectl apply -f deployment/production/04-argocd-service.yaml
-    
-    # Apply ArgoCD application
-    kubectl apply -f deployment/production/05-argocd-application.yaml
-    
-    print_status "✓ Deployment completed successfully"
+    print_warning "Timeout waiting for pods in $namespace"
+    return 1
 }
 
-# Run validation and fixes
-if validate_and_fix_helm_chart; then
-    print_status "✓ Helm chart validation passed"
-else
-    print_error "✗ Helm chart validation failed"
-    exit 1
-fi
+# Function to test application health
+test_application_health() {
+    local url="$1"
+    local service_name="$2"
+    local max_retries=30
+    local retry_interval=10
+    
+    print_info "Testing $service_name health at $url..."
+    
+    for i in $(seq 1 $max_retries); do
+        if curl -s -f "$url" >/dev/null 2>&1; then
+            print_status "✓ $service_name is healthy and responding"
+            return 0
+        else
+            print_info "Attempt $i/$max_retries: $service_name not ready yet..."
+            sleep $retry_interval
+        fi
+    done
+    
+    print_warning "⚠ $service_name health check failed after $max_retries attempts"
+    return 1
+}
 
-if validate_and_fix_argocd_application; then
-    print_status "✓ ArgoCD application validation passed"
-else
-    print_error "✗ ArgoCD application validation failed"
-    exit 1
-fi
+# Wait for all components to be ready
+print_info "Waiting for all components to be ready..."
 
-create_deployment_manifests
+# Wait for application pods
+wait_for_pods "$NAMESPACE" "app.kubernetes.io/name=$APP_NAME"
 
-if validate_kubernetes_manifests; then
-    print_status "✓ Kubernetes manifests validation passed"
-else
-    print_error "✗ Kubernetes manifests validation failed"
-    exit 1
-fi
+# Wait for ArgoCD pods
+wait_for_pods "$ARGOCD_NAMESPACE" "app.kubernetes.io/name=argocd-server"
 
-deploy_with_validation
+# Test application health
+test_application_health "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" "NativeSeries Application"
+
+# Test ArgoCD health
+test_application_health "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" "ArgoCD"
+
+# Check service endpoints
+print_info "Checking service endpoints..."
+kubectl get endpoints --all-namespaces
+
+# ============================================================================
+# PHASE 11: FINAL SUMMARY
+# ============================================================================
+
+print_section "PHASE 11: Final Summary"
+
+# Display final summary with access links
+echo -e "${GREEN}"
+echo "╔══════════════════════════════════════════════════════════════════╗"
+echo "║                    🎉 INSTALLATION COMPLETE! 🎉                  ║"
+echo "╚══════════════════════════════════════════════════════════════════╝"
+echo -e "${NC}"
+
+echo -e "${WHITE}🌐 Your NativeSeries Stack is Ready! Access URLs:${NC}"
+echo ""
+echo -e "${CYAN}📱 NativeSeries Application:${NC}"
+echo -e "${WHITE}   • Main App:     http://${PRODUCTION_HOST}:${PRODUCTION_PORT}${NC}"
+echo -e "${WHITE}   • Health Check: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health${NC}"
+echo -e "${WHITE}   • API Docs:     http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/docs${NC}"
+echo ""
+echo -e "${CYAN}🎯 ArgoCD GitOps Dashboard:${NC}"
+echo -e "${WHITE}   • URL:          http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
+echo -e "${WHITE}   • Username:     admin${NC}"
+echo -e "${WHITE}   • Password:     kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
+echo ""
+
+# Show current status
+echo -e "${YELLOW}📊 Current Status:${NC}"
+echo -e "${WHITE}   • Application Pods: $(kubectl get pods -n $NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
+echo -e "${WHITE}   • ArgoCD Pods:     $(kubectl get pods -n $ARGOCD_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $ARGOCD_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
+echo ""
+
+# Create a quick reference file
+cat > QUICK_REFERENCE.md << 'EOF'
+# NativeSeries Quick Reference
+
+## Access URLs
+- **Application:** http://54.166.101.159:30011
+- **ArgoCD:** http://54.166.101.159:30080
+
+## Quick Commands
+```bash
+# Check all pods
+kubectl get pods --all-namespaces
+
+# Check application logs
+kubectl logs -n nativeseries -l app.kubernetes.io/name=nativeseries
+
+# Get ArgoCD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+
+# Access application shell
+kubectl exec -n nativeseries -it deployment/nativeseries -- /bin/bash
+
+# Check service endpoints
+kubectl get endpoints --all-namespaces
+```
+
+## Troubleshooting
+- Use `./scripts/cleanup-direct.sh` for emergency cleanup
+- Check logs with `kubectl logs -n <namespace> <pod-name>`
+EOF
+
+print_status "Installation completed successfully!"
+print_info "All services are now running and accessible!"
+print_info "Quick reference saved to: QUICK_REFERENCE.md"
