@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "student-tracker.fullname" . }}
+  name: {{ include "nativeseries.fullname" . }}
   labels:
-    {{- include "student-tracker.labels" . | nindent 4 }}
+    {{- include "nativeseries.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      {{- include "student-tracker.selectorLabels" . | nindent 6 }}
+      {{- include "nativeseries.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "student-tracker.selectorLabels" . | nindent 8 }}
+        {{- include "nativeseries.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.secret.enabled }}
@@ -64,12 +64,12 @@ spec:
             - name: APP_NAME
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "student-tracker.fullname" . }}
+                  name: {{ include "nativeseries.fullname" . }}
                   key: app_name
             - name: LOG_LEVEL
               valueFrom:
                 configMapKeyRef:
-                  name: {{ include "student-tracker.fullname" . }}
+                  name: {{ include "nativeseries.fullname" . }}
                   key: log_level
             {{- end }}
             {{- if .Values.secret.enabled }}
@@ -77,7 +77,7 @@ spec:
             - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "student-tracker.fullname" $ }}
+                  name: {{ include "nativeseries.fullname" $ }}
                   key: {{ $key }}
             {{- end }}
             {{- end }}

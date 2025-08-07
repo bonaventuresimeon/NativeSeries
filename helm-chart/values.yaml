@@ -1,14 +1,14 @@
-# Default values for student-tracker
+# Default values for nativeseries
 # This is a YAML-formatted file.
 
 # Application configuration
 app:
-  name: student-tracker
+  name: nativeseries
   port: 8000
 
 # Image configuration
 image:
-  repository: student-tracker
+  repository: ghcr.io/bonaventuresimeon/nativeseries
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -48,7 +48,7 @@ ingress:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
   hosts:
-    - host: 54.166.101.159
+    - host: nativeseries.local
       paths:
         - path: /
           pathType: Prefix
@@ -57,21 +57,47 @@ ingress:
 # Environment variables
 env:
   - name: DATABASE_URL
-    value: "postgresql://user:pass@db:5432/studentdb"
+    value: "postgresql://user:pass@db:5432/nativeseries"
   - name: APP_ENV
-    value: "development"
+    value: "production"
 
 # ConfigMap data
 configMap:
   enabled: true
   data:
-    app_name: "Student Tracker API"
+    app_name: "NativeSeries API"
     log_level: "INFO"
 
 # Secret data (for sensitive information)
 secret:
   enabled: false
   data: {}
+
+# Network Policy
+networkPolicy:
+  enabled: true
+
+# ArgoCD configuration
+argocd:
+  enabled: false
+
+# Pod Monitor for Prometheus (if using Prometheus Operator)
+podMonitor:
+  enabled: false
+  interval: 30s
+  path: /metrics
+  labels: {}
+
+# Prometheus Rules
+prometheusRules:
+  enabled: false
+  rules: []
+
+# Logging configuration
+logging:
+  enabled: false
+  volume:
+    size: 1Gi
 
 # Pod Security Context
 podSecurityContext:

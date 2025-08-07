@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/bonaventuresimeon/NativeSeries
     targetRevision: HEAD
-    path: argocd
+    path: helm-chart
   destination:
     server: https://kubernetes.default.svc
     namespace: nativeseries
