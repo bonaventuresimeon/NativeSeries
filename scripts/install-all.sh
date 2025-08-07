@@ -364,13 +364,22 @@ else
         sudo systemctl enable docker
         rm -f get-docker.sh
     else
-        # Install Docker for RHEL/CentOS
-        sudo yum install -y yum-utils
-        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-        sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        sudo systemctl start docker
-        sudo systemctl enable docker
-        sudo usermod -aG docker $USER
+        # Detect Amazon Linux and use the correct Docker install
+        if grep -qi 'amazon' /etc/os-release; then
+            echo "DEBUG: Detected Amazon Linux, installing docker from default repos"
+            sudo yum install -y docker
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker $USER
+        else
+            # Install Docker for RHEL/CentOS
+            sudo yum install -y yum-utils
+            sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker $USER
+        fi
     fi
     
     # Verify Docker installation
