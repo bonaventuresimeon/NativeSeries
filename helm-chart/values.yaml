@@ -5,6 +5,15 @@
 app:
   name: nativeseries
   port: 8000
+  env:
+    - name: APP_ENV
+      value: "production"
+    - name: HOST
+      value: "0.0.0.0"
+    - name: PORT
+      value: "8000"
+    - name: LOG_LEVEL
+      value: "INFO"
 
 # Image configuration
 image:
@@ -42,7 +51,7 @@ service:
 
 # Ingress configuration
 ingress:
-  enabled: true
+  enabled: false  # Disabled for now, using NodePort
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -53,13 +62,6 @@ ingress:
         - path: /
           pathType: Prefix
   tls: []
-
-# Environment variables
-env:
-  - name: DATABASE_URL
-    value: "postgresql://user:pass@db:5432/nativeseries"
-  - name: APP_ENV
-    value: "production"
 
 # ConfigMap data
 configMap:
@@ -75,7 +77,7 @@ secret:
 
 # Network Policy
 networkPolicy:
-  enabled: true
+  enabled: false  # Disabled for development
 
 # ArgoCD configuration
 argocd:
@@ -113,7 +115,7 @@ securityContext:
   capabilities:
     drop:
     - ALL
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false  # Changed to false for logs
   runAsNonRoot: true
   runAsUser: 1000
 

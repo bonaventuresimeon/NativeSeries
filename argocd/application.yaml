@@ -4,13 +4,28 @@ metadata:
   name: nativeseries
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - resources-finalizer.argocd.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/name: nativeseries
+    app.kubernetes.io/part-of: argocd
 spec:
   project: default
   source:
-    repoURL: https://github.com/bonaventuresimeon/NativeSeries
+    repoURL: https://github.com/bonaventuresimeon/nativeseries.git
     targetRevision: HEAD
     path: helm-chart
+    helm:
+      values: |
+        image:
+          repository: ghcr.io/bonaventuresimeon/nativeseries
+          tag: latest
+        service:
+          type: NodePort
+          nodePort: 30011
+        ingress:
+          enabled: false
+        networkPolicy:
+          enabled: false
   destination:
     server: https://kubernetes.default.svc
     namespace: nativeseries
@@ -22,3 +37,9 @@ spec:
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
       - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
