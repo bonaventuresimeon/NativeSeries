@@ -267,6 +267,7 @@ detect_package_manager() {
     fi
     echo "DEBUG: Final PKG_MANAGER=$PKG_MANAGER, OS_TYPE=$OS_TYPE"
     print_info "Detected package manager: $PKG_MANAGER on $OS_TYPE"
+    export PKG_MANAGER OS_TYPE
 }
 
 # Function to install binary tools
@@ -307,6 +308,7 @@ install_binary_tool() {
 
 # Detect package manager first
 detect_package_manager
+echo "DEBUG: After detection, PKG_MANAGER=$PKG_MANAGER, OS_TYPE=$OS_TYPE"
 
 # Install basic system tools
 print_info "Installing basic system tools..."
