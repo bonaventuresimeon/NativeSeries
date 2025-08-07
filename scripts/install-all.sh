@@ -324,12 +324,23 @@ if [ "$PKG_MANAGER" = "apt" ]; then
         software-properties-common apt-transport-https
 else
     echo "DEBUG: Using yum branch"
-    sudo yum update -y
-    sudo yum install -y \
-        curl wget git unzip jq gcc gcc-c++ make \
-        python3 python3-pip python3-devel \
-        openssl-devel libffi-devel \
-        ca-certificates gnupg2
+    # Check for gnupg2-minimal and skip gnupg2 if present
+    if rpm -q gnupg2-minimal >/dev/null 2>&1; then
+        echo "DEBUG: gnupg2-minimal is installed, skipping gnupg2 to avoid conflict."
+        sudo yum update -y --skip-broken
+        sudo yum install -y \
+            curl wget git unzip jq gcc gcc-c++ make \
+            python3 python3-pip python3-devel \
+            openssl-devel libffi-devel \
+            ca-certificates --skip-broken
+    else
+        sudo yum update -y --skip-broken
+        sudo yum install -y \
+            curl wget git unzip jq gcc gcc-c++ make \
+            python3 python3-pip python3-devel \
+            openssl-devel libffi-devel \
+            ca-certificates gnupg2 --skip-broken
+    fi
 fi
 print_status "✓ Basic system tools installed"
 
