@@ -2006,3 +2006,231 @@ EOF
 print_status "Installation completed successfully!"
 print_info "All services are now running and accessible!"
 print_info "Quick reference saved to: QUICK_REFERENCE.md"
+
+# ============================================================================
+# PHASE 8: DEPLOYMENT VALIDATION AND FIXES
+# ============================================================================
+
+print_section "PHASE 8: Deployment Validation and Fixes"
+
+# Function to validate and fix Helm chart
+validate_and_fix_helm_chart() {
+    print_info "Validating Helm chart..."
+    
+    # Check if helm-chart directory exists
+    if [ ! -d "helm-chart" ]; then
+        print_error "✗ helm-chart directory not found"
+        return 1
+    fi
+    
+    # Validate Chart.yaml
+    if [ ! -f "helm-chart/Chart.yaml" ]; then
+        print_error "✗ Chart.yaml not found"
+        return 1
+    fi
+    
+    # Validate values.yaml
+    if [ ! -f "helm-chart/values.yaml" ]; then
+        print_error "✗ values.yaml not found"
+        return 1
+    fi
+    
+    # Test Helm template rendering
+    if helm template test helm-chart >/dev/null 2>&1; then
+        print_status "✓ Helm chart validation passed"
+        return 0
+    else
+        print_error "✗ Helm chart validation failed"
+        return 1
+    fi
+}
+
+# Function to validate and fix ArgoCD application
+validate_and_fix_argocd_application() {
+    print_info "Validating ArgoCD application..."
+    
+    # Check if argocd directory exists
+    if [ ! -d "argocd" ]; then
+        print_error "✗ argocd directory not found"
+        return 1
+    fi
+    
+    # Validate application.yaml
+    if [ ! -f "argocd/application.yaml" ]; then
+        print_error "✗ application.yaml not found"
+        return 1
+    fi
+    
+    # Validate YAML syntax
+    if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))" >/dev/null 2>&1; then
+        print_status "✓ ArgoCD application validation passed"
+        return 0
+    else
+        print_error "✗ ArgoCD application validation failed"
+        return 1
+    fi
+}
+
+# Function to create proper deployment manifests
+create_deployment_manifests() {
+    print_info "Creating deployment manifests..."
+    
+    # Create deployment directories
+    mkdir -p deployment/production
+    
+    # Generate namespace manifest
+    cat > deployment/production/01-namespace.yaml << 'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nativeseries
+  labels:
+    name: nativeseries
+    app.kubernetes.io/name: nativeseries
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    name: argocd
+    app.kubernetes.io/name: argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+    app.kubernetes.io/name: monitoring
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    name: logging
+    app.kubernetes.io/name: logging
+EOF
+
+    # Generate application deployment using Helm
+    print_info "Generating application manifests from Helm chart..."
+    helm template nativeseries helm-chart \
+        --set image.repository=${DOCKER_IMAGE} \
+        --set image.tag=latest \
+        --set service.type=NodePort \
+        --set service.nodePort=${PRODUCTION_PORT} \
+        --set ingress.enabled=false \
+        --set networkPolicy.enabled=false \
+        --set cleanup.enabled=true \
+        --namespace ${NAMESPACE} > deployment/production/02-application.yaml
+
+    # Generate ArgoCD service with NodePort
+    cat > deployment/production/04-argocd-service.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-server-nodeport
+  namespace: ${ARGOCD_NAMESPACE}
+  labels:
+    app.kubernetes.io/name: argocd-server
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+      nodePort: ${ARGOCD_PORT}
+  selector:
+    app.kubernetes.io/name: argocd-server
+EOF
+
+    # Update ArgoCD application manifest for production
+    sed "s|https://kubernetes.default.svc|https://${PRODUCTION_HOST}|g" argocd/application.yaml > deployment/production/05-argocd-application.yaml
+
+    print_status "✓ Deployment manifests created"
+}
+
+# Function to validate Kubernetes manifests
+validate_kubernetes_manifests() {
+    print_info "Validating Kubernetes manifests..."
+    
+    local validation_failed=false
+    
+    for manifest in deployment/production/*.yaml; do
+        if [ -f "$manifest" ]; then
+            if python3 -c "import yaml; list(yaml.safe_load_all(open('$manifest')))" >/dev/null 2>&1; then
+                print_status "✓ $manifest validation passed"
+            else
+                print_error "✗ $manifest validation failed"
+                validation_failed=true
+            fi
+        fi
+    done
+    
+    if [ "$validation_failed" = true ]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+# Function to deploy with proper error handling
+deploy_with_validation() {
+    print_info "Deploying with validation..."
+    
+    # Apply namespaces first
+    print_info "Applying namespaces..."
+    kubectl apply -f deployment/production/01-namespace.yaml
+    
+    # Wait for namespaces to be ready
+    kubectl wait --for=condition=Active namespace/${NAMESPACE} --timeout=60s
+    kubectl wait --for=condition=Active namespace/${ARGOCD_NAMESPACE} --timeout=60s
+    
+    # Apply application deployment
+    print_info "Applying application deployment..."
+    kubectl apply -f deployment/production/02-application.yaml
+    
+    # Install ArgoCD
+    print_info "Installing ArgoCD..."
+    kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
+    
+    # Wait for ArgoCD to be ready
+    print_info "Waiting for ArgoCD to be ready..."
+    kubectl wait --for=condition=Available deployment/argocd-server -n ${ARGOCD_NAMESPACE} --timeout=300s
+    
+    # Apply ArgoCD service
+    kubectl apply -f deployment/production/04-argocd-service.yaml
+    
+    # Apply ArgoCD application
+    kubectl apply -f deployment/production/05-argocd-application.yaml
+    
+    print_status "✓ Deployment completed successfully"
+}
+
+# Run validation and fixes
+if validate_and_fix_helm_chart; then
+    print_status "✓ Helm chart validation passed"
+else
+    print_error "✗ Helm chart validation failed"
+    exit 1
+fi
+
+if validate_and_fix_argocd_application; then
+    print_status "✓ ArgoCD application validation passed"
+else
+    print_error "✗ ArgoCD application validation failed"
+    exit 1
+fi
+
+create_deployment_manifests
+
+if validate_kubernetes_manifests; then
+    print_status "✓ Kubernetes manifests validation passed"
+else
+    print_error "✗ Kubernetes manifests validation failed"
+    exit 1
+fi
+
+deploy_with_validation

@@ -77,7 +77,7 @@ spec:
             - name: {{ $key }}
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "nativeseries.fullname" $ }}
+                  name: {{ include "nativeseries.fullname" . }}
                   key: {{ $key }}
             {{- end }}
             {{- end }}
@@ -89,12 +89,16 @@ spec:
               mountPath: /tmp
             - name: var-run
               mountPath: /var/run
+            - name: logs
+              mountPath: /app/logs
           {{- end }}
       {{- if and .Values.securityContext .Values.securityContext.readOnlyRootFilesystem }}
       volumes:
         - name: tmp
           emptyDir: {}
         - name: var-run
+          emptyDir: {}
+        - name: logs
           emptyDir: {}
       {{- end }}
       {{- with .Values.nodeSelector }}
