@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # NativeSeries - Complete Installation & Deployment Script
-# Version: 6.1.0 - Updated with Comprehensive Verification and Loki
+# Version: 6.2.0 - Enhanced with robust Helm deployment and comprehensive cleanup
 # This script combines all installation, deployment, monitoring, and validation scripts
 # Updated for NativeSeries with corrected manifests and Helm charts
 
@@ -753,29 +753,123 @@ if kubectl cluster-info >/dev/null 2>&1; then
     kubectl apply -f deployment/production/01-namespace.yaml
     print_status "Namespaces created"
     
-    # Clean up any existing resources that might conflict with Helm
-    print_info "Cleaning up existing resources in ${NAMESPACE} namespace..."
+    # PHASE 7.1: Comprehensive Resource Cleanup
+    print_info "Performing comprehensive resource cleanup in ${NAMESPACE} namespace..."
+    
+    # Check if Helm release exists and uninstall it first
+    if helm list -n ${NAMESPACE} | grep -q "${APP_NAME}"; then
+        print_info "Existing Helm release found, uninstalling..."
+        helm uninstall ${APP_NAME} -n ${NAMESPACE} --ignore-not-found=true
+        print_status "Existing Helm release uninstalled"
+    fi
+    
+    # Clean up all resources that might conflict with Helm
+    print_info "Cleaning up existing Kubernetes resources..."
     kubectl delete networkpolicy -n ${NAMESPACE} --all --ignore-not-found=true
-    kubectl delete secret -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete secret -n ${NAMESPACE} --field-selector type!=kubernetes.io/service-account-token --ignore-not-found=true
     kubectl delete configmap -n ${NAMESPACE} --all --ignore-not-found=true
     kubectl delete deployment -n ${NAMESPACE} --all --ignore-not-found=true
     kubectl delete service -n ${NAMESPACE} --all --ignore-not-found=true
     kubectl delete ingress -n ${NAMESPACE} --all --ignore-not-found=true
     kubectl delete hpa -n ${NAMESPACE} --all --ignore-not-found=true
     kubectl delete pdb -n ${NAMESPACE} --all --ignore-not-found=true
-    print_status "Existing resources cleaned up"
+    kubectl delete job -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete serviceaccount -n ${NAMESPACE} --all --ignore-not-found=true
     
-    # Deploy application using Helm to NativeSeries namespace
+    # Wait for cleanup to complete
+    print_info "Waiting for cleanup to complete..."
+    sleep 10
+    
+    # Verify namespace is clean
+    remaining_resources=$(kubectl get all -n ${NAMESPACE} --no-headers 2>/dev/null | wc -l || echo "0")
+    if [ "$remaining_resources" -gt 0 ]; then
+        print_warning "Some resources still exist, forcing deletion..."
+        kubectl delete all -n ${NAMESPACE} --all --ignore-not-found=true
+        kubectl delete networkpolicy,secret,configmap,ingress,hpa,pdb,job,serviceaccount -n ${NAMESPACE} --all --ignore-not-found=true
+    fi
+    
+    print_status "Comprehensive resource cleanup completed"
+    
+    # PHASE 7.2: Helm Chart Validation
+    print_info "Validating Helm chart before deployment..."
+    if ! validate_helm_chart "helm-chart" "${NAMESPACE}"; then
+        print_error "Helm chart validation failed. Cannot proceed with deployment."
+        exit 1
+    fi
+    
+    # PHASE 7.3: Helm Deployment with Retry Logic
     print_info "Deploying application using Helm to ${NAMESPACE} namespace..."
-    helm upgrade --install ${APP_NAME} helm-chart \
-        --namespace ${NAMESPACE} \
-        --create-namespace \
-        --set image.repository=${DOCKER_IMAGE} \
-        --set image.tag=latest \
-        --set service.nodePort=${PRODUCTION_PORT} \
-        --wait \
-        --timeout=10m
-    print_status "Application deployed to ${NAMESPACE} namespace"
+    
+    # Function to attempt Helm deployment with retries
+    deploy_with_helm() {
+        local max_attempts=3
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            print_info "Helm deployment attempt $attempt of $max_attempts..."
+            
+            if helm upgrade --install ${APP_NAME} helm-chart \
+                --namespace ${NAMESPACE} \
+                --create-namespace \
+                --set image.repository=${DOCKER_IMAGE} \
+                --set image.tag=latest \
+                --set service.nodePort=${PRODUCTION_PORT} \
+                --wait \
+                --timeout=10m; then
+                
+                print_success "✅ Helm deployment successful on attempt $attempt"
+                return 0
+            else
+                print_warning "⚠️ Helm deployment failed on attempt $attempt"
+                
+                if [ $attempt -lt $max_attempts ]; then
+                    print_info "Cleaning up and retrying..."
+                    helm uninstall ${APP_NAME} -n ${NAMESPACE} --ignore-not-found=true
+                    sleep 15
+                fi
+                
+                attempt=$((attempt + 1))
+            fi
+        done
+        
+        print_error "❌ All Helm deployment attempts failed"
+        return 1
+    }
+    
+    # Execute Helm deployment with retry logic
+    if deploy_with_helm; then
+        print_status "Application deployed successfully to ${NAMESPACE} namespace"
+    else
+        print_error "Failed to deploy application to ${NAMESPACE} namespace"
+        
+        # Diagnose the issue
+        handle_helm_issues ${NAMESPACE} ${APP_NAME}
+        
+        # Ask user if they want to perform emergency cleanup
+        echo
+        print_warning "Helm deployment failed. Would you like to perform emergency cleanup and retry?"
+        read -p "Perform emergency cleanup? (y/N): " emergency_cleanup_choice
+        
+        if [[ $emergency_cleanup_choice =~ ^[Yy]$ ]]; then
+            if emergency_cleanup ${NAMESPACE} ${APP_NAME}; then
+                print_info "Retrying Helm deployment after emergency cleanup..."
+                if deploy_with_helm; then
+                    print_success "✅ Application deployed successfully after emergency cleanup"
+                else
+                    print_error "❌ Deployment still failed after emergency cleanup"
+                    print_info "You can try running the fix script: ./scripts/fix-helm-deployment.sh"
+                    exit 1
+                fi
+            else
+                print_error "Emergency cleanup failed"
+                print_info "You can try running the fix script: ./scripts/fix-helm-deployment.sh"
+                exit 1
+            fi
+        else
+            print_info "Skipping emergency cleanup. You can try running the fix script: ./scripts/fix-helm-deployment.sh"
+            exit 1
+        fi
+    fi
     
     # Install ArgoCD
     kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
@@ -804,6 +898,108 @@ fi
 # ============================================================================
 
 print_section "PHASE 8: Comprehensive Verification and Status Checking"
+
+# Function to handle Helm deployment issues
+handle_helm_issues() {
+    local namespace=$1
+    local app_name=$2
+    
+    print_info "Diagnosing Helm deployment issues in namespace $namespace..."
+    
+    # Check for common issues
+    print_info "Checking for common Helm deployment issues..."
+    
+    # 1. Check for existing resources without Helm ownership
+    local conflicting_resources=$(kubectl get all,networkpolicy,secret,configmap,ingress,hpa,pdb -n $namespace --no-headers 2>/dev/null | wc -l || echo "0")
+    if [ "$conflicting_resources" -gt 0 ]; then
+        print_warning "Found $conflicting_resources existing resources that may conflict with Helm"
+        print_info "These resources will be cleaned up automatically"
+    fi
+    
+    # 2. Check Helm release status
+    if helm list -n $namespace | grep -q "$app_name"; then
+        print_info "Existing Helm release found, checking status..."
+        helm status $app_name -n $namespace
+    else
+        print_info "No existing Helm release found"
+    fi
+    
+    # 3. Check namespace status
+    print_info "Checking namespace status..."
+    kubectl get namespace $namespace -o yaml | grep -E "(status|phase)" || true
+    
+    # 4. Check for resource quotas or limits
+    print_info "Checking for resource constraints..."
+    kubectl get resourcequota -n $namespace 2>/dev/null || print_info "No resource quotas found"
+    kubectl get limitrange -n $namespace 2>/dev/null || print_info "No limit ranges found"
+}
+
+# Function to validate Helm chart
+validate_helm_chart() {
+    local chart_path=$1
+    local namespace=$2
+    
+    print_info "Validating Helm chart at $chart_path..."
+    
+    # Check if chart directory exists
+    if [ ! -d "$chart_path" ]; then
+        print_error "Helm chart directory not found: $chart_path"
+        return 1
+    fi
+    
+    # Check if Chart.yaml exists
+    if [ ! -f "$chart_path/Chart.yaml" ]; then
+        print_error "Chart.yaml not found in $chart_path"
+        return 1
+    fi
+    
+    # Validate chart structure
+    print_info "Validating chart structure..."
+    if ! helm lint "$chart_path"; then
+        print_error "Helm chart validation failed"
+        return 1
+    fi
+    
+    # Test template rendering
+    print_info "Testing template rendering..."
+    if ! helm template test-release "$chart_path" --namespace "$namespace" --dry-run >/dev/null 2>&1; then
+        print_error "Helm template rendering failed"
+        return 1
+    fi
+    
+    print_success "✅ Helm chart validation passed"
+    return 0
+}
+
+# Function to perform emergency cleanup
+emergency_cleanup() {
+    local namespace=$1
+    local app_name=$2
+    
+    print_warning "Performing emergency cleanup for namespace $namespace..."
+    
+    # Force delete all resources
+    print_info "Force deleting all resources in namespace $namespace..."
+    kubectl delete all,networkpolicy,secret,configmap,ingress,hpa,pdb,job,serviceaccount -n $namespace --all --ignore-not-found=true --grace-period=0 --force
+    
+    # Uninstall Helm release
+    print_info "Uninstalling Helm release..."
+    helm uninstall $app_name -n $namespace --ignore-not-found=true
+    
+    # Wait for cleanup
+    print_info "Waiting for cleanup to complete..."
+    sleep 20
+    
+    # Verify cleanup
+    local remaining=$(kubectl get all -n $namespace --no-headers 2>/dev/null | wc -l || echo "0")
+    if [ "$remaining" -eq 0 ]; then
+        print_success "Emergency cleanup completed successfully"
+        return 0
+    else
+        print_warning "Some resources still remain after emergency cleanup"
+        return 1
+    fi
+}
 
 # Function to wait for pods to be ready
 wait_for_pods() {
@@ -1120,6 +1316,14 @@ kubectl apply -f deployment/production/05-argocd-application.yaml
 3. Set up monitoring dashboards in Grafana
 4. Configure logging queries in Grafana with Loki
 5. Configure CI/CD pipelines
+
+## 🔧 Enhanced Features (v6.2.0)
+- **Robust Helm Deployment**: Automatic cleanup and retry logic
+- **Conflict Resolution**: Handles existing resources gracefully
+- **Emergency Cleanup**: Interactive cleanup for deployment issues
+- **Chart Validation**: Pre-deployment Helm chart validation
+- **Comprehensive Monitoring**: Full stack with Prometheus, Grafana, and Loki
+- **GitOps Ready**: ArgoCD integration for continuous deployment
 
 Installation completed successfully! 🎉
 EOF
