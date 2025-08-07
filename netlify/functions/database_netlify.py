@@ -192,17 +192,161 @@ class NetlifyStudentCollection:
         return {"deleted_count": 0, "acknowledged": True}
 
 
+class NetlifyCourseCollection:
+    """In-memory course collection for Netlify"""
+    
+    async def insert_one(self, document: Dict[str, Any]) -> Dict[str, Any]:
+        """Insert a single course"""
+        course_id = str(len(_in_memory_courses) + 1)
+        document["id"] = course_id
+        document["created_at"] = datetime.now(timezone.utc).isoformat()
+        document["updated_at"] = datetime.now(timezone.utc).isoformat()
+        _in_memory_courses[course_id] = document
+        logger.info(f"✅ Course created: {course_id}")
+        return {"inserted_id": course_id, "acknowledged": True}
+
+    async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Find a single course"""
+        course_id = filter_dict.get("id")
+        if course_id:
+            return _in_memory_courses.get(course_id)
+        
+        # Search by other fields
+        for course in _in_memory_courses.values():
+            if all(course.get(k) == v for k, v in filter_dict.items()):
+                return course
+        return None
+
+    async def find(self, filter_dict: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Find multiple courses"""
+        if not filter_dict:
+            return list(_in_memory_courses.values())
+        
+        results = []
+        for course in _in_memory_courses.values():
+            if all(course.get(k) == v for k, v in filter_dict.items()):
+                results.append(course)
+        return results
+
+    async def update_one(self, filter_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a single course"""
+        course_id = filter_dict.get("id")
+        if course_id and course_id in _in_memory_courses:
+            _in_memory_courses[course_id].update(update_dict.get("$set", {}))
+            _in_memory_courses[course_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+            logger.info(f"✅ Course updated: {course_id}")
+            return {"modified_count": 1, "acknowledged": True}
+        return {"modified_count": 0, "acknowledged": True}
+
+    async def count_documents(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
+        """Count documents"""
+        if not filter_dict:
+            return len(_in_memory_courses)
+        
+        count = 0
+        for course in _in_memory_courses.values():
+            if all(course.get(k) == v for k, v in filter_dict.items()):
+                count += 1
+        return count
+
+    async def delete_one(self, filter_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Delete a single course"""
+        course_id = filter_dict.get("id")
+        if course_id and course_id in _in_memory_courses:
+            del _in_memory_courses[course_id]
+            logger.info(f"✅ Course deleted: {course_id}")
+            return {"deleted_count": 1, "acknowledged": True}
+        return {"deleted_count": 0, "acknowledged": True}
+
+
+class NetlifyProgressCollection:
+    """In-memory progress collection for Netlify"""
+    
+    async def insert_one(self, document: Dict[str, Any]) -> Dict[str, Any]:
+        """Insert a single progress record"""
+        progress_id = str(len(_in_memory_progress) + 1)
+        document["id"] = progress_id
+        document["created_at"] = datetime.now(timezone.utc).isoformat()
+        document["updated_at"] = datetime.now(timezone.utc).isoformat()
+        _in_memory_progress[progress_id] = document
+        logger.info(f"✅ Progress record created: {progress_id}")
+        return {"inserted_id": progress_id, "acknowledged": True}
+
+    async def find_one(self, filter_dict: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Find a single progress record"""
+        progress_id = filter_dict.get("id")
+        if progress_id:
+            return _in_memory_progress.get(progress_id)
+        
+        # Search by other fields
+        for progress in _in_memory_progress.values():
+            if all(progress.get(k) == v for k, v in filter_dict.items()):
+                return progress
+        return None
+
+    async def find(self, filter_dict: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """Find multiple progress records"""
+        if not filter_dict:
+            return list(_in_memory_progress.values())
+        
+        results = []
+        for progress in _in_memory_progress.values():
+            if all(progress.get(k) == v for k, v in filter_dict.items()):
+                results.append(progress)
+        return results
+
+    async def update_one(self, filter_dict: Dict[str, Any], update_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Update a single progress record"""
+        progress_id = filter_dict.get("id")
+        if progress_id and progress_id in _in_memory_progress:
+            _in_memory_progress[progress_id].update(update_dict.get("$set", {}))
+            _in_memory_progress[progress_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+            logger.info(f"✅ Progress record updated: {progress_id}")
+            return {"modified_count": 1, "acknowledged": True}
+        return {"modified_count": 0, "acknowledged": True}
+
+    async def count_documents(self, filter_dict: Optional[Dict[str, Any]] = None) -> int:
+        """Count documents"""
+        if not filter_dict:
+            return len(_in_memory_progress)
+        
+        count = 0
+        for progress in _in_memory_progress.values():
+            if all(progress.get(k) == v for k, v in filter_dict.items()):
+                count += 1
+        return count
+
+    async def delete_one(self, filter_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Delete a single progress record"""
+        progress_id = filter_dict.get("id")
+        if progress_id and progress_id in _in_memory_progress:
+            del _in_memory_progress[progress_id]
+            logger.info(f"✅ Progress record deleted: {progress_id}")
+            return {"deleted_count": 1, "acknowledged": True}
+        return {"deleted_count": 0, "acknowledged": True}
+
+
 def get_student_collection():
     """Get student collection for Netlify"""
     return NetlifyStudentCollection()
 
 
+def get_course_collection():
+    """Get course collection for Netlify"""
+    return NetlifyCourseCollection()
+
+
+def get_progress_collection():
+    """Get progress collection for Netlify"""
+    return NetlifyProgressCollection()
+
+
 def get_database_stats() -> Dict[str, Any]:
     """Get database statistics"""
     return {
-        "total_students": len(_in_memory_students),
-        "total_courses": len(_in_memory_courses),
-        "total_progress_records": len(_in_memory_progress),
+        "students_count": len(_in_memory_students),
+        "courses_count": len(_in_memory_courses),
+        "progress_count": len(_in_memory_progress),
         "storage_type": "in-memory",
         "environment": db_config.app_env,
         "timestamp": datetime.now(timezone.utc).isoformat()

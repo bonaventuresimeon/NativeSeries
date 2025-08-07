@@ -7,6 +7,7 @@ This script tests the basic functionality of the NativeSeries API
 import json
 import sys
 import os
+import asyncio
 from datetime import datetime, timezone
 
 # Add the app directory to the Python path
@@ -89,28 +90,62 @@ def test_api_function():
         print(f"❌ API function test failed: {e}")
         return False
 
+async def test_database_async():
+    """Test the database functionality asynchronously"""
+    try:
+        from database_netlify import get_student_collection, get_database_stats, init_database
+        
+        # Initialize database
+        await init_database()
+        
+        # Get collection
+        collection = get_student_collection()
+        
+        # Test insert
+        test_student = {
+            "name": "Test Student",
+            "email": "test@example.com",
+            "course": "Test Course"
+        }
+        
+        result = await collection.insert_one(test_student)
+        assert result['acknowledged'] == True
+        
+        # Test find
+        students = await collection.find()
+        assert len(students) > 0
+        
+        # Get stats
+        stats = get_database_stats()
+        assert 'students_count' in stats
+        assert 'courses_count' in stats
+        assert 'progress_count' in stats
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Database async test failed: {e}")
+        return False
+
 def test_database_function():
     """Test the database functionality"""
     print("🗄️ Testing database function...")
     
     try:
-        from database_netlify import get_student_collection, get_database_stats, init_database
+        # Run async test in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(test_database_async())
+        finally:
+            loop.close()
         
-        # Initialize database
-        init_database()
-        
-        # Get collection
-        collection = get_student_collection()
-        
-        # Get stats
-        stats = get_database_stats()
-        
-        assert 'students_count' in stats
-        assert 'courses_count' in stats
-        assert 'progress_count' in stats
-        
-        print("✅ Database function test passed!")
-        return True
+        if result:
+            print("✅ Database function test passed!")
+            return True
+        else:
+            print("❌ Database function test failed")
+            return False
         
     except Exception as e:
         print(f"❌ Database function test failed: {e}")
