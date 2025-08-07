@@ -159,11 +159,7 @@ check_system_requirements() {
     fi
     
     # Check available disk space (minimum 5GB on all mounted filesystems)
-    local total_available_space=0
-    while read -r line; do
-        local avail=$(echo "$line" | awk '{print $4}')
-        total_available_space=$((total_available_space + avail))
-    done < <(df -k --output=avail | tail -n +2)
+    local total_available_space=$(df -k --output=avail | awk 'NR>1 {sum+=$1} END {print sum}')
     local required_total_space=5242880  # 5GB in KB
     if [ "$total_available_space" -gt "$required_total_space" ]; then
         print_status "✓ Total available disk space across all filesystems: $((total_available_space / 1024 / 1024))GB"
