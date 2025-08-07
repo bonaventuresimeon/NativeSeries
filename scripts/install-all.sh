@@ -1407,6 +1407,34 @@ setup_kubectl_context() {
     fi
 }
 
+# Add at the top, after color and util functions
+create_cluster_and_namespace() {
+    local CLUSTER_NAME="gitops-cluster"
+    local NAMESPACE="nativeseries"
+    # Create Kind cluster if not exists
+    if ! kind get clusters | grep -q "$CLUSTER_NAME"; then
+        print_info "Creating Kind cluster..."
+        kind create cluster --config infra/kind/cluster-config.yaml --name "$CLUSTER_NAME"
+        print_status "✓ Kind cluster created"
+    else
+        print_status "✓ Kind cluster already exists"
+    fi
+    # Configure kubectl for Kind
+    kind export kubeconfig --name "$CLUSTER_NAME"
+    # Create namespace if not exists
+    if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1; then
+        print_info "Creating namespace: $NAMESPACE"
+        kubectl create namespace "$NAMESPACE"
+    else
+        print_status "✓ Namespace $NAMESPACE already exists"
+    fi
+    # Set context
+    kubectl config set-context --current --namespace="$NAMESPACE"
+}
+
+# Call this function early, after tool installation and Docker/kind/kubectl setup, before any deployments
+create_cluster_and_namespace
+
 # Setup kubectl context before deployment
 print_section "KUBECTL CONTEXT SETUP"
 if ! setup_kubectl_context; then
