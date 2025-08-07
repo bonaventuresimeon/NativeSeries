@@ -783,7 +783,7 @@ EOF
 # Create or use existing cluster
 if ! kubectl cluster-info >/dev/null 2>&1; then
     print_info "Creating Kind cluster..."
-    sudo kind create cluster --config infra/kind/cluster-config.yaml
+    sudo kind create cluster --config infra/kind/cluster-config.yaml --name gitops-cluster
     
     # Configure kubectl for the new cluster
     print_info "Configuring kubectl for Kind cluster..."
@@ -1491,6 +1491,14 @@ if ! helm list -n "$APP_NAMESPACE" | grep -q loki; then
 else
     print_status "✓ Loki already deployed"
 fi
+
+# --- Ensure Kind cluster is fresh ---
+if kind get clusters | grep -q gitops-cluster; then
+    print_info "Existing Kind cluster found. Deleting for a fresh start..."
+    kind delete cluster --name gitops-cluster
+fi
+print_info "Creating Kind cluster..."
+sudo kind create cluster --config infra/kind/cluster-config.yaml --name gitops-cluster
 
 # --- Deploy Application via Helm chart ---
 if [ -d helm-chart ]; then
