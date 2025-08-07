@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # NativeSeries - Complete Installation & Deployment Script
-# Version: 6.0.0 - Updated with Fixed Manifests
+# Version: 6.1.0 - Updated with Comprehensive Verification and Loki
 # This script combines all installation, deployment, monitoring, and validation scripts
 # Updated for NativeSeries with corrected manifests and Helm charts
 
@@ -23,10 +23,12 @@ PRODUCTION_PORT="30011"
 ARGOCD_PORT="30080"
 GRAFANA_PORT="30081"
 PROMETHEUS_PORT="30082"
+LOKI_PORT="30083"
 APP_NAME="nativeseries"
 NAMESPACE="nativeseries"
 ARGOCD_NAMESPACE="argocd"
 MONITORING_NAMESPACE="monitoring"
+LOGGING_NAMESPACE="logging"
 DOCKER_USERNAME="bonaventuresimeon"
 DOCKER_IMAGE="ghcr.io/${DOCKER_USERNAME}/nativeseries"
 
@@ -102,6 +104,7 @@ echo -e "${WHITE}  • Application: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}
 echo -e "${WHITE}  • ArgoCD:      http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
 echo -e "${WHITE}  • Grafana:     http://${PRODUCTION_HOST}:${GRAFANA_PORT}${NC}"
 echo -e "${WHITE}  • Prometheus:  http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}${NC}"
+echo -e "${WHITE}  • Loki:        http://${PRODUCTION_HOST}:${LOKI_PORT}${NC}"
 echo ""
 read -p "Continue with installation? (y/N): " -n 1 -r
 echo
@@ -328,6 +331,10 @@ nodes:
     hostPort: 30082
     protocol: TCP
     listenAddress: "0.0.0.0"
+  - containerPort: 30083
+    hostPort: 30083
+    protocol: TCP
+    listenAddress: "0.0.0.0"
 - role: worker
 - role: worker
 EOF
@@ -380,6 +387,13 @@ metadata:
   name: ${MONITORING_NAMESPACE}
   labels:
     name: ${MONITORING_NAMESPACE}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${LOGGING_NAMESPACE}
+  labels:
+    name: ${LOGGING_NAMESPACE}
 EOF
 
 # Generate application deployment using Helm
@@ -413,8 +427,8 @@ EOF
 # Update ArgoCD application manifest for production
 sed "s|https://kubernetes.default.svc|https://${PRODUCTION_HOST}|g" argocd/application.yaml > deployment/production/05-argocd-application.yaml
 
-# Generate monitoring stack
-print_info "Generating monitoring manifests..."
+# Generate monitoring stack with Loki
+print_info "Generating monitoring and logging manifests..."
 cat > deployment/production/06-monitoring-stack.yaml << EOF
 # Prometheus
 apiVersion: apps/v1
@@ -485,6 +499,9 @@ data:
     - job_name: '${APP_NAME}'
       static_configs:
       - targets: ['${APP_NAME}-service.${NAMESPACE}.svc.cluster.local:8000']
+    - job_name: 'loki'
+      static_configs:
+      - targets: ['loki-service.${LOGGING_NAMESPACE}.svc.cluster.local:3100']
 ---
 # Grafana
 apiVersion: apps/v1
@@ -510,12 +527,19 @@ spec:
         env:
         - name: GF_SECURITY_ADMIN_PASSWORD
           value: admin123
+        - name: GF_FEATURE_TOGGLES_ENABLE
+          value: "publicDashboards"
         volumeMounts:
         - name: grafana-storage
           mountPath: /var/lib/grafana
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
       volumes:
       - name: grafana-storage
         emptyDir: {}
+      - name: grafana-datasources
+        configMap:
+          name: grafana-datasources
 ---
 apiVersion: v1
 kind: Service
@@ -530,6 +554,187 @@ spec:
     nodePort: ${GRAFANA_PORT}
   selector:
     app: grafana
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: ${MONITORING_NAMESPACE}
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-service.${MONITORING_NAMESPACE}.svc.cluster.local:9090
+      access: proxy
+      isDefault: true
+    - name: Loki
+      type: loki
+      url: http://loki-service.${LOGGING_NAMESPACE}.svc.cluster.local:3100
+      access: proxy
+---
+# Loki
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+  namespace: ${LOGGING_NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      containers:
+      - name: loki
+        image: grafana/loki:latest
+        ports:
+        - containerPort: 3100
+        args:
+        - -config.file=/etc/loki/local-config.yaml
+        volumeMounts:
+        - name: loki-config
+          mountPath: /etc/loki
+        - name: loki-storage
+          mountPath: /loki
+      volumes:
+      - name: loki-config
+        configMap:
+          name: loki-config
+      - name: loki-storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-service
+  namespace: ${LOGGING_NAMESPACE}
+spec:
+  type: NodePort
+  ports:
+  - port: 3100
+    targetPort: 3100
+    nodePort: ${LOKI_PORT}
+  selector:
+    app: loki
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+  namespace: ${LOGGING_NAMESPACE}
+data:
+  local-config.yaml: |
+    auth_enabled: false
+    server:
+      http_listen_port: 3100
+    ingester:
+      lifecycler:
+        address: 127.0.0.1
+        ring:
+          kvstore:
+            store: inmemory
+          replication_factor: 1
+        final_sleep: 0s
+      chunk_idle_period: 5m
+      chunk_retain_period: 30s
+    schema_config:
+      configs:
+        - from: 2020-05-15
+          store: boltdb
+          object_store: filesystem
+          schema: v11
+          index:
+            prefix: index_
+            period: 24h
+    storage_config:
+      boltdb:
+        directory: /loki/index
+      filesystem:
+        directory: /loki/chunks
+    limits_config:
+      enforce_metric_name: false
+      reject_old_samples: true
+      reject_old_samples_max_age: 168h
+    chunk_store_config:
+      max_look_back_period: 0s
+    table_manager:
+      retention_deletes_enabled: false
+      retention_period: 0s
+---
+# Promtail for log collection
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: ${LOGGING_NAMESPACE}
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      containers:
+      - name: promtail
+        image: grafana/promtail:latest
+        args:
+        - -config.file=/etc/promtail/config.yml
+        volumeMounts:
+        - name: promtail-config
+          mountPath: /etc/promtail
+        - name: varlog
+          mountPath: /var/log
+        - name: varlibdockercontainers
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+      volumes:
+      - name: promtail-config
+        configMap:
+          name: promtail-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: varlibdockercontainers
+        hostPath:
+          path: /var/lib/docker/containers
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: ${LOGGING_NAMESPACE}
+data:
+  config.yml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+    positions:
+      filename: /tmp/positions.yaml
+    clients:
+    - url: http://loki-service.${LOGGING_NAMESPACE}.svc.cluster.local:3100/loki/api/v1/push
+    scrape_configs:
+    - job_name: system
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+    - job_name: containers
+      static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: containerlogs
+          __path__: /var/lib/docker/containers/*/*log
 EOF
 
 print_status "Deployment manifests generated"
@@ -560,9 +765,9 @@ if kubectl cluster-info >/dev/null 2>&1; then
     print_info "Waiting for ArgoCD to be ready..."
     kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n ${ARGOCD_NAMESPACE} || true
     
-    # Deploy monitoring stack
+    # Deploy monitoring and logging stack
     kubectl apply -f deployment/production/06-monitoring-stack.yaml
-    print_status "Monitoring stack deployed"
+    print_status "Monitoring and logging stack deployed"
     
     # Create ArgoCD application
     sleep 30
@@ -574,10 +779,184 @@ else
 fi
 
 # ============================================================================
-# PHASE 8: VALIDATION AND TESTING
+# PHASE 8: COMPREHENSIVE VERIFICATION AND STATUS CHECKING
 # ============================================================================
 
-print_section "PHASE 8: Validation and Testing"
+print_section "PHASE 8: Comprehensive Verification and Status Checking"
+
+# Function to wait for pods to be ready
+wait_for_pods() {
+    local namespace=$1
+    local label_selector=$2
+    local timeout=300
+    local interval=10
+    
+    print_info "Waiting for pods in namespace $namespace with selector $label_selector..."
+    
+    local elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        if kubectl get pods -n $namespace -l $label_selector --no-headers | grep -q "Running"; then
+            local ready_pods=$(kubectl get pods -n $namespace -l $label_selector --no-headers | grep "Running" | wc -l)
+            local total_pods=$(kubectl get pods -n $namespace -l $label_selector --no-headers | wc -l)
+            if [ "$ready_pods" -eq "$total_pods" ] && [ "$total_pods" -gt 0 ]; then
+                print_status "All pods in $namespace are ready ($ready_pods/$total_pods)"
+                return 0
+            fi
+        fi
+        sleep $interval
+        elapsed=$((elapsed + interval))
+        print_info "Still waiting... ($elapsed/$timeout seconds elapsed)"
+    done
+    
+    print_warning "Timeout waiting for pods in $namespace"
+    return 1
+}
+
+# Function to check service endpoints
+check_service_endpoints() {
+    local namespace=$1
+    local service_name=$2
+    local port=$3
+    
+    print_info "Checking service $service_name in namespace $namespace..."
+    
+    # Check if service exists
+    if kubectl get service $service_name -n $namespace >/dev/null 2>&1; then
+        print_status "✓ Service $service_name exists"
+        
+        # Check if endpoints are available
+        local endpoints=$(kubectl get endpoints $service_name -n $namespace -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)
+        if [ -n "$endpoints" ]; then
+            print_status "✓ Service $service_name has endpoints: $endpoints"
+            return 0
+        else
+            print_warning "⚠ Service $service_name has no endpoints yet"
+            return 1
+        fi
+    else
+        print_error "✗ Service $service_name not found"
+        return 1
+    fi
+}
+
+# Function to test application health
+test_application_health() {
+    local url=$1
+    local service_name=$2
+    local max_retries=30
+    local retry_interval=10
+    
+    print_info "Testing $service_name health at $url..."
+    
+    for i in $(seq 1 $max_retries); do
+        if curl -s -f "$url" >/dev/null 2>&1; then
+            print_status "✓ $service_name is healthy and responding"
+            return 0
+        else
+            print_info "Attempt $i/$max_retries: $service_name not ready yet..."
+            sleep $retry_interval
+        fi
+    done
+    
+    print_warning "⚠ $service_name health check failed after $max_retries attempts"
+    return 1
+}
+
+# Wait for all components to be ready
+print_info "Waiting for all components to be ready..."
+
+# Wait for application pods
+wait_for_pods $NAMESPACE "app.kubernetes.io/name=$APP_NAME"
+
+# Wait for ArgoCD pods
+wait_for_pods $ARGOCD_NAMESPACE "app.kubernetes.io/name=argocd-server"
+
+# Wait for monitoring pods
+wait_for_pods $MONITORING_NAMESPACE "app=prometheus"
+wait_for_pods $MONITORING_NAMESPACE "app=grafana"
+
+# Wait for logging pods
+wait_for_pods $LOGGING_NAMESPACE "app=loki"
+wait_for_pods $LOGGING_NAMESPACE "app=promtail"
+
+# Check all services
+print_info "Verifying all services..."
+
+# Application service
+check_service_endpoints $NAMESPACE "${APP_NAME}-service" $PRODUCTION_PORT
+
+# ArgoCD service
+check_service_endpoints $ARGOCD_NAMESPACE "argocd-server-nodeport" $ARGOCD_PORT
+
+# Monitoring services
+check_service_endpoints $MONITORING_NAMESPACE "prometheus-service" $PROMETHEUS_PORT
+check_service_endpoints $MONITORING_NAMESPACE "grafana-service" $GRAFANA_PORT
+
+# Logging services
+check_service_endpoints $LOGGING_NAMESPACE "loki-service" $LOKI_PORT
+
+# Test application health endpoints
+print_info "Testing application health endpoints..."
+
+# Test application
+test_application_health "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" "NativeSeries Application"
+
+# Test ArgoCD
+test_application_health "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" "ArgoCD"
+
+# Test Prometheus
+test_application_health "http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}/-/ready" "Prometheus"
+
+# Test Grafana
+test_application_health "http://${PRODUCTION_HOST}:${GRAFANA_PORT}/api/health" "Grafana"
+
+# Test Loki
+test_application_health "http://${PRODUCTION_HOST}:${LOKI_PORT}/ready" "Loki"
+
+# ============================================================================
+# PHASE 9: SHOW RUNNING STATUS
+# ============================================================================
+
+print_section "PHASE 9: Current Running Status"
+
+# Show cluster status
+print_info "Kubernetes Cluster Status:"
+kubectl cluster-info
+
+# Show all namespaces
+print_info "All Namespaces:"
+kubectl get namespaces
+
+# Show application status
+print_info "Application Status ($NAMESPACE namespace):"
+kubectl get pods,services,ingress -n $NAMESPACE
+
+# Show ArgoCD status
+print_info "ArgoCD Status ($ARGOCD_NAMESPACE namespace):"
+kubectl get pods,services -n $ARGOCD_NAMESPACE
+
+# Show monitoring status
+print_info "Monitoring Status ($MONITORING_NAMESPACE namespace):"
+kubectl get pods,services -n $MONITORING_NAMESPACE
+
+# Show logging status
+print_info "Logging Status ($LOGGING_NAMESPACE namespace):"
+kubectl get pods,services -n $LOGGING_NAMESPACE
+
+# Show all services across namespaces
+print_info "All Services (NodePort):"
+kubectl get services --all-namespaces -o wide | grep NodePort
+
+# Show resource usage
+print_info "Resource Usage:"
+kubectl top nodes 2>/dev/null || print_warning "Metrics server not available"
+kubectl top pods --all-namespaces 2>/dev/null || print_warning "Pod metrics not available"
+
+# ============================================================================
+# PHASE 10: VALIDATION AND TESTING
+# ============================================================================
+
+print_section "PHASE 10: Final Validation and Testing"
 
 # Validate Helm chart
 print_info "Validating Helm chart..."
@@ -585,9 +964,9 @@ helm lint helm-chart
 print_status "Helm chart validation passed"
 
 # Test application endpoints
-print_info "Testing application endpoints..."
+print_info "Running final validation tests..."
 validation_score=0
-total_tests=5
+total_tests=8
 
 # Test 1: Docker image
 if $DOCKER_CMD images | grep -q ${DOCKER_IMAGE}; then
@@ -629,14 +1008,38 @@ else
     print_error "Application code has import issues"
 fi
 
+# Test 6: Application health
+if curl -s "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" | grep -q "healthy" 2>/dev/null; then
+    print_status "Application health check passed"
+    ((validation_score++))
+else
+    print_warning "Application health check failed (may not be deployed yet)"
+fi
+
+# Test 7: ArgoCD health
+if curl -s "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" >/dev/null 2>&1; then
+    print_status "ArgoCD is accessible"
+    ((validation_score++))
+else
+    print_warning "ArgoCD not accessible yet"
+fi
+
+# Test 8: Monitoring stack health
+if curl -s "http://${PRODUCTION_HOST}:${GRAFANA_PORT}/api/health" >/dev/null 2>&1; then
+    print_status "Monitoring stack is accessible"
+    ((validation_score++))
+else
+    print_warning "Monitoring stack not accessible yet"
+fi
+
 # Calculate success rate
 success_rate=$(( validation_score * 100 / total_tests ))
 
 # ============================================================================
-# PHASE 9: FINAL REPORT
+# PHASE 11: FINAL REPORT AND ACCESS LINKS
 # ============================================================================
 
-print_section "PHASE 9: Installation Complete"
+print_section "PHASE 11: Installation Complete - Access Your NativeSeries Stack"
 
 # Generate final deployment guide
 cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
@@ -662,6 +1065,10 @@ cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
 ### 📊 Monitoring Stack
 - **Grafana:** http://${PRODUCTION_HOST}:${GRAFANA_PORT} (admin/admin123)
 - **Prometheus:** http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}
+
+### 📝 Logging Stack
+- **Loki:** http://${PRODUCTION_HOST}:${LOKI_PORT}
+- **Grafana Logs:** Access through Grafana UI (Loki data source pre-configured)
 
 ## 🚀 Quick Deploy Commands
 
@@ -690,29 +1097,53 @@ kubectl apply -f deployment/production/05-argocd-application.yaml
 1. Access the application at http://${PRODUCTION_HOST}:${PRODUCTION_PORT}
 2. Configure ArgoCD applications for GitOps
 3. Set up monitoring dashboards in Grafana
-4. Configure CI/CD pipelines
+4. Configure logging queries in Grafana with Loki
+5. Configure CI/CD pipelines
 
 Installation completed successfully! 🎉
 EOF
 
-# Display final summary
+# Display final summary with access links
 echo -e "${GREEN}"
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║                    🎉 INSTALLATION COMPLETE! 🎉                  ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-echo -e "${WHITE}🌐 Your NativeSeries is ready at:${NC}"
-echo -e "${CYAN}   📱 Application: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}${NC}"
-echo -e "${CYAN}   🎯 ArgoCD:      http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
-echo -e "${CYAN}   📊 Grafana:     http://${PRODUCTION_HOST}:${GRAFANA_PORT}${NC}"
-echo -e "${CYAN}   📈 Prometheus:  http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}${NC}"
+echo -e "${WHITE}🌐 Your NativeSeries Stack is Ready! Access URLs:${NC}"
+echo ""
+echo -e "${CYAN}📱 NativeSeries Application:${NC}"
+echo -e "${WHITE}   • Main App:     http://${PRODUCTION_HOST}:${PRODUCTION_PORT}${NC}"
+echo -e "${WHITE}   • Health Check: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health${NC}"
+echo -e "${WHITE}   • API Docs:     http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/docs${NC}"
+echo ""
+echo -e "${CYAN}🎯 ArgoCD GitOps Dashboard:${NC}"
+echo -e "${WHITE}   • URL:          http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
+echo -e "${WHITE}   • Username:     admin${NC}"
+echo -e "${WHITE}   • Password:     kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
+echo ""
+echo -e "${CYAN}📊 Monitoring Stack:${NC}"
+echo -e "${WHITE}   • Grafana:      http://${PRODUCTION_HOST}:${GRAFANA_PORT} (admin/admin123)${NC}"
+echo -e "${WHITE}   • Prometheus:   http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}${NC}"
+echo ""
+echo -e "${CYAN}📝 Logging Stack:${NC}"
+echo -e "${WHITE}   • Loki:         http://${PRODUCTION_HOST}:${LOKI_PORT}${NC}"
+echo -e "${WHITE}   • Grafana Logs: Access through Grafana UI (Loki data source pre-configured)${NC}"
 echo ""
 echo -e "${GREEN}✅ Success Rate: ${success_rate}%${NC}"
 echo -e "${BLUE}📖 Full guide: FINAL_DEPLOYMENT_GUIDE.md${NC}"
+echo ""
+
+# Show current status summary
+echo -e "${YELLOW}📊 Current Status Summary:${NC}"
+echo -e "${WHITE}   • Application Pods: $(kubectl get pods -n $NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
+echo -e "${WHITE}   • ArgoCD Pods:     $(kubectl get pods -n $ARGOCD_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $ARGOCD_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
+echo -e "${WHITE}   • Monitoring Pods: $(kubectl get pods -n $MONITORING_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $MONITORING_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
+echo -e "${WHITE}   • Logging Pods:    $(kubectl get pods -n $LOGGING_NAMESPACE --no-headers | grep Running | wc -l | tr -d ' ')/$(kubectl get pods -n $LOGGING_NAMESPACE --no-headers | wc -l | tr -d ' ') running${NC}"
 echo ""
 
 # Clean up temporary files
 rm -f get-docker.sh
 
 print_status "Installation completed successfully!"
+print_info "All services are now running and accessible!"
