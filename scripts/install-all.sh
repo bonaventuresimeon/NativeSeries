@@ -280,8 +280,10 @@ install_binary_tool() {
     if command_exists "$tool_name"; then
         print_status "✓ $tool_name is already installed"
         if [ "$tool_name" = "kubectl" ]; then
+            echo "DEBUG: Running 'kubectl version --client --short'"
             kubectl version --client --short
         else
+            echo "DEBUG: Running '$tool_name --version'"
             $tool_name --version
         fi
         return 0
@@ -299,8 +301,10 @@ install_binary_tool() {
         sudo mv "$binary_name" "/usr/local/bin/$tool_name"
         print_status "✓ $tool_name v$version installed successfully"
         if [ "$tool_name" = "kubectl" ]; then
+            echo "DEBUG: Running 'kubectl version --client --short'"
             kubectl version --client --short
         else
+            echo "DEBUG: Running '$tool_name --version'"
             $tool_name --version
         fi
         cd - > /dev/null
@@ -356,6 +360,7 @@ print_status "✓ Basic system tools installed"
 print_info "Checking Docker installation..."
 if command_exists docker; then
     print_status "✓ Docker is already installed"
+    echo "DEBUG: Running 'docker --version'"
     docker --version
 else
     print_info "Installing Docker..."
@@ -411,6 +416,7 @@ if command_exists kubectl; then
     current_version=$(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 | sed 's/v//')
     if [ "$current_version" = "$KUBECTL_VERSION" ]; then
         print_status "✓ kubectl v${KUBECTL_VERSION} is already installed"
+        echo "DEBUG: Running 'kubectl version --client --short'"
         kubectl version --client --short
     else
         print_info "Updating kubectl from v${current_version} to v${KUBECTL_VERSION}..."
@@ -444,6 +450,7 @@ if kubectl version --client --short >/dev/null 2>&1; then
     # Verify kubectl can connect to cluster (if one exists)
     if kubectl cluster-info >/dev/null 2>&1; then
         print_status "✓ kubectl can connect to existing cluster"
+        echo "DEBUG: Running 'kubectl cluster-info'"
         kubectl cluster-info
     else
         print_info "No existing cluster found - will create one in Phase 5"
@@ -456,6 +463,7 @@ fi
 # Install Helm
 if command_exists helm; then
     print_status "✓ Helm is already installed"
+    echo "DEBUG: Running 'helm version'"
     helm version
 else
     print_info "Installing Helm..."
@@ -607,6 +615,7 @@ fi
 print_info "Verifying cluster connectivity..."
 if kubectl cluster-info >/dev/null 2>&1; then
     print_status "✓ Successfully connected to Kubernetes cluster"
+    echo "DEBUG: Running 'kubectl cluster-info'"
     kubectl cluster-info
 else
     print_error "✗ Failed to connect to Kubernetes cluster"
@@ -617,6 +626,7 @@ fi
 print_info "Testing kubectl cluster access..."
 if kubectl get nodes >/dev/null 2>&1; then
     print_status "✓ kubectl can access cluster nodes"
+    echo "DEBUG: Running 'kubectl get nodes'"
     kubectl get nodes
 else
     print_error "✗ kubectl cannot access cluster nodes"
@@ -1104,6 +1114,7 @@ check_kubectl_health() {
         health_status=false
     else
         print_status "✓ kubectl is installed"
+        echo "DEBUG: Running 'kubectl version --client --short'"
         kubectl version --client --short
     fi
     
@@ -1113,6 +1124,7 @@ check_kubectl_health() {
         health_status=false
     else
         print_status "✓ Cluster connectivity OK"
+        echo "DEBUG: Running 'kubectl cluster-info'"
         kubectl cluster-info
     fi
     
@@ -1122,6 +1134,7 @@ check_kubectl_health() {
         health_status=false
     else
         print_status "✓ Node access OK"
+        echo "DEBUG: Running 'kubectl get nodes'"
         kubectl get nodes
     fi
     
