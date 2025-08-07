@@ -248,19 +248,24 @@ print_section "PHASE 2: Tool Installation"
 
 # Function to detect package manager and OS
 detect_package_manager() {
+    echo "DEBUG: Starting package manager detection..."
     if command -v apt-get >/dev/null 2>&1; then
         PKG_MANAGER="apt"
         OS_TYPE="debian"
+        echo "DEBUG: Found apt-get, setting PKG_MANAGER=apt"
     elif command -v yum >/dev/null 2>&1; then
         PKG_MANAGER="yum"
         OS_TYPE="rhel"
+        echo "DEBUG: Found yum, setting PKG_MANAGER=yum"
     elif command -v dnf >/dev/null 2>&1; then
         PKG_MANAGER="dnf"
         OS_TYPE="rhel"
+        echo "DEBUG: Found dnf, setting PKG_MANAGER=dnf"
     else
         print_error "Unsupported package manager detected"
         exit 1
     fi
+    echo "DEBUG: Final PKG_MANAGER=$PKG_MANAGER, OS_TYPE=$OS_TYPE"
     print_info "Detected package manager: $PKG_MANAGER on $OS_TYPE"
 }
 
@@ -305,7 +310,9 @@ detect_package_manager
 
 # Install basic system tools
 print_info "Installing basic system tools..."
+echo "DEBUG: PKG_MANAGER=$PKG_MANAGER"
 if [ "$PKG_MANAGER" = "apt" ]; then
+    echo "DEBUG: Using apt-get branch"
     sudo apt-get update
     sudo apt-get install -y \
         curl wget git unzip jq gcc g++ make \
@@ -314,6 +321,7 @@ if [ "$PKG_MANAGER" = "apt" ]; then
         ca-certificates gnupg lsb-release \
         software-properties-common apt-transport-https
 else
+    echo "DEBUG: Using yum branch"
     sudo yum update -y
     sudo yum install -y \
         curl wget git unzip jq gcc gcc-c++ make \
