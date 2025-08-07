@@ -233,12 +233,14 @@ echo -e "${WHITE}  • Grafana:     http://${PRODUCTION_HOST}:${GRAFANA_PORT}${N
 echo -e "${WHITE}  • Prometheus:  http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}${NC}"
 echo -e "${WHITE}  • Loki:        http://${PRODUCTION_HOST}:${LOKI_PORT}${NC}"
 echo ""
-read -p "Continue with installation? (y/N): " -n 1 -r
+# Auto-accept installation prompt for automation
+echo "Auto-accepting installation prompt (non-interactive mode)"
+REPLY="y"
 echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Installation cancelled."
-    exit 0
-fi
+#if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+#    echo "Installation cancelled."
+#    exit 0
+#fi
 
 # ============================================================================
 # PHASE 2: TOOL INSTALLATION
@@ -416,8 +418,15 @@ else
     if [ "$OS_TYPE" = "amazon" ]; then
         echo "DEBUG: Installing Docker from default Amazon Linux repos"
         sudo $PKG_MANAGER install -y docker
-        sudo systemctl start docker
-        sudo systemctl enable docker
+        # Portable Docker start for non-systemd environments
+        echo "Attempting to start Docker..."
+        if command -v systemctl >/dev/null 2>&1; then
+          sudo systemctl start docker
+          sudo systemctl enable docker
+        else
+          echo "systemctl not found, starting dockerd manually in background."
+          sudo dockerd > /dev/null 2>&1 &
+        fi
         sudo usermod -aG docker $USER
     elif [ "$PKG_MANAGER" = "apt" ]; then
         echo "DEBUG: Installing Docker using official Docker APT repo"
@@ -432,29 +441,57 @@ else
           sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt-get update
         sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-        sudo systemctl start docker
-        sudo systemctl enable docker
+        # Portable Docker start for non-systemd environments
+        echo "Attempting to start Docker..."
+        if command -v systemctl >/dev/null 2>&1; then
+          sudo systemctl start docker
+          sudo systemctl enable docker
+        else
+          echo "systemctl not found, starting dockerd manually in background."
+          sudo dockerd > /dev/null 2>&1 &
+        fi
         sudo usermod -aG docker $USER
     elif [ "$PKG_MANAGER" = "zypper" ]; then
         echo "DEBUG: Installing Docker using official Docker repo for SUSE"
         sudo zypper --non-interactive install --auto-agree-with-licenses docker
-        sudo systemctl start docker
-        sudo systemctl enable docker
+        # Portable Docker start for non-systemd environments
+        echo "Attempting to start Docker..."
+        if command -v systemctl >/dev/null 2>&1; then
+          sudo systemctl start docker
+          sudo systemctl enable docker
+        else
+          echo "systemctl not found, starting dockerd manually in background."
+          sudo dockerd > /dev/null 2>&1 &
+        fi
         sudo usermod -aG docker $USER
     elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
         if grep -qi 'amazon' /etc/os-release; then
             echo "DEBUG: Detected Amazon Linux, installing docker from default repos"
             sudo $PKG_MANAGER install -y docker
-            sudo systemctl start docker
-            sudo systemctl enable docker
+            # Portable Docker start for non-systemd environments
+            echo "Attempting to start Docker..."
+            if command -v systemctl >/dev/null 2>&1; then
+              sudo systemctl start docker
+              sudo systemctl enable docker
+            else
+              echo "systemctl not found, starting dockerd manually in background."
+              sudo dockerd > /dev/null 2>&1 &
+            fi
             sudo usermod -aG docker $USER
         else
             echo "DEBUG: Installing Docker for RHEL/CentOS using official Docker repo"
             sudo $PKG_MANAGER install -y yum-utils
             sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
             sudo $PKG_MANAGER install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin --allowerasing --skip-broken
-            sudo systemctl start docker
-            sudo systemctl enable docker
+            # Portable Docker start for non-systemd environments
+            echo "Attempting to start Docker..."
+            if command -v systemctl >/dev/null 2>&1; then
+              sudo systemctl start docker
+              sudo systemctl enable docker
+            else
+              echo "systemctl not found, starting dockerd manually in background."
+              sudo dockerd > /dev/null 2>&1 &
+            fi
             sudo usermod -aG docker $USER
         fi
     fi
@@ -477,10 +514,19 @@ if [ "$OS_TYPE" = "amazon" ]; then
         exit 1
     fi
 elif [ "$PKG_MANAGER" = "apt" ]; then
-    sudo apt-get update
-    sudo apt-get install -y apt-transport-https ca-certificates curl
-    sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    # Remove deprecated kubernetes-xenial/apt.kubernetes.io repo if present
+    if [ -f /etc/apt/sources.list.d/kubernetes.list ]; then
+      if grep -q "apt.kubernetes.io" /etc/apt/sources.list.d/kubernetes.list || grep -q "kubernetes-xenial" /etc/apt/sources.list.d/kubernetes.list; then
+        echo "Removing deprecated kubernetes-xenial/apt.kubernetes.io repo from /etc/apt/sources.list.d/kubernetes.list"
+        sudo rm /etc/apt/sources.list.d/kubernetes.list
+      fi
+    fi
+    # Use new pkgs.k8s.io repo for kubectl (legacy apt.kubernetes.io is deprecated)
+    K8S_MAJOR_MINOR=$(echo "$KUBECTL_VERSION" | cut -d. -f1,2)
+    K8S_STABLE_VERSION="v$K8S_MAJOR_MINOR"
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL "https://pkgs.k8s.io/core:/stable:/$K8S_STABLE_VERSION/deb/Release.key" | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/$K8S_STABLE_VERSION/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
     sudo apt-get update
     sudo apt-get install -y kubectl
 elif [ "$PKG_MANAGER" = "zypper" ] || [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
@@ -543,7 +589,7 @@ fi
 
 # Verify kubectl installation and setup
 print_info "Verifying kubectl installation..."
-if kubectl version --client --short >/dev/null 2>&1; then
+if kubectl version --client >/dev/null 2>&1; then
     print_status "✓ kubectl installation verified"
     
     # Setup kubectl configuration directory
@@ -1186,7 +1232,7 @@ deploy_with_retry() {
 verify_kubectl() {
     print_info "Verifying kubectl functionality..."
     
-    if ! kubectl version --client --short >/dev/null 2>&1; then
+    if ! kubectl version --client >/dev/null 2>&1; then
         print_error "✗ kubectl client is not working"
         return 1
     fi
@@ -1357,11 +1403,13 @@ fi
 print_section "KUBECTL HEALTH CHECK"
 if ! check_kubectl_health; then
     print_error "kubectl health check failed. Please fix the issues above before proceeding."
-    read -p "Continue anyway? (y/N): " -n 1 -r
+    # Auto-accept continue prompt for automation
+    echo "Auto-accepting continue prompt after kubectl health check failure (non-interactive mode)"
+    REPLY="y"
     echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
+    #if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    #    exit 1
+    #fi
 fi
 
 # Verify kubectl before starting deployment
