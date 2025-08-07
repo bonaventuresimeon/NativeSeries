@@ -413,7 +413,10 @@ fi
 # Install kubectl
 print_info "Installing kubectl v${KUBECTL_VERSION}..."
 if command_exists kubectl; then
-    current_version=$(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 | sed 's/v//')
+    current_version=""
+    if kubectl version --client --short >/dev/null 2>&1; then
+        current_version=$(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 | sed 's/v//')
+    fi
     if [ "$current_version" = "$KUBECTL_VERSION" ]; then
         print_status "✓ kubectl v${KUBECTL_VERSION} is already installed"
         echo "DEBUG: Running 'kubectl version --client --short'"
