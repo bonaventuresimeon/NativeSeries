@@ -158,23 +158,40 @@ check_system_requirements() {
         requirements_met=false
     fi
     
-    # Check available disk space (minimum 5GB)
-    local available_space=$(df / | awk 'NR==2 {print $4}')
-    local required_space=5242880  # 5GB in KB
-    if [ "$available_space" -gt "$required_space" ]; then
-        print_status "✓ Available disk space: $(($available_space / 1024 / 1024))GB"
+    # Check available disk space (minimum 5GB on all mounted filesystems)
+    local total_available_space=0
+    while read -r line; do
+        local avail=$(echo "$line" | awk '{print $4}')
+        total_available_space=$((total_available_space + avail))
+    done < <(df -k --output=avail | tail -n +2)
+    local required_total_space=5242880  # 5GB in KB
+    if [ "$total_available_space" -gt "$required_total_space" ]; then
+        print_status "✓ Total available disk space across all filesystems: $((total_available_space / 1024 / 1024))GB"
     else
-        print_error "✗ Insufficient disk space: $(($available_space / 1024 / 1024))GB (Minimum 5GB required)"
+        print_error "✗ Insufficient total disk space: $((total_available_space / 1024 / 1024))GB (Minimum 5GB required across all filesystems)"
         requirements_met=false
     fi
-    
-    # Check available memory (minimum 4GB)
-    local available_memory=$(free -k | awk 'NR==2{print $2}')
-    local required_memory=4194304  # 4GB in KB
-    if [ "$available_memory" -gt "$required_memory" ]; then
-        print_status "✓ Available memory: $(($available_memory / 1024 / 1024))GB"
+
+    # Check total swap space (minimum 2GB recommended)
+    local total_swap=$(free -k | awk '/^Swap:/ {print $2}')
+    local required_swap=2097152  # 2GB in KB
+    if [ "$total_swap" -ge "$required_swap" ]; then
+        print_status "✓ Total swap space: $((total_swap / 1024 / 1024))GB"
     else
-        print_error "✗ Insufficient memory: $(($available_memory / 1024 / 1024))GB (Minimum 4GB required)"
+        print_warning "⚠ Total swap space is low: $((total_swap / 1024 / 1024))GB (Minimum 2GB recommended for best performance)"
+    fi
+    
+    # Check available memory (minimum 4GB RAM + swap combined)
+    local available_memory=$(free -k | awk 'NR==2{print $2}')
+    local total_swap=$(free -k | awk '/^Swap:/ {print $2}')
+    local total_memory=$((available_memory + total_swap))
+    local required_memory=4194304  # 4GB in KB
+    if [ "$available_memory" -ge "$required_memory" ]; then
+        print_status "✓ Available memory: $((available_memory / 1024 / 1024))GB"
+    elif [ "$total_memory" -ge "$required_memory" ]; then
+        print_warning "⚠ Available memory: $((available_memory / 1024 / 1024))GB (using $((total_swap / 1024 / 1024))GB swap to meet minimum 4GB requirement)"
+    else
+        print_error "✗ Insufficient memory: $((available_memory / 1024 / 1024))GB RAM + $((total_swap / 1024 / 1024))GB swap = $((total_memory / 1024 / 1024))GB total (Minimum 4GB required)"
         requirements_met=false
     fi
     
