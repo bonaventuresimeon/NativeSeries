@@ -6,6 +6,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "nativeseries.labels" . | nindent 4 }}
+  annotations:
+    meta.helm.sh/release-name: {{ .Release.Name }}
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 spec:
   podSelector:
     matchLabels:
@@ -20,19 +23,26 @@ spec:
           name: ingress-nginx
     ports:
     - protocol: TCP
-      port: 8000
+      port: {{ .Values.app.port | default 8000 }}
   - from:
     - namespaceSelector:
         matchLabels:
           name: monitoring
     ports:
     - protocol: TCP
-      port: 8000
+      port: {{ .Values.app.port | default 8000 }}
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: logging
+    ports:
+    - protocol: TCP
+      port: {{ .Values.app.port | default 8000 }}
   egress:
   - to:
     - namespaceSelector:
         matchLabels:
-          name: nativeseries
+          name: {{ .Release.Namespace }}
     ports:
     - protocol: TCP
       port: 5432

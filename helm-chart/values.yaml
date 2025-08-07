@@ -99,6 +99,10 @@ logging:
   volume:
     size: 1Gi
 
+# Cleanup configuration
+cleanup:
+  enabled: true
+
 # Pod Security Context
 podSecurityContext:
   fsGroup: 2000

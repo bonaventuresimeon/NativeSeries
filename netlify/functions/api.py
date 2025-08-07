@@ -109,6 +109,68 @@ def handler(event, context):
                     })
                 }
         
+        elif path == '/api/database':
+            try:
+                from database_netlify import get_database_stats, get_vault_status
+                stats = get_database_stats()
+                vault_status = get_vault_status()
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'database_info': stats,
+                        'vault_status': vault_status,
+                        'environment': 'netlify',
+                        'timestamp': str(datetime.now(timezone.utc))
+                    })
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': 'Database info error',
+                        'message': str(e),
+                        'environment': 'netlify'
+                    })
+                }
+        
+        elif path == '/api/vault':
+            try:
+                from database_netlify import get_vault_status, db_config
+                
+                vault_status = get_vault_status()
+                
+                # Try to get secrets from vault if configured
+                vault_secrets = None
+                if db_config.is_vault_configured():
+                    try:
+                        vault_secrets = await db_config.get_vault_secrets()
+                    except Exception as e:
+                        vault_secrets = {"error": str(e)}
+                
+                return {
+                    'statusCode': 200,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'vault_status': vault_status,
+                        'vault_secrets': vault_secrets,
+                        'environment': 'netlify',
+                        'timestamp': str(datetime.now(timezone.utc))
+                    })
+                }
+            except Exception as e:
+                return {
+                    'statusCode': 500,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': 'Vault error',
+                        'message': str(e),
+                        'environment': 'netlify'
+                    })
+                }
+        
         elif path == '/docs':
             return {
                 'statusCode': 200,
@@ -151,6 +213,21 @@ def handler(event, context):
                         
                         <div class="endpoint">
                             <span class="method get">GET</span>
+                            <strong>/api/stats</strong> - Get database statistics
+                        </div>
+                        
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <strong>/api/database</strong> - Get database and vault information
+                        </div>
+                        
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
+                            <strong>/api/vault</strong> - Get vault status and secrets
+                        </div>
+                        
+                        <div class="endpoint">
+                            <span class="method get">GET</span>
                             <strong>/docs</strong> - This documentation page
                         </div>
                     </div>
@@ -166,7 +243,7 @@ def handler(event, context):
                 'body': json.dumps({
                     'error': 'Not found',
                     'message': f'Endpoint {path} not found',
-                    'available_endpoints': ['/health', '/api/students', '/docs', '/']
+                    'available_endpoints': ['/health', '/api/students', '/api/stats', '/api/database', '/api/vault', '/docs', '/']
                 })
             }
             
