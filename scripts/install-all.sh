@@ -352,6 +352,19 @@ validate_checksum() {
 detect_package_manager
 echo "DEBUG: After detection, PKG_MANAGER=$PKG_MANAGER, OS_TYPE=$OS_TYPE"
 
+# Ensure yum is installed on Amazon Linux before any downloads/installs
+if grep -qi 'amazon' /etc/os-release; then
+    if ! command -v yum >/dev/null 2>&1; then
+        echo "[INFO] Installing yum on Amazon Linux..."
+        if command -v dnf >/dev/null 2>&1; then
+            sudo dnf install -y yum
+        else
+            echo "[ERROR] Neither yum nor dnf found. Cannot proceed." >&2
+            exit 1
+        fi
+    fi
+fi
+
 # Install basic system tools
 print_info "Installing basic system tools..."
 echo "DEBUG: PKG_MANAGER=$PKG_MANAGER"
