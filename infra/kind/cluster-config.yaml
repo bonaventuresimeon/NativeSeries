@@ -16,11 +16,12 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
-  - containerPort: 30080
-    hostPort: 30080
-    protocol: TCP
   - containerPort: 30011
     hostPort: 30011
+    protocol: TCP
+    listenAddress: "0.0.0.0"
+  - containerPort: 30080
+    hostPort: 30080
     protocol: TCP
     listenAddress: "0.0.0.0"
   - containerPort: 30081

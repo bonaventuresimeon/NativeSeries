@@ -68,46 +68,11 @@ spec:
       app.kubernetes.io/name: nativeseries
       app.kubernetes.io/instance: nativeseries
 ---
-# Source: nativeseries/templates/secrets.yaml
-# Database Secret
-apiVersion: v1
-kind: Secret
-metadata:
-  name: nativeseries-db-secret
-  namespace: nativeseries
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-type: Opaque
-data:
-  password: cGFzc3dvcmQ=
-  username: YWRtaW4=
----
-# Source: nativeseries/templates/secrets.yaml
-# API Secret
-apiVersion: v1
-kind: Secret
-metadata:
-  name: nativeseries-api-secret
-  namespace: nativeseries
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-type: Opaque
-data:
-  apiKey: bXktYXBpLWtleQ==
----
 # Source: nativeseries/templates/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nativeseries-config
+  name: nativeseries
   labels:
     helm.sh/chart: nativeseries-0.1.0
     app.kubernetes.io/name: nativeseries
@@ -115,71 +80,8 @@ metadata:
     app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/managed-by: Helm
 data:
-  app_name: Student Tracker API
-  cache_ttl: "3600"
-  cors_origins: http://localhost:3000,http://54.166.101.159:30011
-  environment: production
+  app_name: NativeSeries API
   log_level: INFO
-  max_connections: "100"
-  timeout_seconds: "30"
----
-# Source: nativeseries/templates/configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: nativeseries-logging-config
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-data:
-  log-config.yaml: |
-    version: 1
-    formatters:
-      simple:
-        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    handlers:
-      console:
-        class: logging.StreamHandler
-        level: INFO
-        formatter: simple
-        stream: ext://sys.stdout
-      file:
-        class: logging.handlers.RotatingFileHandler
-        level: INFO
-        formatter: simple
-        filename: /app/logs/app.log
-        maxBytes: 10485760
-        backupCount: 5
-    loggers:
-      app:
-        level: INFO
-        handlers: [console, file]
-        propagate: false
-    root:
-      level: INFO
-      handlers: [console]
----
-# Source: nativeseries/templates/logging-pvc.yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: nativeseries-logs-pvc
-  namespace: nativeseries
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
 ---
 # Source: nativeseries/templates/service.yaml
 apiVersion: v1
@@ -195,7 +97,7 @@ metadata:
 spec:
   type: NodePort
   ports:
-    - port: 8000
+    - port: 80
       targetPort: 8000
       nodePort: 30011
       protocol: TCP
@@ -216,6 +118,7 @@ metadata:
     app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: nativeseries
@@ -226,17 +129,22 @@ spec:
         app.kubernetes.io/name: nativeseries
         app.kubernetes.io/instance: nativeseries
       annotations:
-        checksum/config: 5259c77a0bf60d25323477ae372733c5a517600ea00e8c4db11641788f3e7cc1
-        checksum/secret: cbd2863c3ea5451d1c084e1db17548a46745db44d49aea250f8d77f6f3d57cf2
+        checksum/config: 8a821c171daf78cd67a5021bc28929fbece00af7e9293ca2fb72a00a4a662cb6
     spec:
       securityContext:
         fsGroup: 2000
-        runAsNonRoot: true
-        runAsUser: 1000
       containers:
         - name: nativeseries
           image: "ghcr.io/bonaventuresimeon/nativeseries:latest"
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
           ports:
             - name: http
               containerPort: 8000
@@ -257,6 +165,17 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          env:
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nativeseries
+                  key: app_name
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: nativeseries
+                  key: log_level
           resources:
             limits:
               cpu: 500m
@@ -264,216 +183,42 @@ spec:
             requests:
               cpu: 250m
               memory: 256Mi
-          securityContext:
-            fsGroup: 1000
-            runAsNonRoot: true
-            runAsUser: 1000
-          env:
-            - name: ENVIRONMENT
-              value: "production"
-            - name: MONGO_URI
-              value: "mongodb://localhost:27017"
-            - name: DATABASE_NAME
-              value: "student_project_tracker"
-            - name: COLLECTION_NAME
-              value: "students"
-            - name: PRODUCTION_URL
-              value: "http://54.166.101.159:30011"
-            - name: APP_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: nativeseries-config
-                  key: app_name
-            - name: LOG_LEVEL
-              valueFrom:
-                configMapKeyRef:
-                  name: nativeseries-config
-                  key: log_level
-            - name: DB_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-db-secret
-                  key: db-username
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-db-secret
-                  key: db-password
-            - name: DB_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-db-secret
-                  key: db-host
-            - name: DB_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-db-secret
-                  key: db-name
-            - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-api-secret
-                  key: api-key
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-api-secret
-                  key: jwt-secret
-            - name: SESSION_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: nativeseries-api-secret
-                  key: session-secret
           volumeMounts:
-            - name: config
-              mountPath: /app/config
-              readOnly: true
-            - name: logs
-              mountPath: /app/logs
-              readOnly: false
+            - name: tmp
+              mountPath: /tmp
+            - name: var-run
+              mountPath: /var/run
       volumes:
-        - name: config
-          configMap:
-            name: nativeseries-config
-        - name: logs
-          persistentVolumeClaim:
-            claimName: nativeseries-logs-pvc
+        - name: tmp
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
 ---
-# Source: nativeseries/templates/hpa.yaml
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
+# Source: nativeseries/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: nativeseries-hpa
+  name: nativeseries
   labels:
     helm.sh/chart: nativeseries-0.1.0
     app.kubernetes.io/name: nativeseries
     app.kubernetes.io/instance: nativeseries
     app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/managed-by: Helm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: nativeseries
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-    - type: Resource
-      resource:
-        name: cpu
-        target:
-          type: Utilization
-          averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80
-  behavior:
-    scaleDown:
-      policies:
-      - periodSeconds: 60
-        type: Percent
-        value: 10
-      stabilizationWindowSeconds: 300
-    scaleUp:
-      policies:
-      - periodSeconds: 15
-        type: Percent
-        value: 100
-      - periodSeconds: 15
-        type: Pods
-        value: 4
-      selectPolicy: Max
-      stabilizationWindowSeconds: 60
----
-# Source: nativeseries/templates/podmonitor.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: nativeseries-pod-monitor
-  namespace: nativeseries
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: nativeseries
-      app.kubernetes.io/instance: nativeseries
-  podMetricsEndpoints:
-  - port: http
-    path: /metrics
-    interval: 30s
-    scrapeTimeout: 10s
----
-# Source: nativeseries/templates/prometheus-rules.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: nativeseries-alerts
-  namespace: nativeseries
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-    release: prometheus
-    prometheus: kube-prometheus
-    role: alert-rules
-spec:
-  groups:
-  - name: nativeseries-alerts
-    rules:
-    - alert: AppDown
-      expr: up{app="nativeseries"} == 0
-      for: 1m
-      labels:
-        severity: critical
-      annotations:
-        summary: Application is down
-    - alert: HighCPUUsage
-      expr: rate(container_cpu_usage_seconds_total{container="nativeseries"}[5m]) > 0.8
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        description: CPU usage is above 80% for {{ $labels.app }}
-        summary: High CPU usage for {{ $labels.app }}
-    - alert: HighMemoryUsage
-      expr: (container_memory_usage_bytes{container="nativeseries"} / container_spec_memory_limit_bytes{container="nativeseries"}) > 0.8
-      for: 5m
-      labels:
-        severity: warning
-      annotations:
-        description: Memory usage is above 80% for {{ $labels.app }}
-        summary: High memory usage for {{ $labels.app }}
----
-# Source: nativeseries/templates/servicemonitor.yaml
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: nativeseries-monitor
-  namespace: nativeseries
-  labels:
-    helm.sh/chart: nativeseries-0.1.0
-    app.kubernetes.io/name: nativeseries
-    app.kubernetes.io/instance: nativeseries
-    app.kubernetes.io/version: "1.0.0"
-    app.kubernetes.io/managed-by: Helm
-    release: prometheus
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: nativeseries
-      app.kubernetes.io/instance: nativeseries
-  endpoints:
-    - port: http
-      path: /metrics
-      interval: 30s
-      scrapeTimeout: 10s
+  ingressClassName: nginx
+  rules:
+    - host: "nativeseries.local"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nativeseries
+                port:
+                  number: 80

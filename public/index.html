@@ -1,148 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NativeSeries - Student Tracking System</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 800px;
-            margin: 50px auto;
-            background: white;
-            border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            text-align: center;
-        }
-        .title {
-            color: #2c3e50;
-            margin: 0;
-            font-size: 2.5em;
-        }
-        .subtitle {
-            color: #7f8c8d;
-            margin: 10px 0 30px;
-        }
-        .netlify-badge {
-            background: #00AD9F;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-        .endpoint {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 10px 0;
-            text-align: left;
-        }
-        .endpoint code {
-            background: #e9ecef;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .button {
-            display: inline-block;
-            background: #007bff;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 5px;
-            transition: background 0.3s;
-        }
-        .button:hover {
-            background: #0056b3;
-        }
-        .status {
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-    </style>
+  <title>Cloud Native Series - Student Tracker</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: #fff;
+      text-align: center;
+      padding: 50px;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      font-size: 2.5em;
+      background: linear-gradient(90deg, #ff8a00, #e52e71);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    p {
+      font-size: 1.3em;
+      margin: 20px 0;
+      color: #ffe;
+      text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    }
+
+    button {
+      background: linear-gradient(145deg, #6a11cb, #2575fc);
+      border: none;
+      color: white;
+      padding: 14px 30px;
+      margin: 15px;
+      font-size: 1em;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 15px 5px rgba(0, 255, 255, 0.4);
+      background: linear-gradient(145deg, #ff416c, #ff4b2b);
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+
+    footer {
+      margin-top: 100px;
+      padding: 25px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-weight: 600;
+      animation: fadeInUp 1.5s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="title">NativeSeries <span class="netlify-badge">NETLIFY</span></h1>
-        <p class="subtitle">Student Tracking & Management System</p>
-        
-        <div class="endpoint">
-            <h3>🚀 Successfully Deployed on Netlify!</h3>
-            <p>Your FastAPI application is now running on Netlify Functions.</p>
-        </div>
-        
-        <div class="endpoint">
-            <h3>📋 Available Endpoints:</h3>
-            <p><code>/health</code> - Health check endpoint</p>
-            <p><code>/api/students</code> - Get all students</p>
-            <p><code>/.netlify/functions/api/*</code> - API functions</p>
-        </div>
-        
-        <div class="endpoint">
-            <h3>🔧 Environment:</h3>
-            <p>Platform: <strong>Netlify Functions</strong></p>
-            <p>Runtime: <strong>Python 3.13</strong></p>
-            <p>Framework: <strong>FastAPI</strong></p>
-        </div>
-        
-        <div class="endpoint">
-            <h3>🧪 Test the API:</h3>
-            <a href="/health" class="button" target="_blank">Health Check</a>
-            <a href="/api/students" class="button" target="_blank">Students API</a>
-            <a href="/.netlify/functions/api/health" class="button" target="_blank">Function Health</a>
-        </div>
-        
-        <div class="endpoint">
-            <h3>📊 API Status:</h3>
-            <div id="status" class="status info">Checking API status...</div>
-        </div>
-    </div>
+  <h1>Welcome to the Cloud Native Series with Chisom!</h1>
+  <p>Total Registered Students: {{ total }}</p>
 
-    <script>
-        // Check API status
-        async function checkAPIStatus() {
-            try {
-                const response = await fetch('/health');
-                const data = await response.json();
-                document.getElementById('status').innerHTML = `
-                    <strong>✅ API Status: Healthy</strong><br>
-                    Message: ${data.message}<br>
-                    Environment: ${data.environment}
-                `;
-                document.getElementById('status').className = 'status success';
-            } catch (error) {
-                document.getElementById('status').innerHTML = `
-                    <strong>❌ API Status: Error</strong><br>
-                    Error: ${error.message}
-                `;
-                document.getElementById('status').className = 'status info';
-            }
-        }
-        
-        // Check status on page load
-        checkAPIStatus();
-        
-        // Check status every 30 seconds
-        setInterval(checkAPIStatus, 30000);
-    </script>
+  <button onclick="window.location.href='/register'">Register</button>
+  <button onclick="window.location.href='/progress'">Check Progress</button>
+  <button onclick="window.location.href='/update'">Update Progress</button>
+  <button onclick="window.location.href='/admin'">Admin Panel</button> <!-- ✅ New Admin Button -->
+
+  <footer>
+    Designed with ❤️ by Bonaventure Simeon
+  </footer>
 </body>
 </html>
