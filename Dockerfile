@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# Multi-stage build for NativeSeries
+FROM python:3.11-slim as base
 
 WORKDIR /app
 
@@ -16,6 +17,20 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Test stage
+FROM base as test
+
+# Copy application code for testing
+COPY app/ ./app/
+COPY templates/ ./templates/
+COPY pytest.ini .flake8 ./
+
+# Run tests
+RUN python -m pytest app/ -v --tb=short
+
+# Production stage
+FROM base as production
 
 # Copy application code
 COPY app/ ./app/
