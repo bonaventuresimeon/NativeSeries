@@ -851,7 +851,7 @@ if kubectl get nodes --no-headers | grep -q "Ready"; then
     ready_nodes=$(kubectl get nodes --no-headers | grep "Ready" | wc -l)
     total_nodes=$(kubectl get nodes --no-headers | wc -l)
     # Use printf instead of print_status for parentheses in message to avoid syntax error
-    printf "Cluster is ready (%s/%s nodes ready)\n" "$ready_nodes" "$total_nodes"
+    printf "Cluster is ready: %s of %s nodes ready\n" "$ready_nodes" "$total_nodes"
 else
     print_warning "⚠ Cluster nodes may not be fully ready"
 fi
@@ -1059,7 +1059,7 @@ spec:
 EOF
 
     # Validate YAML syntax
-    if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))" >/dev/null 2>&1; then
+    if python3 -c 'import yaml; yaml.safe_load(open("argocd/application.yaml"))' >/dev/null 2>&1; then
         print_status "✓ ArgoCD application validation passed"
         return 0
     else
@@ -1177,7 +1177,12 @@ print_section "PHASE 8: Manifest Validation"
 # Function to validate YAML files
 validate_yaml_file() {
     local file="$1"
-    if python3 -c "import yaml; list(yaml.safe_load_all(open('$file')))" >/dev/null 2>&1; then
+    if python3 - "$file" <<'EOF' >/dev/null 2>&1
+import sys, yaml
+with open(sys.argv[1]) as f:
+    list(yaml.safe_load_all(f))
+EOF
+    then
         print_status "✓ $file validation passed"
         return 0
     else
@@ -1225,7 +1230,7 @@ deploy_with_retry() {
             return 0
         else
             retry_count=$((retry_count + 1))
-            print_warning "⚠ Failed to apply $manifest (attempt $retry_count/$max_retries)"
+            print_warning "⚠ Failed to apply $manifest, attempt $retry_count of $max_retries"
             
             # Show detailed error information
             print_info "Error details:"
@@ -1298,13 +1303,13 @@ troubleshoot_kubectl() {
     echo ""
     echo -e "${WHITE}6. Resource issues:${NC}"
     echo "   - Check events: kubectl get events --all-namespaces"
-    echo "   - Check pod logs: kubectl logs -n <namespace> <pod-name>"
-    echo "   - Describe resources: kubectl describe <resource> <name> -n <namespace>"
+    echo "   - Check pod logs: kubectl logs -n \<namespace\> \<pod-name\>"
+    echo "   - Describe resources: kubectl describe \<resource\> \<name\> -n \<namespace\>"
     echo ""
     echo -e "${WHITE}7. Network issues:${NC}"
     echo "   - Check services: kubectl get services --all-namespaces"
     echo "   - Check endpoints: kubectl get endpoints --all-namespaces"
-    echo "   - Test connectivity: kubectl run test-pod --image=busybox --rm -it --restart=Never -- nslookup <service>"
+    echo "   - Test connectivity: kubectl run test-pod --image=busybox --rm -it --restart=Never -- nslookup \<service\>"
     echo ""
 }
 
@@ -1446,7 +1451,7 @@ print_section "KUBECTL HEALTH CHECK"
 if ! check_kubectl_health; then
     print_error "kubectl health check failed. Please fix the issues above before proceeding."
     # Auto-accept continue prompt for automation
-    echo "Auto-accepting continue prompt after kubectl health check failure (non-interactive mode)"
+    echo "Auto-accepting continue prompt after kubectl health check failure - non-interactive mode"
     REPLY="y"
     echo
     #if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -1629,13 +1634,13 @@ wait_for_pods() {
             local ready_pods=$(kubectl get pods -n "$namespace" -l "$label_selector" --no-headers | grep "Running" | wc -l)
             local total_pods=$(kubectl get pods -n "$namespace" -l "$label_selector" --no-headers | wc -l)
             if [ "$ready_pods" -eq "$total_pods" ] && [ "$total_pods" -gt 0 ]; then
-                print_status "All pods in $namespace are ready ($ready_pods/$total_pods)"
+                print_status "All pods in $namespace are ready: $ready_pods of $total_pods"
                 return 0
             fi
         fi
         sleep $interval
         elapsed=$((elapsed + interval))
-        print_info "Still waiting... ($elapsed/$timeout seconds elapsed)"
+        print_info "Still waiting... $elapsed of $timeout seconds elapsed"
     done
     
     print_warning "Timeout waiting for pods in $namespace"
