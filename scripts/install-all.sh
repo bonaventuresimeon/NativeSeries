@@ -837,7 +837,8 @@ print_info "Verifying cluster readiness..."
 if kubectl get nodes --no-headers | grep -q "Ready"; then
     ready_nodes=$(kubectl get nodes --no-headers | grep "Ready" | wc -l)
     total_nodes=$(kubectl get nodes --no-headers | wc -l)
-    print_status "✓ Cluster is ready ($ready_nodes/$total_nodes nodes ready)"
+    # Use printf instead of print_status for parentheses in message to avoid syntax error
+    printf "%b\n" "${GREEN}[✅ SUCCESS]${NC} Cluster is ready ( [0m$ready_nodes/$total_nodes nodes ready)"
 else
     print_warning "⚠ Cluster nodes may not be fully ready"
 fi
