@@ -291,16 +291,25 @@ EOF
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+        
     - name: Run Bandit security scan
       run: |
         echo "🔒 Running security scan..."
-        pip install bandit
         bandit -r app/ -f json -o bandit-report.json || echo "⚠️ Security issues found (continuing...)"
         
     - name: Run Safety check
       run: |
         echo "🔒 Checking for known vulnerabilities..."
-        pip install safety
         safety check --json --output safety-report.json || echo "⚠️ Vulnerability issues found (continuing...)"
         
     - name: Upload security reports
