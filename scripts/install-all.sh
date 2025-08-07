@@ -753,8 +753,17 @@ if kubectl cluster-info >/dev/null 2>&1; then
     kubectl apply -f deployment/production/01-namespace.yaml
     print_status "Namespaces created"
     
-    kubectl apply -f deployment/production/02-application.yaml
-    print_status "Application deployed"
+    # Deploy application using Helm to NativeSeries namespace
+    print_info "Deploying application using Helm to ${NAMESPACE} namespace..."
+    helm upgrade --install ${APP_NAME} helm-chart \
+        --namespace ${NAMESPACE} \
+        --create-namespace \
+        --set image.repository=${DOCKER_IMAGE} \
+        --set image.tag=latest \
+        --set service.nodePort=${PRODUCTION_PORT} \
+        --wait \
+        --timeout=10m
+    print_status "Application deployed to ${NAMESPACE} namespace"
     
     # Install ArgoCD
     kubectl apply -n ${ARGOCD_NAMESPACE} -f https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml
