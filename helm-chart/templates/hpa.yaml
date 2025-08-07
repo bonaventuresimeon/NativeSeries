@@ -1,4 +1,4 @@
-{{- if .Values.hpa.enabled }}
+{{- if .Values.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -10,27 +10,27 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "nativeseries.fullname" . }}
-  minReplicas: {{ .Values.hpa.minReplicas }}
-  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
-    {{- if .Values.hpa.targetCPUUtilizationPercentage }}
+    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.hpa.targetCPUUtilizationPercentage }}
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
     {{- end }}
-    {{- if .Values.hpa.targetMemoryUtilizationPercentage }}
+    {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: {{ .Values.hpa.targetMemoryUtilizationPercentage }}
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
     {{- end }}
-  {{- if .Values.hpa.behavior }}
+  {{- if .Values.autoscaling.behavior }}
   behavior:
-    {{- toYaml .Values.hpa.behavior | nindent 4 }}
+    {{- toYaml .Values.autoscaling.behavior | nindent 4 }}
   {{- end }}
 {{- end }}

@@ -1,6 +1,6 @@
 apiVersion: v2
 name: nativeseries
-description: A Helm chart for deploying nativeseries application with ArgoCD
+description: A Helm chart for deploying NativeSeries application with ArgoCD
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
@@ -10,7 +10,7 @@ keywords:
   - kubernetes
   - helm
   - argocd
-  - student-management
+  - nativeseries
 home: https://github.com/bonaventuresimeon/nativeseries
 sources:
 - https://github.com/bonaventuresimeon/nativeseries
