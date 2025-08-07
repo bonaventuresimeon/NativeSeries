@@ -93,7 +93,8 @@ cleanup_on_error() {
     fi
     
     # Remove temporary files
-    rm -f get-docker.sh kind kubectl helm argocd yq
+    rm -f get-docker.sh kind kubectl helm yq
+    rm -rf argocd
     rm -rf /tmp/helm-* /tmp/kind-* /tmp/kubectl-* /tmp/argocd-* /tmp/yq-*
     
     # Clean up virtual environment if it was created
