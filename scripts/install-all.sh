@@ -753,6 +753,18 @@ if kubectl cluster-info >/dev/null 2>&1; then
     kubectl apply -f deployment/production/01-namespace.yaml
     print_status "Namespaces created"
     
+    # Clean up any existing resources that might conflict with Helm
+    print_info "Cleaning up existing resources in ${NAMESPACE} namespace..."
+    kubectl delete networkpolicy -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete secret -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete configmap -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete deployment -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete service -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete ingress -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete hpa -n ${NAMESPACE} --all --ignore-not-found=true
+    kubectl delete pdb -n ${NAMESPACE} --all --ignore-not-found=true
+    print_status "Existing resources cleaned up"
+    
     # Deploy application using Helm to NativeSeries namespace
     print_info "Deploying application using Helm to ${NAMESPACE} namespace..."
     helm upgrade --install ${APP_NAME} helm-chart \
