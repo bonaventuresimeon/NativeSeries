@@ -1,11 +1,69 @@
 #!/bin/bash
 
 # NativeSeries - Complete Installation & Deployment Script
-# Version: 6.2.0 - Enhanced with robust Helm deployment and comprehensive cleanup
+# Version: 6.3.0 - Enhanced with comprehensive tool installation and error handling
 # This script combines all installation, deployment, monitoring, and validation scripts
 # Updated for NativeSeries with corrected manifests and Helm charts
 
 set -euo pipefail
+
+# Global error handling
+trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
+
+# Function to handle errors
+error_handler() {
+    local exit_code=$1
+    local line_no=$2
+    local bash_lineno=$3
+    local last_command=$4
+    local func_stack=$5
+    
+    echo -e "\n${RED}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║                    ❌ INSTALLATION FAILED! ❌                    ║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo -e "${RED}Error Details:${NC}"
+    echo -e "${WHITE}  • Exit Code: $exit_code${NC}"
+    echo -e "${WHITE}  • Line Number: $line_no${NC}"
+    echo -e "${WHITE}  • Command: $last_command${NC}"
+    echo -e "${WHITE}  • Function Stack: $func_stack${NC}"
+    echo ""
+    echo -e "${YELLOW}🔧 Troubleshooting Steps:${NC}"
+    echo -e "${WHITE}1. Check the error message above${NC}"
+    echo -e "${WHITE}2. Verify system requirements and permissions${NC}"
+    echo -e "${WHITE}3. Run cleanup script: ./scripts/cleanup-direct.sh${NC}"
+    echo -e "${WHITE}4. Check logs and try again${NC}"
+    echo ""
+    echo -e "${CYAN}📖 For more help, check the troubleshooting section in the script${NC}"
+    echo ""
+    
+    # Cleanup on error
+    cleanup_on_error
+    
+    exit $exit_code
+}
+
+# Function to cleanup on error
+cleanup_on_error() {
+    echo -e "${YELLOW}🧹 Performing emergency cleanup...${NC}"
+    
+    # Stop any running containers
+    if command_exists docker; then
+        sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
+        sudo docker rm $(sudo docker ps -aq) 2>/dev/null || true
+    fi
+    
+    # Remove temporary files
+    rm -f get-docker.sh kind kubectl helm argocd yq
+    rm -rf /tmp/helm-* /tmp/kind-* /tmp/kubectl-* /tmp/argocd-* /tmp/yq-*
+    
+    # Clean up virtual environment if it was created
+    if [ -d "venv" ] && [ ! -f "venv/.keep" ]; then
+        rm -rf venv
+    fi
+    
+    echo -e "${GREEN}✓ Emergency cleanup completed${NC}"
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -89,6 +147,79 @@ print_warning() { echo -e "${YELLOW}[⚠️  WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[❌ ERROR]${NC} $1"; }
 print_info() { echo -e "${CYAN}[ℹ️  INFO]${NC} $1"; }
 
+# Function to check system requirements
+check_system_requirements() {
+    print_section "System Requirements Check"
+    
+    local requirements_met=true
+    
+    # Check OS
+    if [[ "$OS" == "linux" ]]; then
+        print_status "✓ Operating System: Linux"
+    else
+        print_error "✗ Unsupported OS: $OS (Only Linux is supported)"
+        requirements_met=false
+    fi
+    
+    # Check architecture
+    if [[ "$ARCH" == "amd64" || "$ARCH" == "arm64" ]]; then
+        print_status "✓ Architecture: $ARCH"
+    else
+        print_error "✗ Unsupported architecture: $ARCH (Only amd64 and arm64 are supported)"
+        requirements_met=false
+    fi
+    
+    # Check available disk space (minimum 5GB)
+    local available_space=$(df / | awk 'NR==2 {print $4}')
+    local required_space=5242880  # 5GB in KB
+    if [ "$available_space" -gt "$required_space" ]; then
+        print_status "✓ Available disk space: $(($available_space / 1024 / 1024))GB"
+    else
+        print_error "✗ Insufficient disk space: $(($available_space / 1024 / 1024))GB (Minimum 5GB required)"
+        requirements_met=false
+    fi
+    
+    # Check available memory (minimum 4GB)
+    local available_memory=$(free -k | awk 'NR==2{print $2}')
+    local required_memory=4194304  # 4GB in KB
+    if [ "$available_memory" -gt "$required_memory" ]; then
+        print_status "✓ Available memory: $(($available_memory / 1024 / 1024))GB"
+    else
+        print_error "✗ Insufficient memory: $(($available_memory / 1024 / 1024))GB (Minimum 4GB required)"
+        requirements_met=false
+    fi
+    
+    # Check if running as root
+    if [ "$EUID" -eq 0 ]; then
+        print_warning "⚠ Running as root (not recommended for security)"
+    else
+        print_status "✓ Not running as root"
+    fi
+    
+    # Check sudo access
+    if sudo -n true 2>/dev/null; then
+        print_status "✓ Sudo access available"
+    else
+        print_error "✗ Sudo access required but not available"
+        requirements_met=false
+    fi
+    
+    # Check internet connectivity
+    if curl -s --connect-timeout 5 https://www.google.com >/dev/null 2>&1; then
+        print_status "✓ Internet connectivity available"
+    else
+        print_error "✗ No internet connectivity (required for downloads)"
+        requirements_met=false
+    fi
+    
+    if [ "$requirements_met" = false ]; then
+        print_error "System requirements not met. Please fix the issues above and try again."
+        exit 1
+    fi
+    
+    print_status "✓ All system requirements met"
+}
+
 # Banner
 echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════════╗"
@@ -97,6 +228,9 @@ echo "║              Target: ${PRODUCTION_HOST}:${PRODUCTION_PORT}            
 echo "║              Full Stack Deployment with Monitoring              ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
+
+# Check system requirements first
+check_system_requirements
 
 # Confirmation
 echo -e "${YELLOW}This script will install and deploy the complete NativeSeries stack to:${NC}"
@@ -159,14 +293,18 @@ print_section "PHASE 2: Tool Detection and Installation"
 # Detect package manager first
 detect_package_manager
 
-# Function to install missing tools
+# Function to install missing tools with comprehensive error handling
 install_missing_tool() {
     local tool_name="$1"
     local install_command="$2"
     local check_command="$3"
+    local version_command="$4"
     
     if command_exists "$tool_name"; then
         print_status "✓ $tool_name is already installed"
+        if [ -n "$version_command" ]; then
+            eval "$version_command"
+        fi
         if [ -n "$check_command" ]; then
             eval "$check_command"
         fi
@@ -175,6 +313,9 @@ install_missing_tool() {
         print_info "Installing $tool_name..."
         if eval "$install_command"; then
             print_status "✓ $tool_name installed successfully"
+            if [ -n "$version_command" ]; then
+                eval "$version_command"
+            fi
             return 0
         else
             print_error "✗ Failed to install $tool_name"
@@ -183,86 +324,432 @@ install_missing_tool() {
     fi
 }
 
-# Install basic tools
-print_info "Installing basic system tools..."
-sudo $PKG_MANAGER install -y curl wget git unzip jq gcc make python3 python3-pip
+# Function to download and install binary tools
+install_binary_tool() {
+    local tool_name="$1"
+    local version="$2"
+    local download_url="$3"
+    local binary_name="$4"
+    
+    if command_exists "$tool_name"; then
+        print_status "✓ $tool_name is already installed"
+        $tool_name --version
+        return 0
+    fi
+    
+    print_info "Installing $tool_name v$version..."
+    
+    # Create temporary directory
+    local temp_dir=$(mktemp -d)
+    cd "$temp_dir"
+    
+    # Download the binary
+    if curl -L -o "$binary_name" "$download_url"; then
+        chmod +x "$binary_name"
+        sudo mv "$binary_name" "/usr/local/bin/$tool_name"
+        print_status "✓ $tool_name v$version installed successfully"
+        $tool_name --version
+        cd - > /dev/null
+        rm -rf "$temp_dir"
+        return 0
+    else
+        print_error "✗ Failed to download $tool_name"
+        cd - > /dev/null
+        rm -rf "$temp_dir"
+        return 1
+    fi
+}
 
-# Install virtualenv based on system
+# Function to install Node.js and npm
+install_nodejs() {
+    if command_exists node && command_exists npm; then
+        print_status "✓ Node.js and npm are already installed"
+        node --version
+        npm --version
+        return 0
+    fi
+    
+    print_info "Installing Node.js and npm..."
+    
+    # Install Node.js using NodeSource repository
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    else
+        curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+        sudo yum install -y nodejs
+    fi
+    
+    if command_exists node && command_exists npm; then
+        print_status "✓ Node.js and npm installed successfully"
+        node --version
+        npm --version
+        return 0
+    else
+        print_error "✗ Failed to install Node.js and npm"
+        return 1
+    fi
+}
+
+# Install basic system tools with comprehensive package list
+print_info "Installing basic system tools..."
 if [ "$PKG_MANAGER" = "apt" ]; then
-    install_missing_tool "python3-venv" "sudo apt-get install -y python3-venv" "python3 -m venv --help"
+    sudo apt-get update
+    sudo apt-get install -y \
+        curl wget git unzip jq gcc g++ make \
+        python3 python3-pip python3-venv python3-dev \
+        build-essential libssl-dev libffi-dev \
+        ca-certificates gnupg lsb-release \
+        software-properties-common apt-transport-https
 else
-    install_missing_tool "virtualenv" "sudo pip3 install virtualenv" "python3 -m virtualenv --help"
+    sudo yum update -y
+    sudo yum install -y \
+        curl wget git unzip jq gcc gcc-c++ make \
+        python3 python3-pip python3-devel \
+        openssl-devel libffi-devel \
+        ca-certificates gnupg2
+fi
+print_status "✓ Basic system tools installed"
+
+# Install Python virtual environment tools
+if [ "$PKG_MANAGER" = "apt" ]; then
+    install_missing_tool "python3-venv" "sudo apt-get install -y python3-venv" "python3 -m venv --help" "python3 -m venv --version"
+else
+    install_missing_tool "virtualenv" "sudo pip3 install virtualenv" "python3 -m virtualenv --help" "python3 -m virtualenv --version"
 fi
 
-# Install Docker
+# Install Docker with comprehensive setup
 print_info "Checking Docker installation..."
 if command_exists docker; then
     print_status "✓ Docker is already installed"
     docker --version
 else
     print_info "Installing Docker..."
+    
+    # Remove any old Docker installations
+    sudo $PKG_MANAGER remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+    
     if [ "$PKG_MANAGER" = "apt" ]; then
+        # Install Docker using official script
         curl -fsSL https://get.docker.com -o get-docker.sh
-        sudo sh get-docker.sh
+        sudo sh get-docker.sh --version 24.0.7
         sudo usermod -aG docker $USER
+        sudo systemctl start docker
+        sudo systemctl enable docker
         rm -f get-docker.sh
     else
-        sudo $PKG_MANAGER install -y docker
+        # Install Docker for RHEL/CentOS
+        sudo yum install -y yum-utils
+        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -aG docker $USER
     fi
-    print_status "✓ Docker installed successfully"
+    
+    # Verify Docker installation
+    if sudo docker --version; then
+        print_status "✓ Docker installed successfully"
+        # Test Docker functionality
+        if sudo docker run --rm hello-world >/dev/null 2>&1; then
+            print_status "✓ Docker functionality verified"
+        else
+            print_warning "⚠ Docker installed but functionality test failed"
+        fi
+    else
+        print_error "✗ Docker installation failed"
+        exit 1
+    fi
 fi
 
-# Install kubectl
+# Install Docker Compose
+print_info "Checking Docker Compose installation..."
+if command_exists docker-compose; then
+    print_status "✓ Docker Compose is already installed"
+    docker-compose --version
+else
+    print_info "Installing Docker Compose..."
+    
+    # Install Docker Compose v2
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt-get install -y docker-compose-plugin
+    else
+        sudo yum install -y docker-compose-plugin
+    fi
+    
+    # Fallback to manual installation if package manager fails
+    if ! command_exists docker-compose; then
+        local compose_version="v2.23.3"
+        sudo curl -L "https://github.com/docker/compose/releases/download/${compose_version}/docker-compose-${OS}-${ARCH}" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+    fi
+    
+    if command_exists docker-compose; then
+        print_status "✓ Docker Compose installed successfully"
+        docker-compose --version
+    else
+        print_error "✗ Docker Compose installation failed"
+        exit 1
+    fi
+fi
+
+# Install kubectl with version verification
 print_info "Installing kubectl..."
-curl -LO "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-rm -f kubectl
-print_status "✓ kubectl installed"
+install_binary_tool "kubectl" "$KUBECTL_VERSION" \
+    "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
+    "kubectl"
 
-# Install Helm
+# Install Helm with comprehensive setup
 print_info "Installing Helm..."
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-print_status "✓ Helm installed"
+if command_exists helm; then
+    print_status "✓ Helm is already installed"
+    helm version
+else
+    print_info "Installing Helm v$HELM_VERSION..."
+    
+    # Try official installation script first
+    if curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash; then
+        print_status "✓ Helm installed via official script"
+    else
+        # Fallback to manual installation
+        install_binary_tool "helm" "$HELM_VERSION" \
+            "https://get.helm.sh/helm-v${HELM_VERSION}-${OS}-${ARCH}.tar.gz" \
+            "${OS}-${ARCH}/helm"
+    fi
+    
+    # Verify Helm installation
+    if command_exists helm; then
+        helm version
+        print_status "✓ Helm installation verified"
+    else
+        print_error "✗ Helm installation failed"
+        exit 1
+    fi
+fi
 
-# Install Kind
+# Install Kind with comprehensive setup
 print_info "Installing Kind..."
-curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}"
-chmod +x ./kind
-sudo mv ./kind /usr/local/bin/kind
-print_status "✓ Kind installed"
+install_binary_tool "kind" "$KIND_VERSION" \
+    "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}" \
+    "kind"
+
+# Install ArgoCD CLI
+print_info "Installing ArgoCD CLI..."
+if command_exists argocd; then
+    print_status "✓ ArgoCD CLI is already installed"
+    argocd version --client
+else
+    print_info "Installing ArgoCD CLI..."
+    
+    # Install ArgoCD CLI
+    local argocd_cli_version="v2.9.3"
+    install_binary_tool "argocd" "$argocd_cli_version" \
+        "https://github.com/argoproj/argo-cd/releases/download/${argocd_cli_version}/argocd-${OS}-${ARCH}" \
+        "argocd"
+fi
+
+# Install Node.js and npm for Netlify CLI
+print_info "Installing Node.js and npm..."
+install_nodejs
+
+# Install Netlify CLI
+print_info "Installing Netlify CLI..."
+if command_exists netlify; then
+    print_status "✓ Netlify CLI is already installed"
+    netlify --version
+else
+    print_info "Installing Netlify CLI..."
+    if npm install -g netlify-cli; then
+        print_status "✓ Netlify CLI installed successfully"
+        netlify --version
+    else
+        print_warning "⚠ Netlify CLI installation failed, but continuing..."
+    fi
+fi
+
+# Install additional development tools
+print_info "Installing additional development tools..."
+
+# Install yq for YAML processing
+if ! command_exists yq; then
+    print_info "Installing yq..."
+    install_binary_tool "yq" "v4.40.5" \
+        "https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_${OS}_${ARCH}" \
+        "yq"
+fi
+
+# Install jq if not already installed
+if ! command_exists jq; then
+    print_info "Installing jq..."
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt-get install -y jq
+    else
+        sudo yum install -y jq
+    fi
+fi
+
+# Install tree for directory visualization
+if ! command_exists tree; then
+    print_info "Installing tree..."
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt-get install -y tree
+    else
+        sudo yum install -y tree
+    fi
+fi
+
+# Install htop for system monitoring
+if ! command_exists htop; then
+    print_info "Installing htop..."
+    if [ "$PKG_MANAGER" = "apt" ]; then
+        sudo apt-get install -y htop
+    else
+        sudo yum install -y htop
+    fi
+fi
+
+# Install additional Python tools
+print_info "Installing additional Python tools..."
+pip3 install --user --upgrade pip setuptools wheel
+pip3 install --user black flake8 pytest pytest-asyncio
+
+print_status "✓ All tools installed successfully"
 
 # ============================================================================
-# PHASE 3: APPLICATION SETUP
+# PHASE 3: TOOL VERIFICATION AND ENVIRONMENT SETUP
 # ============================================================================
 
-print_section "PHASE 3: Setting up Application Environment"
+print_section "PHASE 3: Tool Verification and Environment Setup"
 
-# Setup Python virtual environment
+# Function to verify tool installation
+verify_tool_installation() {
+    local tool_name="$1"
+    local version_flag="$2"
+    
+    if command_exists "$tool_name"; then
+        print_status "✓ $tool_name is available"
+        if [ -n "$version_flag" ]; then
+            $tool_name $version_flag 2>/dev/null || print_warning "⚠ Could not get $tool_name version"
+        fi
+        return 0
+    else
+        print_error "✗ $tool_name is not available"
+        return 1
+    fi
+}
+
+# Verify all critical tools
+print_info "Verifying tool installations..."
+critical_tools=(
+    "docker:--version"
+    "kubectl:version --client"
+    "helm:version"
+    "kind:version"
+    "python3:--version"
+    "pip3:--version"
+    "git:--version"
+    "curl:--version"
+    "wget:--version"
+    "jq:--version"
+)
+
+verification_failed=false
+for tool_info in "${critical_tools[@]}"; do
+    IFS=':' read -r tool_name version_flag <<< "$tool_info"
+    if ! verify_tool_installation "$tool_name" "$version_flag"; then
+        verification_failed=true
+    fi
+done
+
+if [ "$verification_failed" = true ]; then
+    print_error "Some critical tools are missing. Please check the installation and try again."
+    exit 1
+fi
+
+print_status "✓ All critical tools verified"
+
+# Verify Docker daemon is running
+print_info "Verifying Docker daemon..."
+if sudo docker info >/dev/null 2>&1; then
+    print_status "✓ Docker daemon is running"
+else
+    print_error "✗ Docker daemon is not running. Starting Docker..."
+    sudo systemctl start docker
+    if sudo docker info >/dev/null 2>&1; then
+        print_status "✓ Docker daemon started successfully"
+    else
+        print_error "✗ Failed to start Docker daemon"
+        exit 1
+    fi
+fi
+
+# ============================================================================
+# PHASE 4: APPLICATION SETUP
+# ============================================================================
+
+print_section "PHASE 4: Setting up Application Environment"
+
+# Setup Python virtual environment with comprehensive error handling
 if [ ! -d "venv" ]; then
     print_info "Creating Python virtual environment..."
     if [ "$PKG_MANAGER" = "apt" ]; then
-        python3 -m venv venv
+        if python3 -m venv venv; then
+            print_status "✓ Virtual environment created using python3-venv"
+        else
+            print_error "✗ Failed to create virtual environment with python3-venv"
+            exit 1
+        fi
     else
-        python3 -m virtualenv venv
+        if python3 -m virtualenv venv; then
+            print_status "✓ Virtual environment created using virtualenv"
+        else
+            print_error "✗ Failed to create virtual environment with virtualenv"
+            exit 1
+        fi
     fi
-    print_status "Virtual environment created"
+else
+    print_status "✓ Virtual environment already exists"
 fi
 
-# Install Python dependencies
+# Activate virtual environment and install Python dependencies
 print_info "Installing Python dependencies..."
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt || pip install fastapi uvicorn pymongo python-multipart
-print_status "Python dependencies installed"
+if source venv/bin/activate; then
+    print_status "✓ Virtual environment activated"
+    
+    # Upgrade pip and install build tools
+    pip install --upgrade pip setuptools wheel
+    
+    # Install Python dependencies with comprehensive error handling
+    if [ -f "requirements.txt" ]; then
+        print_info "Installing dependencies from requirements.txt..."
+        if pip install -r requirements.txt; then
+            print_status "✓ Python dependencies installed from requirements.txt"
+        else
+            print_warning "⚠ Some dependencies failed to install from requirements.txt, trying fallback..."
+            # Fallback to essential packages
+            pip install fastapi uvicorn pymongo python-multipart jinja2 aiofiles httpx motor hvac python-jose passlib python-dotenv redis pytest pytest-asyncio black flake8 gunicorn psutil mangum
+            print_status "✓ Essential Python dependencies installed"
+        fi
+    else
+        print_warning "⚠ requirements.txt not found, installing essential packages..."
+        pip install fastapi uvicorn pymongo python-multipart jinja2 aiofiles httpx motor hvac python-jose passlib python-dotenv redis pytest pytest-asyncio black flake8 gunicorn psutil mangum
+        print_status "✓ Essential Python dependencies installed"
+    fi
+    
+    # Verify key Python packages
+    print_info "Verifying Python package installations..."
+    python -c "import fastapi, uvicorn, pymongo; print('✓ Core packages verified')" || print_warning "⚠ Some core packages may not be properly installed"
+    
+else
+    print_error "✗ Failed to activate virtual environment"
+    exit 1
+fi
 
 # ============================================================================
-# PHASE 4: DOCKER IMAGE BUILD
+# PHASE 5: DOCKER IMAGE BUILD
 # ============================================================================
 
-print_section "PHASE 4: Building Docker Image"
+print_section "PHASE 5: Building Docker Image"
 
 print_info "Building Docker image..."
 DOCKER_CMD="sudo docker"
@@ -289,10 +776,10 @@ $DOCKER_CMD stop test-app || true
 $DOCKER_CMD rm test-app || true
 
 # ============================================================================
-# PHASE 5: KUBERNETES CLUSTER SETUP
+# PHASE 6: KUBERNETES CLUSTER SETUP
 # ============================================================================
 
-print_section "PHASE 5: Setting up Kubernetes Cluster"
+print_section "PHASE 6: Setting up Kubernetes Cluster"
 
 # Create Kind cluster configuration
 mkdir -p infra/kind
@@ -356,10 +843,10 @@ if command -v kind >/dev/null 2>&1 && kind get clusters | grep -q gitops-cluster
 fi
 
 # ============================================================================
-# PHASE 6: DEPLOYMENT PREPARATION
+# PHASE 7: DEPLOYMENT PREPARATION
 # ============================================================================
 
-print_section "PHASE 6: Preparing Deployment Manifests"
+print_section "PHASE 7: Preparing Deployment Manifests"
 
 # Create deployment directories
 mkdir -p deployment/production
@@ -1370,5 +1857,152 @@ echo ""
 # Clean up temporary files
 rm -f get-docker.sh
 
+# ============================================================================
+# FINAL VERIFICATION AND CLEANUP
+# ============================================================================
+
+print_section "Final Verification and Cleanup"
+
+# Function to perform final health checks
+perform_final_health_checks() {
+    print_info "Performing final health checks..."
+    
+    local health_checks_passed=0
+    local total_health_checks=0
+    
+    # Check application health
+    total_health_checks=$((total_health_checks + 1))
+    if test_application_health "http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health" "NativeSeries Application"; then
+        health_checks_passed=$((health_checks_passed + 1))
+    fi
+    
+    # Check ArgoCD health
+    total_health_checks=$((total_health_checks + 1))
+    if test_application_health "http://${PRODUCTION_HOST}:${ARGOCD_PORT}" "ArgoCD"; then
+        health_checks_passed=$((health_checks_passed + 1))
+    fi
+    
+    # Check Grafana health
+    total_health_checks=$((total_health_checks + 1))
+    if test_application_health "http://${PRODUCTION_HOST}:${GRAFANA_PORT}" "Grafana"; then
+        health_checks_passed=$((health_checks_passed + 1))
+    fi
+    
+    # Check Prometheus health
+    total_health_checks=$((total_health_checks + 1))
+    if test_application_health "http://${PRODUCTION_HOST}:${PROMETHEUS_PORT}" "Prometheus"; then
+        health_checks_passed=$((health_checks_passed + 1))
+    fi
+    
+    # Calculate success rate
+    local final_success_rate=$((health_checks_passed * 100 / total_health_checks))
+    
+    if [ $final_success_rate -ge 80 ]; then
+        print_status "✓ Final health checks passed: $health_checks_passed/$total_health_checks ($final_success_rate%)"
+        return 0
+    else
+        print_warning "⚠ Final health checks: $health_checks_passed/$total_health_checks ($final_success_rate%)"
+        return 1
+    fi
+}
+
+# Function to clean up temporary files and directories
+cleanup_temporary_files() {
+    print_info "Cleaning up temporary files..."
+    
+    # Remove temporary files
+    rm -f get-docker.sh kind kubectl helm argocd yq
+    
+    # Clean up temporary directories
+    rm -rf /tmp/helm-* /tmp/kind-* /tmp/kubectl-* /tmp/argocd-* /tmp/yq-*
+    
+    # Clean up Docker system
+    if command_exists docker; then
+        print_info "Cleaning up Docker system..."
+        sudo docker system prune -f >/dev/null 2>&1 || true
+    fi
+    
+    print_status "✓ Temporary files cleaned up"
+}
+
+# Function to display troubleshooting information
+display_troubleshooting_info() {
+    print_info "Troubleshooting Information:"
+    echo ""
+    echo -e "${YELLOW}🔧 Common Issues and Solutions:${NC}"
+    echo ""
+    echo -e "${WHITE}1. If services are not accessible:${NC}"
+    echo -e "${CYAN}   • Check if ports are open: sudo netstat -tlnp | grep -E ':(30011|30080|30081|30082|30083)'${NC}"
+    echo -e "${CYAN}   • Verify firewall settings: sudo ufw status or sudo iptables -L${NC}"
+    echo ""
+    echo -e "${WHITE}2. If pods are not running:${NC}"
+    echo -e "${CYAN}   • Check pod status: kubectl get pods --all-namespaces${NC}"
+    echo -e "${CYAN}   • Check pod logs: kubectl logs -n <namespace> <pod-name>${NC}"
+    echo -e "${CYAN}   • Check events: kubectl get events --all-namespaces --sort-by='.lastTimestamp'${NC}"
+    echo ""
+    echo -e "${WHITE}3. If Docker issues occur:${NC}"
+    echo -e "${CYAN}   • Restart Docker: sudo systemctl restart docker${NC}"
+    echo -e "${CYAN}   • Check Docker status: sudo systemctl status docker${NC}"
+    echo ""
+    echo -e "${WHITE}4. If ArgoCD login fails:${NC}"
+    echo -e "${CYAN}   • Get admin password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d${NC}"
+    echo -e "${CYAN}   • Reset password: kubectl -n argocd patch secret argocd-secret -p '{"stringData":{"admin.password":"$(openssl rand -base64 32)"}}'${NC}"
+    echo ""
+    echo -e "${WHITE}5. Emergency cleanup commands:${NC}"
+    echo -e "${CYAN}   • Clean all: ./scripts/cleanup-direct.sh${NC}"
+    echo -e "${CYAN}   • Clean with backup: ./scripts/cleanup-with-backup.sh${NC}"
+    echo -e "${CYAN}   • Fix Helm deployment: ./scripts/fix-helm-deployment.sh${NC}"
+    echo ""
+}
+
+# Perform final verification
+if perform_final_health_checks; then
+    print_status "✓ All health checks passed successfully!"
+else
+    print_warning "⚠ Some health checks failed. Check the troubleshooting information below."
+fi
+
+# Clean up temporary files
+cleanup_temporary_files
+
+# Display troubleshooting information
+display_troubleshooting_info
+
+# Create a quick reference file
+cat > QUICK_REFERENCE.md << 'EOF'
+# NativeSeries Quick Reference
+
+## Access URLs
+- **Application:** http://54.166.101.159:30011
+- **ArgoCD:** http://54.166.101.159:30080
+- **Grafana:** http://54.166.101.159:30081
+- **Prometheus:** http://54.166.101.159:30082
+- **Loki:** http://54.166.101.159:30083
+
+## Quick Commands
+```bash
+# Check all pods
+kubectl get pods --all-namespaces
+
+# Check application logs
+kubectl logs -n nativeseries -l app.kubernetes.io/name=nativeseries
+
+# Get ArgoCD admin password
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
+
+# Access application shell
+kubectl exec -n nativeseries -it deployment/nativeseries -- /bin/bash
+
+# Check service endpoints
+kubectl get endpoints --all-namespaces
+```
+
+## Troubleshooting
+- Use `./scripts/cleanup-direct.sh` for emergency cleanup
+- Use `./scripts/fix-helm-deployment.sh` for deployment issues
+- Check logs with `kubectl logs -n <namespace> <pod-name>`
+EOF
+
 print_status "Installation completed successfully!"
 print_info "All services are now running and accessible!"
+print_info "Quick reference saved to: QUICK_REFERENCE.md"
