@@ -421,12 +421,25 @@ else
         # Portable Docker start for non-systemd environments
         echo "Attempting to start Docker..."
         if command -v systemctl >/dev/null 2>&1; then
-          sudo systemctl start docker
-          sudo systemctl enable docker
+          sudo systemctl start docker || { \
+            echo "systemctl failed, starting dockerd manually in background."; \
+            sudo dockerd > /dev/null 2>&1 & \
+            sleep 5; \
+          }
+          sudo systemctl enable docker || true
         else
           echo "systemctl not found, starting dockerd manually in background."
           sudo dockerd > /dev/null 2>&1 &
+          sleep 5
         fi
+        # Wait for Docker socket to be available
+        for i in {1..10}; do
+          if [ -S /var/run/docker.sock ]; then
+            break
+          fi
+          echo "Waiting for Docker daemon to be ready... ($i/10)"
+          sleep 2
+        done
         sudo usermod -aG docker $USER
     elif [ "$PKG_MANAGER" = "apt" ]; then
         echo "DEBUG: Installing Docker using official Docker APT repo"
