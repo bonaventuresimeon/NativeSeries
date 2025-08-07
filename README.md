@@ -39,6 +39,8 @@ NativeSeries serves as both a production-ready student management system and a c
 - **CI/CD automation** with GitHub Actions
 - **Comprehensive monitoring** with Prometheus, Grafana, and Loki
 - **Multi-platform deployment** supporting both Kubernetes and serverless architectures
+- **Enhanced automation** with comprehensive installation scripts and troubleshooting
+- **Advanced database management** with MongoDB and in-memory fallback systems
 
 ### 🏗️ **System Components**
 
@@ -49,6 +51,8 @@ NativeSeries serves as both a production-ready student management system and a c
 - **Progress Analytics**: Student performance monitoring and reporting
 - **Admin Interface**: Administrative dashboard and management tools
 - **Health Monitoring**: Built-in health checks and metrics endpoints
+- **Static Web Pages**: Interactive HTML pages for database viewing and API testing
+- **Serverless Functions**: Netlify functions for edge deployment
 
 #### **Data Layer**
 - **MongoDB Integration**: Primary document database for production deployments
@@ -62,6 +66,8 @@ NativeSeries serves as both a production-ready student management system and a c
 - **Monitoring Stack**: Prometheus metrics, Grafana dashboards, Loki logging
 - **Security Framework**: RBAC, network policies, secrets management
 - **Auto-scaling**: Horizontal Pod Autoscaler with intelligent scaling policies
+- **Enhanced Automation**: Comprehensive installation scripts with kubectl setup and troubleshooting
+- **Database Management**: Advanced database initialization and management scripts
 
 #### **Deployment Options**
 - **Kubernetes Production**: Full-featured deployment with monitoring
@@ -90,6 +96,8 @@ NativeSeries serves as both a production-ready student management system and a c
 - **Grade Tracking**: Comprehensive grade management system
 - **Performance Metrics**: Analytics and reporting tools
 - **Achievement Tracking**: Student accomplishments and milestones
+- **Interactive Dashboards**: Real-time database viewing and analytics
+- **API Testing Interface**: Built-in API testing and documentation
 
 ### 🔍 **Monitoring & Observability**
 
@@ -148,10 +156,12 @@ NativeSeries serves as both a production-ready student management system and a c
 - **ArgoCD Integration**: GitOps-based deployment automation
 
 #### **Serverless Deployment**
-- **Netlify Functions**: Serverless API endpoints
-- **Static Site Hosting**: Global CDN distribution
+- **Netlify Functions**: Serverless API endpoints with async support
+- **Static Site Hosting**: Global CDN distribution with interactive pages
 - **Automatic Scaling**: Built-in serverless scaling
 - **Cost Optimization**: Pay-per-use pricing model
+- **Database Display**: Interactive database viewing pages
+- **API Documentation**: Built-in API testing and documentation interface
 
 ## 🏗️ Architecture
 
@@ -370,13 +380,15 @@ chmod +x scripts/install-all.sh
 ```
 
 This script will automatically:
-1. **Install Required Tools**: Docker, kubectl, Helm, Kind, ArgoCD CLI
-2. **Create Kubernetes Cluster**: Local Kind cluster for development
+1. **Install Required Tools**: Docker, kubectl, Helm, Kind, ArgoCD CLI with version management
+2. **Create Kubernetes Cluster**: Local Kind cluster for development with kubectl configuration
 3. **Deploy Application**: Complete application deployment with all components
 4. **Setup Monitoring**: Prometheus, Grafana, and Loki monitoring stack
 5. **Configure Security**: RBAC, network policies, and secrets
 6. **Enable Auto-scaling**: Horizontal Pod Autoscaler configuration
 7. **Validate Deployment**: Comprehensive health checks and verification
+8. **Troubleshooting Support**: Built-in kubectl health checks and error resolution
+9. **Database Setup**: Advanced database initialization and management
 
 ### **Manual Installation**
 
@@ -449,16 +461,20 @@ For detailed installation instructions, see [INSTALLATION.md](INSTALLATION.md).
 - **API Documentation**: https://nativeseries.netlify.app/api.html
 - **Database Viewer**: https://nativeseries.netlify.app/database.html
 - **Admin Interface**: https://nativeseries.netlify.app/admin.html
+- **Student Management**: https://nativeseries.netlify.app/students.html
+- **Progress Tracking**: https://nativeseries.netlify.app/progress.html
 
 **Serverless Features:**
-- **Serverless Functions**: API endpoints running on Netlify Functions
-- **Static Site Hosting**: Fast, globally distributed static content
+- **Serverless Functions**: API endpoints running on Netlify Functions with async support
+- **Static Site Hosting**: Fast, globally distributed static content with interactive pages
 - **Automatic CI/CD**: GitHub Actions integration for automated deployments
 - **Global CDN**: Content delivery network for optimal performance
 - **Built-in Security**: Automatic HTTPS and security headers
 - **Cost Optimization**: Pay-per-use pricing model
 - **Auto-scaling**: Automatic scaling based on demand
 - **Edge Computing**: Low-latency responses from global edge locations
+- **Interactive Database**: Real-time database viewing and management
+- **API Testing Interface**: Built-in API testing and documentation
 
 ### **3. Local Development Environment**
 
@@ -739,14 +755,21 @@ This project includes comprehensive documentation covering all aspects of the ap
 
 ### **📋 Installation & Deployment Documentation**
 - **[INSTALLATION.md](INSTALLATION.md)** - Comprehensive installation and setup guide
-- **[scripts/install-all.sh](scripts/install-all.sh)** - Automated installation script with detailed comments
+- **[scripts/install-all.sh](scripts/install-all.sh)** - Enhanced automated installation script with kubectl setup and troubleshooting
+- **[scripts/cleanup-direct.sh](scripts/cleanup-direct.sh)** - Direct cleanup script for development environments
+- **[scripts/cleanup-with-backup.sh](scripts/cleanup-with-backup.sh)** - Safe cleanup script with backup functionality
+- **[scripts/fix-helm-deployment.sh](scripts/fix-helm-deployment.sh)** - Helm deployment troubleshooting script
+- **[scripts/setup-netlify-env.sh](scripts/setup-netlify-env.sh)** - Netlify environment setup script
+- **[scripts/validate-workflow.sh](scripts/validate-workflow.sh)** - Workflow validation and testing script
 
 ### **🔧 Configuration & Infrastructure Files**
 - **[netlify.toml](netlify.toml)** - Netlify configuration for serverless deployment
-- **[build.sh](build.sh)** - Build script for Netlify static site generation
+- **[build.sh](build.sh)** - Enhanced build script for Netlify static site generation with interactive pages
 - **[Dockerfile](Dockerfile)** - Docker container configuration and optimization
 - **[helm-chart/](helm-chart/)** - Helm charts for Kubernetes deployment
 - **[argocd/](argocd/)** - ArgoCD application configuration for GitOps
+- **[netlify/functions/](netlify/functions/)** - Netlify serverless functions with async support
+- **[public/](public/)** - Static HTML pages for database viewing and API testing
 
 ### **📊 Architecture & Design Documents**
 - **System Architecture**: Complete system design and component relationships
