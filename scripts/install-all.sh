@@ -249,7 +249,16 @@ print_section "PHASE 2: Tool Installation"
 # Function to detect package manager and OS
 detect_package_manager() {
     echo "DEBUG: Starting package manager detection..."
-    if command -v apt-get >/dev/null 2>&1; then
+    if grep -qi 'amazon' /etc/os-release; then
+        OS_TYPE="amazon"
+        if command -v dnf >/dev/null 2>&1; then
+            PKG_MANAGER="dnf"
+            echo "DEBUG: Amazon Linux with dnf detected."
+        else
+            PKG_MANAGER="yum"
+            echo "DEBUG: Amazon Linux with yum detected."
+        fi
+    elif command -v apt-get >/dev/null 2>&1; then
         PKG_MANAGER="apt"
         OS_TYPE="debian"
         echo "DEBUG: Found apt-get, setting PKG_MANAGER=apt"
@@ -346,7 +355,15 @@ echo "DEBUG: After detection, PKG_MANAGER=$PKG_MANAGER, OS_TYPE=$OS_TYPE"
 # Install basic system tools
 print_info "Installing basic system tools..."
 echo "DEBUG: PKG_MANAGER=$PKG_MANAGER"
-if [ "$PKG_MANAGER" = "apt" ]; then
+if [ "$OS_TYPE" = "amazon" ]; then
+    echo "DEBUG: Using Amazon Linux system tools branch"
+    sudo $PKG_MANAGER update -y --allowerasing --skip-broken
+    sudo $PKG_MANAGER install -y \
+        curl wget git unzip jq gcc gcc-c++ make \
+        python3 python3-pip python3-venv python3-devel \
+        openssl-devel libffi-devel \
+        ca-certificates gnupg2 --allowerasing --skip-broken
+elif [ "$PKG_MANAGER" = "apt" ]; then
     echo "DEBUG: Using apt-get branch"
     export DEBIAN_FRONTEND=noninteractive
     sudo apt-get update
@@ -366,23 +383,12 @@ elif [ "$PKG_MANAGER" = "zypper" ]; then
         ca-certificates gpg2
 elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
     echo "DEBUG: Using $PKG_MANAGER branch"
-    # Check for gnupg2-minimal and skip gnupg2 if present
-    if rpm -q gnupg2-minimal >/dev/null 2>&1; then
-        echo "DEBUG: gnupg2-minimal is installed, skipping gnupg2 to avoid conflict."
-        sudo $PKG_MANAGER update -y --allowerasing --skip-broken
-        sudo $PKG_MANAGER install -y \
-            curl wget git unzip jq gcc gcc-c++ make \
-            python3 python3-pip python3-devel \
-            openssl-devel libffi-devel \
-            ca-certificates --allowerasing --skip-broken
-    else
-        sudo $PKG_MANAGER update -y --allowerasing --skip-broken
-        sudo $PKG_MANAGER install -y \
-            curl wget git unzip jq gcc gcc-c++ make \
-            python3 python3-pip python3-devel \
-            openssl-devel libffi-devel \
-            ca-certificates gnupg2 --allowerasing --skip-broken
-    fi
+    sudo $PKG_MANAGER update -y --allowerasing --skip-broken
+    sudo $PKG_MANAGER install -y \
+        curl wget git unzip jq gcc gcc-c++ make \
+        python3 python3-pip python3-devel \
+        openssl-devel libffi-devel \
+        ca-certificates gnupg2 --allowerasing --skip-broken
 fi
 print_status "✓ Basic system tools installed"
 
@@ -394,7 +400,13 @@ if command_exists docker; then
     docker --version
 else
     print_info "Installing Docker..."
-    if [ "$PKG_MANAGER" = "apt" ]; then
+    if [ "$OS_TYPE" = "amazon" ]; then
+        echo "DEBUG: Installing Docker from default Amazon Linux repos"
+        sudo $PKG_MANAGER install -y docker
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo usermod -aG docker $USER
+    elif [ "$PKG_MANAGER" = "apt" ]; then
         echo "DEBUG: Installing Docker using official Docker APT repo"
         sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
         sudo apt-get update
@@ -437,7 +449,21 @@ fi
 
 # Install kubectl
 print_info "Installing kubectl v${KUBECTL_VERSION}..."
-if [ "$PKG_MANAGER" = "apt" ]; then
+if [ "$OS_TYPE" = "amazon" ]; then
+    echo "DEBUG: Installing kubectl via official binary for Amazon Linux"
+    KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
+    curl -LO "$KUBECTL_URL"
+    curl -LO "$KUBECTL_URL.sha256"
+    echo "  Verifying checksum..."
+    if echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check; then
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/kubectl
+        rm -f kubectl.sha256
+    else
+        echo "ERROR: kubectl checksum failed!" >&2
+        exit 1
+    fi
+elif [ "$PKG_MANAGER" = "apt" ]; then
     sudo apt-get update
     sudo apt-get install -y apt-transport-https ca-certificates curl
     sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
