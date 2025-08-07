@@ -1,4 +1,4 @@
-# NativeSeries - Enterprise-Grade Kubernetes Application Platform
+# NativeSeries - Enterprise-Grade Student Tracking Platform
 
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
@@ -8,6 +8,8 @@
 [![ArgoCD](https://img.shields.io/badge/ArgoCD-326CE5?style=for-the-badge&logo=argo&logoColor=white)](https://argoproj.github.io/argo-cd/)
 [![Helm](https://img.shields.io/badge/Helm-0F1689?style=for-the-badge&logo=helm&logoColor=white)](https://helm.sh/)
 [![Loki](https://img.shields.io/badge/Loki-F7B93E?style=for-the-badge&logo=loki&logoColor=white)](https://grafana.com/oss/loki/)
+[![Netlify](https://img.shields.io/badge/Netlify-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://netlify.com/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
 
 ## 📋 Table of Contents
 
@@ -16,19 +18,23 @@
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
-- [Production Deployment](#production-deployment)
-- [Monitoring & Observability](#monitoring--observability)
+- [Deployment Options](#deployment-options)
 - [API Documentation](#api-documentation)
+- [Monitoring & Observability](#monitoring--observability)
+- [Development Guide](#development-guide)
 - [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
 
 ## 🎯 Overview
 
-NativeSeries is a comprehensive, enterprise-grade application platform built on Kubernetes that demonstrates modern DevOps practices, GitOps workflows, and full-stack observability. This platform serves as a complete reference implementation for deploying scalable, secure, and observable applications in production environments.
+NativeSeries is a comprehensive, enterprise-grade student tracking platform built on modern cloud-native technologies. It demonstrates full-stack DevOps practices including containerization, Kubernetes orchestration, GitOps workflows, CI/CD automation, and comprehensive monitoring.
 
 ### Core Objectives
 
-- **Production-Ready Infrastructure**: Complete Kubernetes deployment with monitoring, logging, and security
+- **Student Management**: Complete CRUD operations for student records and progress tracking
+- **Production-Ready Infrastructure**: Kubernetes deployment with monitoring, logging, and security
 - **GitOps Implementation**: Automated deployment using ArgoCD and Helm
+- **Multi-Platform Support**: Docker containers, Kubernetes orchestration, and serverless deployment
 - **Full Observability**: Integrated Prometheus, Grafana, and Loki for comprehensive monitoring
 - **Security-First Design**: Secrets management, network policies, and RBAC implementation
 - **Auto-scaling Capabilities**: Horizontal Pod Autoscaler with intelligent scaling policies
@@ -38,10 +44,11 @@ NativeSeries is a comprehensive, enterprise-grade application platform built on 
 
 ### 🚀 **Core Application**
 - **FastAPI Backend**: High-performance REST API with automatic documentation
-- **MongoDB Integration**: Scalable document database with connection pooling
-- **Redis Caching**: In-memory caching for improved performance
-- **JWT Authentication**: Secure token-based authentication system
-- **Comprehensive API**: CRUD operations with validation and error handling
+- **Student Tracking**: Complete student registration and progress monitoring
+- **Course Management**: Track courses and student enrollments
+- **Progress Analytics**: Monitor student performance and achievements
+- **Admin Dashboard**: Comprehensive administrative interface
+- **Database Integration**: MongoDB with in-memory fallback for Netlify
 
 ### 🔍 **Monitoring & Observability**
 - **Prometheus Metrics**: Custom application metrics and Kubernetes monitoring
@@ -64,6 +71,13 @@ NativeSeries is a comprehensive, enterprise-grade application platform built on 
 - **Resource Limits**: CPU and memory constraints
 - **Rolling Updates**: Zero-downtime deployments
 
+### 🌐 **Multi-Platform Deployment**
+- **Docker Containers**: Containerized application deployment
+- **Kubernetes Orchestration**: Production-grade container orchestration
+- **Netlify Functions**: Serverless deployment option
+- **GitHub Actions**: Automated CI/CD pipeline
+- **ArgoCD GitOps**: Declarative deployment management
+
 ## 🏗️ Architecture
 
 ### System Architecture
@@ -74,6 +88,7 @@ graph TB
         UI[Web UI]
         API[API Clients]
         Mobile[Mobile Apps]
+        Admin[Admin Dashboard]
     end
     
     subgraph "Application Layer"
@@ -82,35 +97,37 @@ graph TB
         Cache[Redis Cache]
         Metrics[Metrics Endpoint]
         Health[Health Checks]
+        AdminAPI[Admin API]
     end
     
     subgraph "Data Layer"
         MongoDB[(MongoDB)]
         Vault[(HashiCorp Vault)]
-        Memory[(In-Memory Fallback)]
+        Memory[(In-Memory Storage)]
         Logs[Application Logs]
     end
     
-    subgraph "Kubernetes Infrastructure"
+    subgraph "Infrastructure Layer"
         K8s[Kubernetes Cluster]
         ArgoCD[ArgoCD GitOps]
         Prometheus[Prometheus]
         Grafana[Grafana Dashboard]
         Loki[Loki Log Aggregator]
+        Netlify[Netlify Functions]
     end
     
-    subgraph "Monitoring Stack"
-        ServiceMonitor[ServiceMonitor]
-        PodMonitor[PodMonitor]
-        PrometheusRule[PrometheusRule]
-        HPA[Horizontal Pod Autoscaler]
-        PDB[Pod Disruption Budget]
-        NetworkPolicy[Network Policy]
+    subgraph "CI/CD Pipeline"
+        GitHub[GitHub Actions]
+        DockerHub[Docker Hub]
+        GHCR[GitHub Container Registry]
+        ArgoCDSync[ArgoCD Sync]
     end
     
     UI --> FastAPI
     API --> FastAPI
     Mobile --> FastAPI
+    Admin --> AdminAPI
+    
     FastAPI --> Auth
     FastAPI --> Cache
     FastAPI --> Metrics
@@ -121,18 +138,18 @@ graph TB
     FastAPI --> Logs
     
     FastAPI --> K8s
+    FastAPI --> Netlify
+    
     K8s --> ArgoCD
     K8s --> Prometheus
     K8s --> Grafana
     K8s --> Loki
     
-    Prometheus --> ServiceMonitor
-    Prometheus --> PodMonitor
-    Prometheus --> PrometheusRule
-    K8s --> HPA
-    K8s --> PDB
-    K8s --> NetworkPolicy
+    GitHub --> DockerHub
+    GitHub --> GHCR
+    GitHub --> ArgoCDSync
     
+    ArgoCDSync --> K8s
     Logs --> Loki
     Loki --> Grafana
 ```
@@ -140,15 +157,16 @@ graph TB
 ## 🛠️ Technology Stack
 
 ### Backend
-- **FastAPI**: Modern Python web framework
-- **Python 3.13**: Latest Python version
+- **FastAPI**: Modern Python web framework with automatic API documentation
+- **Python 3.11**: Latest stable Python version
 - **Uvicorn**: ASGI server for FastAPI
 - **Pydantic**: Data validation and settings management
+- **JWT**: JSON Web Token authentication
 
 ### Database & Caching
 - **MongoDB**: Document database for data persistence
 - **Redis**: In-memory caching layer
-- **In-Memory Fallback**: Graceful degradation when external DB unavailable
+- **In-Memory Storage**: Graceful degradation for Netlify Functions
 
 ### Containerization & Orchestration
 - **Docker**: Container runtime and image building
@@ -175,6 +193,10 @@ graph TB
 - **Horizontal Pod Autoscaler**: Automatic scaling
 - **Pod Disruption Budget**: High availability
 
+### Serverless
+- **Netlify Functions**: Serverless deployment option
+- **Netlify**: Static site hosting and serverless functions
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -200,11 +222,11 @@ This script will install:
 1. All required tools (Docker, kubectl, Helm, Kind, ArgoCD)
 2. Kubernetes cluster with Kind
 3. Application deployment
-4. **Monitoring stack (Prometheus + Grafana)**
-5. **Logging stack (Loki)**
-6. **Secrets and ConfigMaps**
-7. **Auto-scaling configuration (HPA)**
-8. **Network policies and security**
+4. Monitoring stack (Prometheus + Grafana)
+5. Logging stack (Loki)
+6. Secrets and ConfigMaps
+7. Auto-scaling configuration (HPA)
+8. Network policies and security
 
 ### Manual Installation
 
@@ -225,6 +247,8 @@ docker run -p 8000:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
 
 ## 📦 Installation
 
+For detailed installation instructions, see [INSTALLATION.md](INSTALLATION.md).
+
 ### System Requirements
 
 - **Operating System**: Linux (Ubuntu 20.04+, CentOS 8+, Amazon Linux 2)
@@ -241,64 +265,94 @@ docker run -p 8000:8000 ghcr.io/bonaventuresimeon/nativeseries:latest
 - **Kind**: 0.20.0 or higher (for local Kubernetes)
 - **ArgoCD CLI**: 2.9.3 or higher
 
-### Installation Steps
+## 🌐 Deployment Options
 
-1. **System Dependencies**: Install curl, wget, git, unzip, jq
-2. **Docker**: Install Docker with daemon setup
-3. **kubectl**: Install latest stable kubectl
-4. **Kind**: Install Kind for local Kubernetes cluster
-5. **Helm**: Install Helm for package management
-6. **Python**: Install Python with virtual environment
-7. **ArgoCD**: Install ArgoCD CLI and server
-8. **Application**: Build and deploy the application
-9. **Monitoring**: Install Prometheus, Grafana, and Loki
-10. **Security**: Configure secrets, ConfigMaps, and network policies
+### 1. Kubernetes Production Deployment
 
-## 🌐 Production Deployment
-
-### Production Environment
-
-The application is deployed to production at:
+**Production Environment:**
 - **Application**: http://54.166.101.159:30011
 - **ArgoCD UI**: http://54.166.101.159:30080
 - **Grafana**: http://54.166.101.159:30081
 - **Prometheus**: http://54.166.101.159:30082
 - **Loki**: http://54.166.101.159:30083
 
-### Deployment Components
+**Features:**
+- Full Kubernetes orchestration
+- ArgoCD GitOps deployment
+- Comprehensive monitoring stack
+- Auto-scaling capabilities
+- High availability configuration
 
-#### Application Deployment
-- **Namespace**: `nativeseries`
-- **Service**: NodePort on port 30011
-- **Replicas**: 2-10 (auto-scaled)
-- **Health Checks**: Liveness and readiness probes
-- **Resource Limits**: CPU and memory constraints
+### 2. Netlify Serverless Deployment
 
-#### Monitoring Stack
-- **Namespace**: `monitoring`
-- **Prometheus**: Metrics collection and storage
-- **Grafana**: Dashboards and visualization
-- **ServiceMonitor**: Application metrics monitoring
-- **PodMonitor**: Pod-level metrics collection
+**Features:**
+- Serverless functions for API endpoints
+- Static site hosting
+- Automatic CI/CD from GitHub
+- Global CDN distribution
+- Built-in security headers
 
-#### Logging Stack
-- **Namespace**: `logging`
-- **Loki**: Log aggregation and querying
-- **Log Forwarding**: Application logs to Loki
-- **Grafana Integration**: Log visualization in Grafana
+**Access:**
+- **Application**: https://nativeseries.netlify.app
+- **Health Check**: https://nativeseries.netlify.app/.netlify/functions/health
+- **API Documentation**: https://nativeseries.netlify.app/api.html
+- **Database Viewer**: https://nativeseries.netlify.app/database.html
 
-#### Security Configuration
-- **Secrets**: Database and API credentials
-- **ConfigMaps**: Application configuration
-- **Network Policies**: Traffic control and security
-- **RBAC**: Role-based access control
+### 3. Local Development
 
-#### Auto-scaling
-- **HPA**: Horizontal Pod Autoscaler
-- **Min Replicas**: 2
-- **Max Replicas**: 10
-- **CPU Threshold**: 70%
-- **Memory Threshold**: 80%
+**Features:**
+- Docker containerization
+- Local Kubernetes with Kind
+- Development environment setup
+- Hot reloading for development
+
+## 📚 API Documentation
+
+### Interactive Documentation
+
+**Kubernetes Deployment:**
+- **Swagger UI**: http://54.166.101.159:30011/docs
+- **ReDoc**: http://54.166.101.159:30011/redoc
+- **OpenAPI JSON**: http://54.166.101.159:30011/openapi.json
+
+**Netlify Deployment:**
+- **API Documentation**: https://nativeseries.netlify.app/api.html
+- **Interactive Testing**: Available in the API documentation page
+
+### API Endpoints
+
+#### Health & System
+- `GET /health` - Application health check
+- `GET /metrics` - Prometheus metrics
+- `GET /` - Application homepage
+- `GET /about` - Application information
+
+#### Students API
+- `GET /students` - List all students
+- `POST /students` - Create new student
+- `GET /students/{id}` - Get student by ID
+- `PUT /students/{id}` - Update student
+- `DELETE /students/{id}` - Delete student
+
+#### Courses API
+- `GET /courses` - List all courses
+- `POST /courses` - Create new course
+- `GET /courses/{id}` - Get course by ID
+- `PUT /courses/{id}` - Update course
+- `DELETE /courses/{id}` - Delete course
+
+#### Progress API
+- `GET /progress` - List all progress records
+- `POST /progress` - Create new progress record
+- `GET /progress/{id}` - Get progress by ID
+- `PUT /progress/{id}` - Update progress
+- `DELETE /progress/{id}` - Delete progress
+
+#### Admin API
+- `GET /admin` - Admin dashboard
+- `GET /admin/students` - Admin student management
+- `GET /admin/courses` - Admin course management
+- `GET /admin/progress` - Admin progress management
 
 ## 🔍 Monitoring & Observability
 
@@ -341,36 +395,6 @@ Configured alerts for:
 - **Pod Restarts**: Pod restart count > 3 in 10 minutes
 - **Service Availability**: Service down for > 2 minutes
 
-## 📚 API Documentation
-
-### Interactive Documentation
-
-- **Swagger UI**: http://54.166.101.159:30011/docs
-- **ReDoc**: http://54.166.101.159:30011/redoc
-- **OpenAPI JSON**: http://54.166.101.159:30011/openapi.json
-
-### API Endpoints
-
-#### Health & System
-- `GET /health` - Application health check
-- `GET /metrics` - Prometheus metrics
-- `GET /` - Application homepage
-- `GET /about` - Application information
-
-#### Students API
-- `GET /students` - List all students
-- `POST /students` - Create new student
-- `GET /students/{id}` - Get student by ID
-- `PUT /students/{id}` - Update student
-- `DELETE /students/{id}` - Delete student
-
-#### Courses API
-- `GET /courses` - List all courses
-- `POST /courses` - Create new course
-- `GET /courses/{id}` - Get course by ID
-- `PUT /courses/{id}` - Update course
-- `DELETE /courses/{id}` - Delete course
-
 ## 🧪 Testing
 
 ### Health Checks
@@ -410,6 +434,56 @@ kubectl get pods -n logging
 
 # Validate deployment
 ./scripts/validate-deployment.sh
+```
+
+## 🛠️ Development Guide
+
+### Environment Setup
+
+1. **Clone Repository**
+   ```bash
+   git clone https://github.com/bonaventuresimeon/nativeseries.git
+   cd nativeseries
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Run Locally**
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+4. **Access Application**
+   - **API**: http://localhost:8000
+   - **Docs**: http://localhost:8000/docs
+   - **Health**: http://localhost:8000/health
+
+### Docker Development
+
+```bash
+# Build development image
+docker build -t nativeseries:dev .
+
+# Run with volume mounting for development
+docker run -p 8000:8000 -v $(pwd):/app nativeseries:dev
+```
+
+### Kubernetes Development
+
+```bash
+# Create Kind cluster
+kind create cluster --name nativeseries-dev
+
+# Deploy to development cluster
+kubectl apply -f deployment/development/
+
+# Access application
+kubectl port-forward svc/nativeseries-service 8000:80
 ```
 
 ## 🐛 Troubleshooting
@@ -508,7 +582,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Grafana**: Metrics visualization and dashboards
 - **Loki**: Log aggregation and querying
 - **ArgoCD**: GitOps continuous deployment
+- **Netlify**: Serverless platform and hosting
 
 ---
 
-**🎉 Happy coding with GitOps! 🚀**
+**🎉 Happy coding with NativeSeries! 🚀**
+
+*Built with ❤️ for modern cloud-native development*
