@@ -1,9 +1,15 @@
-# Prometheus
+# NativeSeries Monitoring Stack
+# This file contains the monitoring and logging stack for NativeSeries
+
+---
+# Prometheus Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
   namespace: monitoring
+  labels:
+    app: prometheus
 spec:
   replicas: 1
   selector:
@@ -36,7 +42,9 @@ spec:
           name: prometheus-config
       - name: prometheus-storage
         emptyDir: {}
+
 ---
+# Prometheus Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -50,7 +58,9 @@ spec:
     nodePort: 30082
   selector:
     app: prometheus
+
 ---
+# Prometheus ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -66,17 +76,20 @@ data:
       - role: pod
     - job_name: 'nativeseries'
       static_configs:
-      - targets: ['nativeseries-service.nativeseries.svc.cluster.local:8000']
+      - targets: ['nativeseries.nativeseries.svc.cluster.local:8000']
     - job_name: 'loki'
       static_configs:
       - targets: ['loki-service.logging.svc.cluster.local:3100']
+
 ---
-# Grafana
+# Grafana Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
   namespace: monitoring
+  labels:
+    app: grafana
 spec:
   replicas: 1
   selector:
@@ -108,7 +121,9 @@ spec:
       - name: grafana-datasources
         configMap:
           name: grafana-datasources
+
 ---
+# Grafana Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -122,7 +137,9 @@ spec:
     nodePort: 30081
   selector:
     app: grafana
+
 ---
+# Grafana Datasources ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -141,13 +158,16 @@ data:
       type: loki
       url: http://loki-service.logging.svc.cluster.local:3100
       access: proxy
+
 ---
-# Loki
+# Loki Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loki
   namespace: logging
+  labels:
+    app: loki
 spec:
   replicas: 1
   selector:
@@ -176,7 +196,9 @@ spec:
           name: loki-config
       - name: loki-storage
         emptyDir: {}
+
 ---
+# Loki Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -190,7 +212,9 @@ spec:
     nodePort: 30083
   selector:
     app: loki
+
 ---
+# Loki ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -234,13 +258,16 @@ data:
     table_manager:
       retention_deletes_enabled: false
       retention_period: 0s
+
 ---
-# Promtail for log collection
+# Promtail DaemonSet for log collection
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: promtail
   namespace: logging
+  labels:
+    app: promtail
 spec:
   selector:
     matchLabels:
@@ -273,7 +300,9 @@ spec:
       - name: varlibdockercontainers
         hostPath:
           path: /var/lib/docker/containers
+
 ---
+# Promtail ConfigMap
 apiVersion: v1
 kind: ConfigMap
 metadata:
