@@ -1442,6 +1442,77 @@ fi
 
 print_status "✓ All namespaces are active"
 
+# --- Ensure Helm, Prometheus, Grafana, Loki are installed and running ---
+
+# Ensure Helm is installed
+if ! command_exists helm; then
+    print_info "Helm not found. Installing Helm..."
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+else
+    print_status "✓ Helm is already installed"
+fi
+
+# Ensure Prometheus, Grafana, Loki Helm repos are added
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
+helm repo add grafana https://grafana.github.io/helm-charts || true
+helm repo add loki https://grafana.github.io/loki/charts || true
+helm repo update
+
+# --- Create dedicated namespace and set context ---
+APP_NAMESPACE="nativeseries"
+if ! kubectl get namespace "$APP_NAMESPACE" >/dev/null 2>&1; then
+    print_info "Creating namespace: $APP_NAMESPACE"
+    kubectl create namespace "$APP_NAMESPACE"
+else
+    print_status "✓ Namespace $APP_NAMESPACE already exists"
+fi
+kubectl config set-context --current --namespace="$APP_NAMESPACE"
+
+# --- Deploy Prometheus ---
+if ! helm list -n "$APP_NAMESPACE" | grep -q prometheus; then
+    print_info "Deploying Prometheus via Helm..."
+    helm install prometheus prometheus-community/prometheus --namespace "$APP_NAMESPACE" --set server.service.type=NodePort --set server.service.nodePort=30082
+else
+    print_status "✓ Prometheus already deployed"
+fi
+
+# --- Deploy Grafana ---
+if ! helm list -n "$APP_NAMESPACE" | grep -q grafana; then
+    print_info "Deploying Grafana via Helm..."
+    helm install grafana grafana/grafana --namespace "$APP_NAMESPACE" --set service.type=NodePort --set service.nodePort=30081 --set adminPassword='admin' --set persistence.enabled=false
+else
+    print_status "✓ Grafana already deployed"
+fi
+
+# --- Deploy Loki ---
+if ! helm list -n "$APP_NAMESPACE" | grep -q loki; then
+    print_info "Deploying Loki via Helm..."
+    helm install loki grafana/loki --namespace "$APP_NAMESPACE" --set service.type=NodePort --set service.nodePort=30083
+else
+    print_status "✓ Loki already deployed"
+fi
+
+# --- Deploy Application via Helm chart ---
+if [ -d helm-chart ]; then
+    print_info "Deploying application Helm chart with all features enabled..."
+    helm upgrade --install nativeseries ./helm-chart --namespace "$APP_NAMESPACE" -f ./helm-chart/values.yaml
+else
+    print_error "Helm chart directory not found. Skipping application deployment."
+fi
+
+# --- Expose DNS and port info ---
+print_info "Service Endpoints:"
+APP_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE nativeseries -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30011')
+PROM_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE prometheus-server -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30082')
+GRAFANA_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE grafana -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30081')
+LOKI_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE loki -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30083')
+APP_INGRESS=$(kubectl get ingress -n $APP_NAMESPACE nativeseries -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo 'nativeseries.local')
+echo "Application NodePort: http://<node-ip>:${APP_NODEPORT}"
+echo "Application Ingress: http://${APP_INGRESS}"
+echo "Prometheus NodePort: http://<node-ip>:${PROM_NODEPORT}"
+echo "Grafana NodePort: http://<node-ip>:${GRAFANA_NODEPORT}"
+echo "Loki NodePort: http://<node-ip>:${LOKI_NODEPORT}"
+
 # Deploy application
 print_info "Deploying application..."
 if ! deploy_with_retry "deployment/production/02-application.yaml"; then
