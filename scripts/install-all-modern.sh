@@ -192,6 +192,69 @@ install_python_venv() {
   print_status "Python venv ready"
 }
 
+# Install Node.js (LTS)
+install_node() {
+  print_info "Installing Node.js..."
+  NODE_VERSION="${NODE_VERSION:-lts}"
+  if command -v nvm >/dev/null 2>&1; then
+    print_info "Using nvm to install Node.js $NODE_VERSION"
+    nvm install $NODE_VERSION
+    nvm use $NODE_VERSION
+  else
+    if [ "$PKG_MANAGER" = "apt" ]; then
+      curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+      sudo apt-get install -y nodejs
+    elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+      curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
+      sudo $PKG_MANAGER install -y nodejs
+    elif [ "$PKG_MANAGER" = "zypper" ]; then
+      curl -fsSL https://rpm.nodesource.com/setup_lts.x | sudo bash -
+      sudo zypper --non-interactive install --auto-agree-with-licenses nodejs
+    fi
+  fi
+  print_status "Node.js installed"
+}
+
+# Install Go (latest stable)
+install_go() {
+  print_info "Installing Go..."
+  GO_VERSION="${GO_VERSION:-$(curl -s https://go.dev/VERSION?m=text | head -n1 | cut -c 3-)}"
+  GO_URL="https://go.dev/dl/go${GO_VERSION}.${OS}-${ARCH}.tar.gz"
+  curl -LO "$GO_URL"
+  tar -C /usr/local -xzf go${GO_VERSION}.${OS}-${ARCH}.tar.gz
+  rm -f go${GO_VERSION}.${OS}-${ARCH}.tar.gz
+  export PATH="/usr/local/go/bin:$PATH"
+  print_status "Go installed"
+}
+
+# Install Java (OpenJDK 17+)
+install_java() {
+  print_info "Installing OpenJDK..."
+  JAVA_VERSION="${JAVA_VERSION:-17}"
+  if [ "$PKG_MANAGER" = "apt" ]; then
+    sudo apt-get install -y openjdk-${JAVA_VERSION}-jdk
+  elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+    sudo $PKG_MANAGER install -y java-${JAVA_VERSION}-openjdk-devel
+  elif [ "$PKG_MANAGER" = "zypper" ]; then
+    sudo zypper --non-interactive install --auto-agree-with-licenses java-${JAVA_VERSION}-openjdk-devel
+  fi
+  print_status "OpenJDK installed"
+}
+
+# Install Rust (via rustup)
+install_rust() {
+  print_info "Installing Rust..."
+  if ! command -v rustup >/dev/null 2>&1; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    export PATH="$HOME/.cargo/bin:$PATH"
+  fi
+  if [ -n "${RUST_VERSION:-}" ]; then
+    rustup install "$RUST_VERSION"
+    rustup default "$RUST_VERSION"
+  fi
+  print_status "Rust installed"
+}
+
 # Main
 install_system_tools
 install_docker
@@ -200,5 +263,8 @@ install_helm
 install_kind
 install_yq
 install_python_venv
-
+install_node
+install_go
+install_java
+install_rust
 print_status "All tools installed and ready!"
