@@ -279,7 +279,11 @@ install_binary_tool() {
     
     if command_exists "$tool_name"; then
         print_status "✓ $tool_name is already installed"
-        $tool_name --version
+        if [ "$tool_name" = "kubectl" ]; then
+            kubectl version --client --short
+        else
+            $tool_name --version
+        fi
         return 0
     fi
     
@@ -294,7 +298,11 @@ install_binary_tool() {
         chmod +x "$binary_name"
         sudo mv "$binary_name" "/usr/local/bin/$tool_name"
         print_status "✓ $tool_name v$version installed successfully"
-        $tool_name --version
+        if [ "$tool_name" = "kubectl" ]; then
+            kubectl version --client --short
+        else
+            $tool_name --version
+        fi
         cd - > /dev/null
         rm -rf "$temp_dir"
         return 0
