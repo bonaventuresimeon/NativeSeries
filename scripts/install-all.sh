@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Student Tracker - Complete Installation & Deployment Script
-# Version: 5.1.0 - Amazon Linux 2023 Compatible Installation
+# NativeSeries - Complete Installation & Deployment Script
+# Version: 6.0.0 - Updated with Fixed Manifests
 # This script combines all installation, deployment, monitoring, and validation scripts
-# Updated for Amazon Linux 2023 compatibility with virtualenv and proper package detection
+# Updated for NativeSeries with corrected manifests and Helm charts
 
 set -euo pipefail
 
@@ -17,7 +17,7 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
 
-# Production Configuration - Fixed for 54.166.101.159
+# Production Configuration - Updated for NativeSeries
 PRODUCTION_HOST="54.166.101.159"
 PRODUCTION_PORT="30011"
 ARGOCD_PORT="30080"
@@ -90,14 +90,14 @@ print_info() { echo -e "${CYAN}[ℹ️  INFO]${NC} $1"; }
 # Banner
 echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║          🚀 Student Tracker - Complete Installation              ║"
+echo "║          🚀 NativeSeries - Complete Installation                  ║"
 echo "║              Target: ${PRODUCTION_HOST}:${PRODUCTION_PORT}                  ║"
 echo "║              Full Stack Deployment with Monitoring              ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
 # Confirmation
-echo -e "${YELLOW}This script will install and deploy the complete Student Tracker stack to:${NC}"
+echo -e "${YELLOW}This script will install and deploy the complete NativeSeries stack to:${NC}"
 echo -e "${WHITE}  • Application: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}${NC}"
 echo -e "${WHITE}  • ArgoCD:      http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
 echo -e "${WHITE}  • Grafana:     http://${PRODUCTION_HOST}:${GRAFANA_PORT}${NC}"
@@ -111,10 +111,47 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # ============================================================================
-# PHASE 1: TOOL DETECTION AND INSTALLATION
+# PHASE 1: MANIFEST VALIDATION AND FIXES
 # ============================================================================
 
-print_section "PHASE 1: Tool Detection and Installation"
+print_section "PHASE 1: Validating and Fixing Manifests"
+
+# Validate Helm chart
+print_info "Validating Helm chart..."
+if helm template test helm-chart >/dev/null 2>&1; then
+    print_status "Helm chart validation passed"
+else
+    print_error "Helm chart validation failed"
+    exit 1
+fi
+
+# Validate ArgoCD application
+print_info "Validating ArgoCD application..."
+if python3 -c "import yaml; yaml.safe_load(open('argocd/application.yaml'))" >/dev/null 2>&1; then
+    print_status "ArgoCD application validation passed"
+else
+    print_error "ArgoCD application validation failed"
+    exit 1
+fi
+
+# Validate all Kubernetes manifests
+print_info "Validating Kubernetes manifests..."
+for manifest in argocd/*.yaml deployment/production/*.yaml; do
+    if [ -f "$manifest" ]; then
+        if python3 -c "import yaml; list(yaml.safe_load_all(open('$manifest')))" >/dev/null 2>&1; then
+            print_status "✓ $manifest validation passed"
+        else
+            print_error "✗ $manifest validation failed"
+            exit 1
+        fi
+    fi
+done
+
+# ============================================================================
+# PHASE 2: TOOL DETECTION AND INSTALLATION
+# ============================================================================
+
+print_section "PHASE 2: Tool Detection and Installation"
 
 # Detect package manager first
 detect_package_manager
@@ -143,45 +180,9 @@ install_missing_tool() {
     fi
 }
 
-# List of tools to check and install
-declare -A tools_install_commands
-declare -A tools_check_commands
-
-# Basic system tools
-tools_install_commands["curl"]="sudo $PKG_MANAGER install -y curl"
-tools_check_commands["curl"]="curl --version"
-
-tools_install_commands["wget"]="sudo $PKG_MANAGER install -y wget"
-tools_check_commands["wget"]="wget --version"
-
-tools_install_commands["git"]="sudo $PKG_MANAGER install -y git"
-tools_check_commands["git"]="git --version"
-
-tools_install_commands["unzip"]="sudo $PKG_MANAGER install -y unzip"
-tools_check_commands["unzip"]="unzip -v"
-
-tools_install_commands["jq"]="sudo $PKG_MANAGER install -y jq"
-tools_check_commands["jq"]="jq --version"
-
-# Development tools
-tools_install_commands["gcc"]="sudo $PKG_MANAGER install -y gcc"
-tools_check_commands["gcc"]="gcc --version"
-
-tools_install_commands["make"]="sudo $PKG_MANAGER install -y make"
-tools_check_commands["make"]="make --version"
-
-# Python and related tools
-tools_install_commands["python3"]="sudo $PKG_MANAGER install -y python3"
-tools_check_commands["python3"]="python3 --version"
-
-tools_install_commands["pip3"]="sudo $PKG_MANAGER install -y python3-pip"
-tools_check_commands["pip3"]="pip3 --version"
-
-# Install all basic tools
-print_info "Checking and installing basic system tools..."
-for tool in curl wget git unzip jq gcc make python3 pip3; do
-    install_missing_tool "$tool" "${tools_install_commands[$tool]}" "${tools_check_commands[$tool]}"
-done
+# Install basic tools
+print_info "Installing basic system tools..."
+sudo $PKG_MANAGER install -y curl wget git unzip jq gcc make python3 python3-pip
 
 # Install virtualenv based on system
 if [ "$PKG_MANAGER" = "apt" ]; then
@@ -198,13 +199,11 @@ if command_exists docker; then
 else
     print_info "Installing Docker..."
     if [ "$PKG_MANAGER" = "apt" ]; then
-        # Ubuntu/Debian Docker installation
         curl -fsSL https://get.docker.com -o get-docker.sh
         sudo sh get-docker.sh
         sudo usermod -aG docker $USER
         rm -f get-docker.sh
     else
-        # Amazon Linux 2023 Docker installation
         sudo $PKG_MANAGER install -y docker
         sudo systemctl start docker
         sudo systemctl enable docker
@@ -214,167 +213,23 @@ else
 fi
 
 # Install kubectl
-print_info "Checking kubectl installation..."
-if command_exists kubectl; then
-    print_status "✓ kubectl is already installed"
-    kubectl version --client
-else
-    print_info "Installing kubectl..."
-    curl -LO "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
-    sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-    rm -f kubectl
-    print_status "✓ kubectl installed successfully"
-fi
+print_info "Installing kubectl..."
+curl -LO "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm -f kubectl
+print_status "✓ kubectl installed"
 
 # Install Helm
-print_info "Checking Helm installation..."
-if command_exists helm; then
-    print_status "✓ Helm is already installed"
-    helm version
-else
-    print_info "Installing Helm..."
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-    print_status "✓ Helm installed successfully"
-fi
+print_info "Installing Helm..."
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+print_status "✓ Helm installed"
 
 # Install Kind
-print_info "Checking Kind installation..."
-if command_exists kind; then
-    print_status "✓ Kind is already installed"
-    kind version
-else
-    print_info "Installing Kind..."
-    curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}"
-    chmod +x ./kind
-    sudo mv ./kind /usr/local/bin/kind
-    print_status "✓ Kind installed successfully"
-fi
-
-# Install additional build tools for Ubuntu/Debian
-if [ "$PKG_MANAGER" = "apt" ]; then
-    print_info "Installing additional build tools for Ubuntu/Debian..."
-    sudo apt-get install -y build-essential software-properties-common \
-        apt-transport-https ca-certificates gnupg lsb-release
-fi
-
-print_status "All required tools are installed and ready!"
-
-# Verify all tools are working
-print_info "Verifying all tools are working correctly..."
-tools_status=0
-
-# Check each tool
-for tool in curl wget git unzip jq gcc make python3 pip3 docker kubectl helm kind; do
-    if command_exists "$tool"; then
-        print_status "✓ $tool is working"
-    else
-        print_error "✗ $tool is not working"
-        tools_status=1
-    fi
-done
-
-# Check virtual environment tools
-if [ "$PKG_MANAGER" = "apt" ]; then
-    if python3 -m venv --help >/dev/null 2>&1; then
-        print_status "✓ python3-venv is working"
-    else
-        print_error "✗ python3-venv is not working"
-        tools_status=1
-    fi
-else
-    if python3 -m virtualenv --help >/dev/null 2>&1; then
-        print_status "✓ virtualenv is working"
-    else
-        print_error "✗ virtualenv is not working"
-        tools_status=1
-    fi
-fi
-
-if [ $tools_status -eq 0 ]; then
-    print_status "All tools are verified and ready!"
-else
-    print_warning "Some tools may need manual installation. Check the manual installation guide at the end."
-fi
-
-# ============================================================================
-# PHASE 2: DOCKER SETUP AND VERIFICATION
-# ============================================================================
-
-print_section "PHASE 2: Docker Setup and Verification"
-
-# Start Docker daemon if not running
-if ! docker info >/dev/null 2>&1; then
-    print_info "Starting Docker daemon..."
-    if command -v systemctl >/dev/null 2>&1; then
-        sudo systemctl start docker
-        sudo systemctl enable docker
-    else
-        # For container environments without systemctl
-        sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
-        sleep 10
-    fi
-fi
-
-# Verify Docker is running
-if ! sudo docker info >/dev/null 2>&1; then
-    print_warning "Docker daemon not running, attempting to start..."
-    sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
-    sleep 10
-fi
-
-# Check if user is in docker group
-if ! groups $USER | grep -q docker; then
-    print_warning "User not in docker group. You may need to log out and back in, or run: newgrp docker"
-    print_info "Alternatively, you can use 'sudo docker' for this session"
-fi
-
-# ============================================================================
-# PHASE 3: APPLICATION SETUP
-# ============================================================================
-
-# Verify Docker is running
-if ! sudo docker info >/dev/null 2>&1; then
-    print_warning "Docker daemon not running, attempting to start..."
-    sudo dockerd --iptables=false --storage-driver=vfs --experimental --host=unix:///var/run/docker.sock > /tmp/docker.log 2>&1 &
-    sleep 10
-fi
-
-# Check if user is in docker group
-if ! groups $USER | grep -q docker; then
-    print_warning "User not in docker group. You may need to log out and back in, or run: newgrp docker"
-    print_info "Alternatively, you can use 'sudo docker' for this session"
-fi
-
-# Install kubectl
-if ! command -v kubectl >/dev/null 2>&1; then
-    print_info "Installing kubectl..."
-    curl -LO "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
-    sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-    rm -f kubectl
-    print_status "kubectl installed"
-else
-    print_status "kubectl already installed"
-fi
-
-# Install Helm
-if ! command -v helm >/dev/null 2>&1; then
-    print_info "Installing Helm..."
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-    print_status "Helm installed"
-else
-    print_status "Helm already installed"
-fi
-
-# Install Kind
-if ! command -v kind >/dev/null 2>&1; then
-    print_info "Installing Kind..."
-    curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}"
-    chmod +x ./kind
-    sudo mv ./kind /usr/local/bin/kind
-    print_status "Kind installed"
-else
-    print_status "Kind already installed"
-fi
+print_info "Installing Kind..."
+curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}"
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+print_status "✓ Kind installed"
 
 # ============================================================================
 # PHASE 3: APPLICATION SETUP
@@ -386,10 +241,8 @@ print_section "PHASE 3: Setting up Application Environment"
 if [ ! -d "venv" ]; then
     print_info "Creating Python virtual environment..."
     if [ "$PKG_MANAGER" = "apt" ]; then
-        # Ubuntu/Debian - use venv
         python3 -m venv venv
     else
-        # Amazon Linux 2023 - use virtualenv
         python3 -m virtualenv venv
     fi
     print_status "Virtual environment created"
@@ -399,95 +252,8 @@ fi
 print_info "Installing Python dependencies..."
 source venv/bin/activate
 pip install --upgrade pip
-
-# Install requirements with retry logic
-if [ -f "requirements.txt" ]; then
-    print_info "Installing requirements from requirements.txt..."
-    pip install -r requirements.txt || {
-        print_warning "Failed to install from requirements.txt, trying individual packages..."
-        pip install fastapi uvicorn pymongo python-multipart
-    }
-else
-    print_warning "requirements.txt not found, installing basic packages..."
-    pip install fastapi uvicorn pymongo python-multipart
-fi
+pip install -r requirements.txt || pip install fastapi uvicorn pymongo python-multipart
 print_status "Python dependencies installed"
-
-# Create basic app structure if it doesn't exist
-print_info "Setting up application structure..."
-mkdir -p app
-
-# Create basic main.py if it doesn't exist
-if [ ! -f "app/main.py" ]; then
-    print_info "Creating basic app/main.py..."
-    cat > app/main.py << 'EOF'
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-APP_NAME = "NativeSeries"
-APP_VERSION = "1.0.0"
-
-app = FastAPI(
-    title=APP_NAME,
-    version=APP_VERSION,
-    description="Student Tracker Application"
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to NativeSeries API"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "service": APP_NAME}
-
-@app.get("/api/students")
-async def get_students():
-    return {"students": []}
-EOF
-    print_status "Created app/main.py"
-fi
-
-# Create basic models.py if it doesn't exist
-if [ ! -f "app/models.py" ]; then
-    print_info "Creating basic app/models.py..."
-    cat > app/models.py << 'EOF'
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
-
-class Student(BaseModel):
-    id: Optional[str] = None
-    name: str
-    email: str
-    age: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-class StudentCreate(BaseModel):
-    name: str
-    email: str
-    age: Optional[int] = None
-
-class StudentUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    age: Optional[int] = None
-EOF
-    print_status "Created app/models.py"
-fi
-
-# Note: Tests will be run at the end after deployment
-print_info "Tests will be run after deployment is complete"
 
 # ============================================================================
 # PHASE 4: DOCKER IMAGE BUILD
@@ -496,79 +262,12 @@ print_info "Tests will be run after deployment is complete"
 print_section "PHASE 4: Building Docker Image"
 
 print_info "Building Docker image..."
-
-# Ensure DOCKER_CMD is defined
-if [ -z "${DOCKER_CMD:-}" ]; then
-    if groups $USER | grep -q docker; then
-        DOCKER_CMD="docker"
-    else
-        DOCKER_CMD="sudo docker"
-        print_info "Using sudo for Docker commands"
-    fi
-    export DOCKER_CMD
-fi
-
-# Check if requirements.txt exists
-if [ ! -f "requirements.txt" ]; then
-    print_warning "requirements.txt not found, creating basic requirements.txt..."
-    cat > requirements.txt << 'EOF'
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pymongo==4.6.0
-python-multipart==0.0.6
-pytest==8.4.1
-pytest-asyncio==0.21.1
-EOF
-    print_status "Created basic requirements.txt"
-fi
-
-# Check if Dockerfile exists
-if [ ! -f "Dockerfile" ]; then
-    print_warning "Dockerfile not found, creating basic Dockerfile..."
-    cat > Dockerfile << 'EOF'
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Expose port
-EXPOSE 8000
-
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-EOF
-    print_status "Created basic Dockerfile"
-fi
-
+DOCKER_CMD="sudo docker"
 $DOCKER_CMD build -t ${DOCKER_IMAGE}:latest . --network=host
 print_status "Docker image built successfully"
 
 # Test the application locally
 print_info "Testing application locally..."
-
-# Ensure DOCKER_CMD is defined
-if [ -z "${DOCKER_CMD:-}" ]; then
-    if groups $USER | grep -q docker; then
-        DOCKER_CMD="docker"
-    else
-        DOCKER_CMD="sudo docker"
-        print_info "Using sudo for Docker commands"
-    fi
-    export DOCKER_CMD
-fi
-
 $DOCKER_CMD run -d --name test-app -p 8001:8000 ${DOCKER_IMAGE}:latest
 sleep 30
 
@@ -636,31 +335,15 @@ EOF
 # Create or use existing cluster
 if ! kubectl cluster-info >/dev/null 2>&1; then
     print_info "Creating Kind cluster..."
-    if sudo kind create cluster --config infra/kind/cluster-config.yaml; then
-        print_status "Kind cluster created successfully"
-    else
-        print_warning "Kind cluster creation failed, trying alternative approach..."
-        # Try without iptables for container environments
-        sudo kind create cluster --name gitops-cluster || {
-            print_error "Failed to create Kind cluster. Continuing with deployment preparation..."
-        }
-    fi
+    sudo kind create cluster --config infra/kind/cluster-config.yaml
+    print_status "Kind cluster created successfully"
 else
     print_status "Using existing Kubernetes cluster"
 fi
 
-# Load Docker image into Kind cluster (if Kind is available)
+# Load Docker image into Kind cluster
 if command -v kind >/dev/null 2>&1 && kind get clusters | grep -q gitops-cluster; then
     print_info "Loading Docker image into Kind cluster..."
-    # Ensure DOCKER_CMD is defined for kind load
-    if [ -z "${DOCKER_CMD:-}" ]; then
-        if groups $USER | grep -q docker; then
-            DOCKER_CMD="docker"
-        else
-            DOCKER_CMD="sudo docker"
-        fi
-        export DOCKER_CMD
-    fi
     sudo kind load docker-image ${DOCKER_IMAGE}:latest --name gitops-cluster
     print_status "Docker image loaded into cluster"
 fi
@@ -703,23 +386,10 @@ EOF
 print_info "Generating application manifests..."
 helm template ${APP_NAME} helm-chart \
     --namespace ${NAMESPACE} \
-    --set app.image.repository=${DOCKER_IMAGE} \
-    --set app.image.tag=latest \
+    --set image.repository=${DOCKER_IMAGE} \
+    --set image.tag=latest \
     --set service.nodePort=${PRODUCTION_PORT} \
     > deployment/production/02-application.yaml
-
-# Generate ArgoCD installation manifest
-print_info "Generating ArgoCD manifests..."
-cat > deployment/production/03-argocd-install.yaml << EOF
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-install
-  namespace: ${ARGOCD_NAMESPACE}
-data:
-  install.yaml: |
-$(curl -s https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/manifests/install.yaml | sed 's/^/    /')
-EOF
 
 # Generate ArgoCD service with NodePort
 cat > deployment/production/04-argocd-service.yaml << EOF
@@ -904,159 +574,23 @@ else
 fi
 
 # ============================================================================
-# PHASE 8: COMPREHENSIVE TESTING AND VALIDATION
+# PHASE 8: VALIDATION AND TESTING
 # ============================================================================
 
-print_section "PHASE 8: Comprehensive Testing and Validation"
-
-# Run application tests
-print_info "Running application tests..."
-if [ -f "app/test_basic.py" ]; then
-    cd app && python -m pytest test_basic.py -v || {
-        print_warning "Some tests failed, but continuing with validation..."
-        print_info "This is normal if some app files are missing or incomplete"
-    }
-    cd ..
-else
-    print_warning "No test_basic.py found, skipping application tests"
-fi
-
-# Test application endpoints
-print_info "Testing application endpoints..."
-validation_score=0
-total_tests=10
-
-# Test 1: Docker build
-if sudo docker images | grep -q ${DOCKER_IMAGE}; then
-    print_status "Docker image exists"
-    ((validation_score++))
-else
-    print_error "Docker image not found"
-fi
-
-# Test 2: Python dependencies
-if source venv/bin/activate && python -c "import fastapi, uvicorn, pymongo" 2>/dev/null; then
-    print_status "Python dependencies available"
-    ((validation_score++))
-else
-    print_error "Python dependencies missing"
-fi
-
-# Test 3: Helm chart syntax
-if helm template test helm-chart >/dev/null 2>&1; then
-    print_status "Helm chart syntax valid"
-    ((validation_score++))
-else
-    print_error "Helm chart syntax invalid"
-fi
-
-# Test 4: Kubernetes manifests
-if find deployment/production -name "*.yaml" -exec kubectl apply --dry-run=client -f {} \; >/dev/null 2>&1; then
-    print_status "Kubernetes manifests valid"
-    ((validation_score++))
-else
-    print_warning "Some Kubernetes manifests may have issues"
-fi
-
-# Test 5: Application code
-if python3 -c "import app.main" 2>/dev/null; then
-    print_status "Application code imports successfully"
-    ((validation_score++))
-else
-    print_error "Application code has import issues"
-fi
-
-# Test 6-10: Tool availability
-for tool in kubectl helm kind docker python3; do
-    if command -v $tool >/dev/null 2>&1; then
-        print_status "$tool is available"
-        ((validation_score++))
-    else
-        print_error "$tool is not available"
-    fi
-done
-
-# Calculate success rate
-success_rate=$(( validation_score * 100 / total_tests ))
+print_section "PHASE 8: Validation and Testing"
 
 # Validate Helm chart
 print_info "Validating Helm chart..."
 helm lint helm-chart
 print_status "Helm chart validation passed"
 
-# ============================================================================
-# PHASE 9: SYSTEM HEALTH CHECKS
-# ============================================================================
-
-print_section "PHASE 9: System Health Checks"
-
-# Check Docker status
-print_info "Checking Docker status..."
-if docker info >/dev/null 2>&1 || sudo docker info >/dev/null 2>&1; then
-    print_status "Docker is running"
-else
-    print_error "Docker is not running"
-fi
-
-# Check Kubernetes cluster
-print_info "Checking Kubernetes cluster..."
-if kubectl cluster-info >/dev/null 2>&1; then
-    print_status "Kubernetes cluster is accessible"
-    kubectl get nodes
-else
-    print_warning "Kubernetes cluster is not accessible"
-fi
-
-# Check application deployment
-print_info "Checking application deployment..."
-if kubectl get pods -n ${NAMESPACE} >/dev/null 2>&1; then
-    print_status "Application namespace exists"
-    kubectl get pods -n ${NAMESPACE}
-else
-    print_warning "Application namespace not found"
-fi
-
-# Check ArgoCD deployment
-print_info "Checking ArgoCD deployment..."
-if kubectl get pods -n ${ARGOCD_NAMESPACE} >/dev/null 2>&1; then
-    print_status "ArgoCD namespace exists"
-    kubectl get pods -n ${ARGOCD_NAMESPACE}
-else
-    print_warning "ArgoCD namespace not found"
-fi
-
-# Check monitoring stack
-print_info "Checking monitoring stack..."
-if kubectl get pods -n ${MONITORING_NAMESPACE} >/dev/null 2>&1; then
-    print_status "Monitoring namespace exists"
-    kubectl get pods -n ${MONITORING_NAMESPACE}
-else
-    print_warning "Monitoring namespace not found"
-fi
-
-# Test application endpoints (if accessible)
-print_info "Testing application endpoints..."
-if curl -s http://localhost:8000/health >/dev/null 2>&1; then
-    print_status "Local application health check passed"
-elif curl -s http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health >/dev/null 2>&1; then
-    print_status "Remote application health check passed"
-else
-    print_warning "Application health check failed (may not be deployed yet)"
-fi
-
-# ============================================================================
-# PHASE 10: FINAL VALIDATION SCORING
-# ============================================================================
-
-print_section "PHASE 10: Final Validation Scoring"
-
 # Test application endpoints
-print_info "Running final validation tests..."
+print_info "Testing application endpoints..."
 validation_score=0
-total_tests=10
+total_tests=5
 
-# Test 1: Docker build
-if sudo docker images | grep -q ${DOCKER_IMAGE}; then
+# Test 1: Docker image
+if $DOCKER_CMD images | grep -q ${DOCKER_IMAGE}; then
     print_status "Docker image exists"
     ((validation_score++))
 else
@@ -1095,28 +629,18 @@ else
     print_error "Application code has import issues"
 fi
 
-# Test 6-10: Tool availability
-for tool in kubectl helm kind docker python3; do
-    if command -v $tool >/dev/null 2>&1; then
-        print_status "$tool is available"
-        ((validation_score++))
-    else
-        print_error "$tool is not available"
-    fi
-done
-
 # Calculate success rate
 success_rate=$(( validation_score * 100 / total_tests ))
 
 # ============================================================================
-# PHASE 11: FINAL REPORT AND CLEANUP
+# PHASE 9: FINAL REPORT
 # ============================================================================
 
-print_section "PHASE 11: Installation Complete"
+print_section "PHASE 9: Installation Complete"
 
 # Generate final deployment guide
 cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
-# 🎉 Student Tracker - Complete Installation Summary
+# 🎉 NativeSeries - Complete Installation Summary
 
 ## ✅ Installation Status: COMPLETE
 **Success Rate:** ${success_rate}%  
@@ -1125,7 +649,7 @@ cat > FINAL_DEPLOYMENT_GUIDE.md << EOF
 
 ## 🌐 Access URLs
 
-### 📱 Student Tracker Application
+### 📱 NativeSeries Application
 - **URL:** http://${PRODUCTION_HOST}:${PRODUCTION_PORT}
 - **Health Check:** http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/health
 - **API Documentation:** http://${PRODUCTION_HOST}:${PRODUCTION_PORT}/docs
@@ -1178,7 +702,7 @@ echo "║                    🎉 INSTALLATION COMPLETE! 🎉                  �
 echo "╚══════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-echo -e "${WHITE}🌐 Your Student Tracker is ready at:${NC}"
+echo -e "${WHITE}🌐 Your NativeSeries is ready at:${NC}"
 echo -e "${CYAN}   📱 Application: http://${PRODUCTION_HOST}:${PRODUCTION_PORT}${NC}"
 echo -e "${CYAN}   🎯 ArgoCD:      http://${PRODUCTION_HOST}:${ARGOCD_PORT}${NC}"
 echo -e "${CYAN}   📊 Grafana:     http://${PRODUCTION_HOST}:${GRAFANA_PORT}${NC}"
@@ -1190,228 +714,5 @@ echo ""
 
 # Clean up temporary files
 rm -f get-docker.sh
-
-# Create manual installation script as backup
-print_info "Creating manual installation backup script..."
-cat > manual-install-amazon-linux.sh << 'EOF'
-#!/bin/bash
-
-# Manual Installation Script for Amazon Linux 2023
-# Use this if the automated installation fails
-
-set -euo pipefail
-
-echo "🚀 Manual Installation for Amazon Linux 2023"
-echo "=============================================="
-
-# Step 1: Install missing python3-venv package
-echo "Step 1: Installing python3-pip and virtualenv..."
-sudo yum install -y python3-pip
-sudo pip3 install virtualenv
-
-# Step 2: Create virtual environment manually
-echo "Step 2: Creating virtual environment..."
-python3 -m virtualenv venv
-source venv/bin/activate
-
-# Step 3: Install Python dependencies
-echo "Step 3: Installing Python dependencies..."
-pip install --upgrade pip
-pip install -r requirements.txt
-
-# Step 4: Install Docker
-echo "Step 4: Installing Docker..."
-sudo yum update -y
-sudo yum install -y docker
-sudo systemctl start docker
-sudo systemctl enable docker
-sudo usermod -aG docker ec2-user
-
-# Step 5: Install kubectl
-echo "Step 5: Installing kubectl..."
-curl -LO "https://dl.k8s.io/release/v1.33.3/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-rm -f kubectl
-
-# Step 6: Install Helm
-echo "Step 6: Installing Helm..."
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-# Step 7: Install Kind
-echo "Step 7: Installing Kind..."
-curl -Lo ./kind "https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64"
-chmod +x ./kind
-sudo mv ./kind /usr/local/bin/kind
-
-# Step 8: Build Docker image
-echo "Step 8: Building Docker image..."
-sudo docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest . --network=host
-
-# Step 9: Create Kind cluster
-echo "Step 9: Creating Kind cluster..."
-sudo kind create cluster --name gitops-cluster
-sudo kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name gitops-cluster
-
-# Step 10: Deploy to Kubernetes
-echo "Step 10: Deploying to Kubernetes..."
-kubectl apply -f deployment/production/01-namespace.yaml
-kubectl apply -f deployment/production/02-application.yaml
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
-kubectl apply -f deployment/production/04-argocd-service.yaml
-kubectl apply -f deployment/production/06-monitoring-stack.yaml
-kubectl apply -f deployment/production/05-argocd-application.yaml
-
-# Step 11: Verify deployment
-echo "Step 11: Verifying deployment..."
-kubectl get pods -A
-kubectl get services -A
-
-echo "🎉 Manual installation completed!"
-echo "Access URLs:"
-echo "Application: http://54.166.101.159:30011"
-echo "ArgoCD: http://54.166.101.159:30080"
-echo "Grafana: http://54.166.101.159:30081"
-echo "Prometheus: http://54.166.101.159:30082"
-EOF
-
-chmod +x manual-install-amazon-linux.sh
-print_status "Manual installation script created: manual-install-amazon-linux.sh"
-
-# Final instructions
-print_section "PHASE 12: Final Instructions"
-
-echo -e "${GREEN}🎉 Installation completed successfully!${NC}"
-echo ""
-echo -e "${CYAN}📋 Next Steps:${NC}"
-echo "1. If you're not in the docker group, run: newgrp docker"
-echo "2. Or use 'sudo docker' for Docker commands"
-echo "3. Access your application at: http://54.166.101.159:30011"
-echo "4. Access ArgoCD at: http://54.166.101.159:30080"
-echo "5. Access Grafana at: http://54.166.101.159:30081"
-echo "6. Access Prometheus at: http://54.166.101.159:30082"
-echo ""
-echo -e "${YELLOW}🔧 Troubleshooting:${NC}"
-echo "- If Docker commands fail, try: sudo docker <command>"
-echo "- If kubectl fails, check if cluster is running"
-echo "- For ArgoCD password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
-echo ""
-
-# ============================================================================
-# PHASE 13: MANUAL INSTALLATION GUIDE (FALLBACK)
-# ============================================================================
-
-print_section "PHASE 13: Manual Installation Guide (If Automated Installation Fails)"
-
-echo -e "${YELLOW}📖 Manual Installation Steps (if automated installation fails):${NC}"
-echo ""
-echo -e "${CYAN}Step 1: Install missing python3-venv package${NC}"
-echo "# For Amazon Linux 2023, install python3-venv manually"
-echo "sudo yum install -y python3-pip"
-echo "sudo pip3 install virtualenv"
-echo ""
-echo -e "${CYAN}Step 2: Create virtual environment manually${NC}"
-echo "# Create virtual environment using virtualenv instead of venv"
-echo "python3 -m virtualenv venv"
-echo "source venv/bin/activate"
-echo ""
-echo -e "${CYAN}Step 3: Install Python dependencies${NC}"
-echo "# Activate virtual environment and install dependencies"
-echo "source venv/bin/activate"
-echo "pip install --upgrade pip"
-echo "pip install -r requirements.txt"
-echo ""
-echo -e "${CYAN}Step 4: Install Docker${NC}"
-echo "# Install Docker"
-echo "sudo yum update -y"
-echo "sudo yum install -y docker"
-echo "sudo systemctl start docker"
-echo "sudo systemctl enable docker"
-echo "sudo usermod -aG docker ec2-user"
-echo "# Log out and back in for group changes to take effect"
-echo ""
-echo -e "${CYAN}Step 5: Install kubectl${NC}"
-echo "# Install kubectl"
-echo "curl -LO \"https://dl.k8s.io/release/v1.33.3/bin/linux/amd64/kubectl\""
-echo "sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl"
-echo "rm -f kubectl"
-echo ""
-echo -e "${CYAN}Step 6: Install Helm${NC}"
-echo "# Install Helm"
-echo "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"
-echo ""
-echo -e "${CYAN}Step 7: Install Kind${NC}"
-echo "# Install Kind"
-echo "curl -Lo ./kind \"https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64\""
-echo "chmod +x ./kind"
-echo "sudo mv ./kind /usr/local/bin/kind"
-echo ""
-echo -e "${CYAN}Step 8: Build Docker image${NC}"
-echo "# Build the Docker image"
-echo "sudo docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest . --network=host"
-echo ""
-echo -e "${CYAN}Step 9: Create Kind cluster${NC}"
-echo "# Create Kind cluster"
-echo "sudo kind create cluster --name gitops-cluster"
-echo "sudo kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name gitops-cluster"
-echo ""
-echo -e "${CYAN}Step 10: Deploy to Kubernetes${NC}"
-echo "# Apply the deployment manifests"
-echo "kubectl apply -f deployment/production/01-namespace.yaml"
-echo "kubectl apply -f deployment/production/02-application.yaml"
-echo "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml"
-echo "kubectl apply -f deployment/production/04-argocd-service.yaml"
-echo "kubectl apply -f deployment/production/06-monitoring-stack.yaml"
-echo "kubectl apply -f deployment/production/05-argocd-application.yaml"
-echo ""
-echo -e "${CYAN}Step 11: Verify deployment${NC}"
-echo "# Check deployment status"
-echo "kubectl get pods -A"
-echo "kubectl get services -A"
-echo ""
-echo -e "${CYAN}Step 12: Access the application${NC}"
-echo "# Get ArgoCD admin password"
-echo "kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath=\"{.data.password}\" | base64 -d"
-echo ""
-echo -e "${GREEN}📋 Complete one-liner for all steps:${NC}"
-echo "# Run this complete installation script"
-echo "sudo yum install -y python3-pip && \\"
-echo "sudo pip3 install virtualenv && \\"
-echo "python3 -m virtualenv venv && \\"
-echo "source venv/bin/activate && \\"
-echo "pip install --upgrade pip && \\"
-echo "pip install -r requirements.txt && \\"
-echo "sudo yum install -y docker && \\"
-echo "sudo systemctl start docker && \\"
-echo "sudo systemctl enable docker && \\"
-echo "sudo usermod -aG docker ec2-user && \\"
-echo "curl -LO \"https://dl.k8s.io/release/v1.33.3/bin/linux/amd64/kubectl\" && \\"
-echo "sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && \\"
-echo "rm -f kubectl && \\"
-echo "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash && \\"
-echo "curl -Lo ./kind \"https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64\" && \\"
-echo "chmod +x ./kind && \\"
-echo "sudo mv ./kind /usr/local/bin/kind && \\"
-echo "sudo docker build -t ghcr.io/bonaventuresimeon/nativeseries:latest . --network=host && \\"
-echo "sudo kind create cluster --name gitops-cluster && \\"
-echo "sudo kind load docker-image ghcr.io/bonaventuresimeon/nativeseries:latest --name gitops-cluster && \\"
-echo "kubectl apply -f deployment/production/01-namespace.yaml && \\"
-echo "kubectl apply -f deployment/production/02-application.yaml && \\"
-echo "kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml && \\"
-echo "kubectl apply -f deployment/production/04-argocd-service.yaml && \\"
-echo "kubectl apply -f deployment/production/06-monitoring-stack.yaml && \\"
-echo "kubectl apply -f deployment/production/05-argocd-application.yaml"
-echo ""
-echo -e "${BLUE}🌐 Access URLs after deployment:${NC}"
-echo "Application: http://54.166.101.159:30011"
-echo "ArgoCD: http://54.166.101.159:30080"
-echo "Grafana: http://54.166.101.159:30081"
-echo "Prometheus: http://54.166.101.159:30082"
-echo ""
-echo -e "${YELLOW}💡 Note: The main issue was that python3-venv package doesn't exist on Amazon Linux 2023, so we need to use virtualenv instead.${NC}"
-echo ""
-echo -e "${GREEN}📁 Backup Script Created:${NC}"
-echo "If the automated installation fails, you can run the manual installation script:"
-echo "  ./manual-install-amazon-linux.sh"
-echo ""
 
 print_status "Installation completed successfully!"
