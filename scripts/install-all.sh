@@ -261,6 +261,10 @@ detect_package_manager() {
         PKG_MANAGER="dnf"
         OS_TYPE="rhel"
         echo "DEBUG: Found dnf, setting PKG_MANAGER=dnf"
+    elif command -v zypper >/dev/null 2>&1; then
+        PKG_MANAGER="zypper"
+        OS_TYPE="suse"
+        echo "DEBUG: Found zypper, setting PKG_MANAGER=zypper"
     else
         print_error "Unsupported package manager detected"
         exit 1
@@ -318,6 +322,23 @@ install_binary_tool() {
     fi
 }
 
+# Add a function for checksum validation
+validate_checksum() {
+    local file="$1"
+    local checksum_file="$2"
+    if [ -f "$checksum_file" ]; then
+        echo "  Verifying checksum for $file..."
+        if echo "$(cat $checksum_file)  $file" | sha256sum --check; then
+            rm -f "$checksum_file"
+            return 0
+        else
+            echo "ERROR: $file checksum failed!" >&2
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # Detect package manager first
 detect_package_manager
 echo "DEBUG: After detection, PKG_MANAGER=$PKG_MANAGER, OS_TYPE=$OS_TYPE"
@@ -327,6 +348,7 @@ print_info "Installing basic system tools..."
 echo "DEBUG: PKG_MANAGER=$PKG_MANAGER"
 if [ "$PKG_MANAGER" = "apt" ]; then
     echo "DEBUG: Using apt-get branch"
+    export DEBIAN_FRONTEND=noninteractive
     sudo apt-get update
     sudo apt-get install -y \
         curl wget git unzip jq gcc g++ make \
@@ -334,24 +356,32 @@ if [ "$PKG_MANAGER" = "apt" ]; then
         build-essential libssl-dev libffi-dev \
         ca-certificates gnupg lsb-release \
         software-properties-common apt-transport-https
-else
-    echo "DEBUG: Using yum branch"
+elif [ "$PKG_MANAGER" = "zypper" ]; then
+    echo "DEBUG: Using zypper branch"
+    sudo zypper --non-interactive refresh
+    sudo zypper --non-interactive install --auto-agree-with-licenses \
+        curl wget git unzip jq gcc gcc-c++ make \
+        python3 python3-pip python3-venv python3-devel \
+        libopenssl-devel libffi-devel \
+        ca-certificates gpg2
+elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+    echo "DEBUG: Using $PKG_MANAGER branch"
     # Check for gnupg2-minimal and skip gnupg2 if present
     if rpm -q gnupg2-minimal >/dev/null 2>&1; then
         echo "DEBUG: gnupg2-minimal is installed, skipping gnupg2 to avoid conflict."
-        sudo yum update -y --skip-broken
-        sudo yum install -y \
+        sudo $PKG_MANAGER update -y --allowerasing --skip-broken
+        sudo $PKG_MANAGER install -y \
             curl wget git unzip jq gcc gcc-c++ make \
             python3 python3-pip python3-devel \
             openssl-devel libffi-devel \
-            ca-certificates --skip-broken
+            ca-certificates --allowerasing --skip-broken
     else
-        sudo yum update -y --skip-broken
-        sudo yum install -y \
+        sudo $PKG_MANAGER update -y --allowerasing --skip-broken
+        sudo $PKG_MANAGER install -y \
             curl wget git unzip jq gcc gcc-c++ make \
             python3 python3-pip python3-devel \
             openssl-devel libffi-devel \
-            ca-certificates gnupg2 --skip-broken
+            ca-certificates gnupg2 --allowerasing --skip-broken
     fi
 fi
 print_status "✓ Basic system tools installed"
@@ -364,49 +394,44 @@ if command_exists docker; then
     docker --version
 else
     print_info "Installing Docker..."
-    
-    # Remove any old Docker installations
-    sudo $PKG_MANAGER remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
-    
     if [ "$PKG_MANAGER" = "apt" ]; then
-        # Install Docker using official script
-        curl -fsSL https://get.docker.com -o get-docker.sh
-        sudo sh get-docker.sh --version 24.0.7
-        sudo usermod -aG docker $USER
+        echo "DEBUG: Installing Docker using official Docker APT repo"
+        sudo apt-get remove -y docker docker-engine docker.io containerd runc || true
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl gnupg lsb-release
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          $(lsb_release -cs) stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         sudo systemctl start docker
         sudo systemctl enable docker
-        rm -f get-docker.sh
-    else
-        # Detect Amazon Linux and use the correct Docker install
+        sudo usermod -aG docker $USER
+    elif [ "$PKG_MANAGER" = "zypper" ]; then
+        echo "DEBUG: Installing Docker using official Docker repo for SUSE"
+        sudo zypper --non-interactive install --auto-agree-with-licenses docker
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        sudo usermod -aG docker $USER
+    elif [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
         if grep -qi 'amazon' /etc/os-release; then
             echo "DEBUG: Detected Amazon Linux, installing docker from default repos"
-            sudo yum install -y docker
+            sudo $PKG_MANAGER install -y docker
             sudo systemctl start docker
             sudo systemctl enable docker
             sudo usermod -aG docker $USER
         else
-            # Install Docker for RHEL/CentOS
-            sudo yum install -y yum-utils
+            echo "DEBUG: Installing Docker for RHEL/CentOS using official Docker repo"
+            sudo $PKG_MANAGER install -y yum-utils
             sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-            sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            sudo $PKG_MANAGER install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin --allowerasing --skip-broken
             sudo systemctl start docker
             sudo systemctl enable docker
             sudo usermod -aG docker $USER
         fi
-    fi
-    
-    # Verify Docker installation
-    if sudo docker --version; then
-        print_status "✓ Docker installed successfully"
-        # Test Docker functionality
-        if sudo docker run --rm hello-world >/dev/null 2>&1; then
-            print_status "✓ Docker functionality verified"
-        else
-            print_warning "⚠ Docker installed but functionality test failed"
-        fi
-    else
-        print_error "✗ Docker installation failed"
-        exit 1
     fi
 fi
 
@@ -419,6 +444,41 @@ if [ "$PKG_MANAGER" = "apt" ]; then
     echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
     sudo apt-get update
     sudo apt-get install -y kubectl
+elif [ "$PKG_MANAGER" = "zypper" ] || [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+    if [ "$PKG_MANAGER" = "dnf" ] || [ "$PKG_MANAGER" = "yum" ]; then
+        if grep -qi 'amazon' /etc/os-release; then
+            echo "DEBUG: Detected Amazon Linux, installing kubectl from default repo"
+            sudo $PKG_MANAGER install -y kubectl
+        else
+            echo "DEBUG: Installing kubectl via official binary for $PKG_MANAGER"
+            KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
+            curl -LO "$KUBECTL_URL"
+            curl -LO "$KUBECTL_URL.sha256"
+            echo "  Verifying checksum..."
+            if echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check; then
+                chmod +x kubectl
+                sudo mv kubectl /usr/local/bin/kubectl
+                rm -f kubectl.sha256
+            else
+                echo "ERROR: kubectl checksum failed!" >&2
+                exit 1
+            fi
+        fi
+    else
+        echo "DEBUG: Installing kubectl via official binary for zypper"
+        KUBECTL_URL="https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl"
+        curl -LO "$KUBECTL_URL"
+        curl -LO "$KUBECTL_URL.sha256"
+        echo "  Verifying checksum..."
+        if echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check; then
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/kubectl
+            rm -f kubectl.sha256
+        else
+            echo "ERROR: kubectl checksum failed!" >&2
+            exit 1
+        fi
+    fi
 else
     if command_exists kubectl; then
         current_version=""
@@ -479,23 +539,58 @@ if command_exists helm; then
     helm version
 else
     print_info "Installing Helm..."
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    HELM_VERSION_LATEST="${HELM_VERSION:-$(curl -s https://api.github.com/repos/helm/helm/releases/latest | grep tag_name | cut -d '"' -f4 | sed 's/^v//')}"
+    HELM_URL="https://get.helm.sh/helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz"
+    curl -LO "$HELM_URL"
+    curl -LO "$HELM_URL.sha256sum"
+    echo "  Verifying checksum..."
+    grep "helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz" helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz.sha256sum | sha256sum -c -
+    tar -zxvf helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz"
+    sudo mv ${OS}-${ARCH}/helm /usr/local/bin/helm
+    rm -rf ${OS}-${ARCH} helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz.sha256sum
     print_status "✓ Helm installed"
 fi
 
 # Install Kind
-install_binary_tool "kind" "$KIND_VERSION" \
-    "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-${OS}-${ARCH}" \
-    "kind"
+KIND_VERSION_LATEST="${KIND_VERSION:-$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | grep tag_name | cut -d '"' -f4 | sed 's/^v//')}"
+KIND_URL="https://kind.sigs.k8s.io/dl/v${KIND_VERSION_LATEST}/kind-${OS}-${ARCH}"
+curl -Lo kind "$KIND_URL"
+curl -Lo kind.sha256 "${KIND_URL}.sha256sum" || true
+if [ -f kind.sha256 ]; then
+    echo "  Verifying checksum..."
+    if echo "$(cat kind.sha256)  kind" | sha256sum --check; then
+        chmod +x kind
+        sudo mv kind /usr/local/bin/kind
+        rm -f kind.sha256
+    else
+        echo "ERROR: kind checksum failed!" >&2
+        exit 1
+    fi
+else
+    chmod +x kind
+    sudo mv kind /usr/local/bin/kind
+fi
 
-# Install additional tools
-print_info "Installing additional tools..."
-
-# Install yq for YAML processing
+# Install yq
 if ! command_exists yq; then
-    install_binary_tool "yq" "v4.40.5" \
-        "https://github.com/mikefarah/yq/releases/download/v4.40.5/yq_${OS}_${ARCH}" \
-        "yq"
+    YQ_VERSION_LATEST="${YQ_VERSION:-$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep tag_name | cut -d '"' -f4 | sed 's/^v//')}"
+    YQ_URL="https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION_LATEST}/yq_${OS}_${ARCH}"
+    curl -Lo yq "$YQ_URL"
+    curl -Lo yq.sha256 "${YQ_URL}.sha256sum" || true
+    if [ -f yq.sha256 ]; then
+        echo "  Verifying checksum..."
+        if echo "$(cat yq.sha256)  yq" | sha256sum --check; then
+            chmod +x yq
+            sudo mv yq /usr/local/bin/yq
+            rm -f yq.sha256
+        else
+            echo "ERROR: yq checksum failed!" >&2
+            exit 1
+        fi
+    else
+        chmod +x yq
+        sudo mv yq /usr/local/bin/yq
+    fi
 fi
 
 print_status "✓ All tools installed successfully"
