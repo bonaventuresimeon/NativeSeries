@@ -1722,7 +1722,7 @@ echo -e "${WHITE}   • ArgoCD Pods:     $(kubectl get pods -n $ARGOCD_NAMESPACE
 echo ""
 
 # Create a quick reference file
-cat > QUICK_REFERENCE.md << 'EOF'
+cat > QUICK_REFERENCE.md <<EOF
 # NativeSeries Quick Reference
 
 ## Access URLs
@@ -1730,7 +1730,7 @@ cat > QUICK_REFERENCE.md << 'EOF'
 - **ArgoCD:** http://54.166.101.159:30080
 
 ## Quick Commands
-```bash
+\`\`\`bash
 # Check all pods
 kubectl get pods --all-namespaces
 
@@ -1745,11 +1745,11 @@ kubectl exec -n nativeseries -it deployment/nativeseries -- /bin/bash
 
 # Check service endpoints
 kubectl get endpoints --all-namespaces
-```
+\`\`\`
 
 ## Troubleshooting
-- Use `./scripts/cleanup-direct.sh` for emergency cleanup
-- Check logs with `kubectl logs -n <namespace> <pod-name>`
+- Use \`./scripts/cleanup-direct.sh\` for emergency cleanup
+- Check logs with \`kubectl logs -n <namespace> <pod-name>\`
 EOF
 
 print_status "Installation completed successfully!"
