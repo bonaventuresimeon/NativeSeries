@@ -412,25 +412,34 @@ fi
 
 # Install kubectl
 print_info "Installing kubectl v${KUBECTL_VERSION}..."
-if command_exists kubectl; then
-    current_version=""
-    if kubectl version --client --short >/dev/null 2>&1; then
-        current_version=$(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 | sed 's/v//')
-    fi
-    if [ "$current_version" = "$KUBECTL_VERSION" ]; then
-        print_status "✓ kubectl v${KUBECTL_VERSION} is already installed"
-        echo "DEBUG: Running 'kubectl version --client --short'"
-        kubectl version --client --short
+if [ "$PKG_MANAGER" = "apt" ]; then
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl
+    sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+    sudo apt-get update
+    sudo apt-get install -y kubectl
+else
+    if command_exists kubectl; then
+        current_version=""
+        if kubectl version --client --short >/dev/null 2>&1; then
+            current_version=$(kubectl version --client --short 2>/dev/null | cut -d' ' -f3 | sed 's/v//')
+        fi
+        if [ "$current_version" = "$KUBECTL_VERSION" ]; then
+            print_status "✓ kubectl v${KUBECTL_VERSION} is already installed"
+            echo "DEBUG: Running 'kubectl version --client --short'"
+            kubectl version --client --short
+        else
+            print_info "Updating kubectl from v${current_version} to v${KUBECTL_VERSION}..."
+            install_binary_tool "kubectl" "$KUBECTL_VERSION" \
+                "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
+                "kubectl"
+        fi
     else
-        print_info "Updating kubectl from v${current_version} to v${KUBECTL_VERSION}..."
         install_binary_tool "kubectl" "$KUBECTL_VERSION" \
             "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
             "kubectl"
     fi
-else
-    install_binary_tool "kubectl" "$KUBECTL_VERSION" \
-        "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/${OS}/${ARCH}/kubectl" \
-        "kubectl"
 fi
 
 # Verify kubectl installation and setup
