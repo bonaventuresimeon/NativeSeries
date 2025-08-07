@@ -1494,18 +1494,24 @@ fi
 
 # --- Deploy Application via Helm chart ---
 if [ -d helm-chart ]; then
-    print_info "Deploying application Helm chart..."
-    helm upgrade --install nativeseries ./helm-chart --namespace "$APP_NAMESPACE" --set service.type=NodePort --set service.nodePort=30011
+    print_info "Deploying application Helm chart with all features enabled..."
+    helm upgrade --install nativeseries ./helm-chart --namespace "$APP_NAMESPACE" -f ./helm-chart/values.yaml
 else
     print_error "Helm chart directory not found. Skipping application deployment."
 fi
 
 # --- Expose DNS and port info ---
 print_info "Service Endpoints:"
-echo "Application: http://$(kubectl get svc -n $APP_NAMESPACE nativeseries -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '<pending>'):30011"
-echo "Prometheus: http://$(kubectl get svc -n $APP_NAMESPACE prometheus-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '<pending>'):30082"
-echo "Grafana: http://$(kubectl get svc -n $APP_NAMESPACE grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '<pending>'):30081"
-echo "Loki: http://$(kubectl get svc -n $APP_NAMESPACE loki -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '<pending>'):30083"
+APP_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE nativeseries -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30011')
+PROM_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE prometheus-server -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30082')
+GRAFANA_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE grafana -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30081')
+LOKI_NODEPORT=$(kubectl get svc -n $APP_NAMESPACE loki -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo '30083')
+APP_INGRESS=$(kubectl get ingress -n $APP_NAMESPACE nativeseries -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo 'nativeseries.local')
+echo "Application NodePort: http://<node-ip>:${APP_NODEPORT}"
+echo "Application Ingress: http://${APP_INGRESS}"
+echo "Prometheus NodePort: http://<node-ip>:${PROM_NODEPORT}"
+echo "Grafana NodePort: http://<node-ip>:${GRAFANA_NODEPORT}"
+echo "Loki NodePort: http://<node-ip>:${LOKI_NODEPORT}"
 
 # Deploy application
 print_info "Deploying application..."

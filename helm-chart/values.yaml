@@ -51,7 +51,7 @@ service:
 
 # Ingress configuration
 ingress:
-  enabled: false  # Disabled for now, using NodePort
+  enabled: true
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
@@ -61,7 +61,10 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
-  tls: []
+  tls:
+    - hosts:
+        - nativeseries.local
+      secretName: nativeseries-tls
 
 # ConfigMap data
 configMap:
@@ -72,12 +75,14 @@ configMap:
 
 # Secret data (for sensitive information)
 secret:
-  enabled: false
-  data: {}
+  enabled: true
+  data:
+    SECRET_KEY: "supersecretkey"
+    API_TOKEN: "demo-token"
 
 # Network Policy
 networkPolicy:
-  enabled: false  # Disabled for development
+  enabled: true
 
 # ArgoCD configuration
 argocd:
@@ -85,21 +90,30 @@ argocd:
 
 # Pod Monitor for Prometheus (if using Prometheus Operator)
 podMonitor:
-  enabled: false
+  enabled: true
   interval: 30s
   path: /metrics
-  labels: {}
+  labels:
+    release: prometheus
 
 # Prometheus Rules
 prometheusRules:
-  enabled: false
-  rules: []
+  enabled: true
+  rules:
+    - alert: HighRequestCount
+      expr: sum(rate(http_requests_total[1m])) > 100
+      for: 1m
+      labels:
+        severity: warning
+      annotations:
+        summary: High request count detected
+        description: More than 100 requests per minute
 
 # Logging configuration
 logging:
-  enabled: false
+  enabled: true
   volume:
-    size: 1Gi
+    size: 2Gi
 
 # Cleanup configuration
 cleanup:
@@ -130,10 +144,10 @@ affinity: {}
 
 # Horizontal Pod Autoscaler
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
 # Pod Disruption Budget
@@ -143,6 +157,8 @@ podDisruptionBudget:
 
 # ServiceMonitor for Prometheus (if using Prometheus Operator)
 serviceMonitor:
-  enabled: false
+  enabled: true
   interval: 30s
   path: /metrics
+  labels:
+    release: prometheus
