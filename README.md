@@ -22,6 +22,7 @@
 - [API Documentation](#api-documentation)
 - [Monitoring & Observability](#monitoring--observability)
 - [Development Guide](#development-guide)
+- [Documentation](#documentation)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 
@@ -485,6 +486,29 @@ kubectl apply -f deployment/development/
 # Access application
 kubectl port-forward svc/nativeseries-service 8000:80
 ```
+
+## 📖 Documentation
+
+This project includes comprehensive documentation for different aspects of the application:
+
+### 📚 **Step-by-Step Guides**
+- **[1.0 Setup your Environment](doc/1.0%20Setup%20your%20Enviroment/readme.md)** - Environment setup for Ubuntu VM
+- **[2.0 Dockerise your App](doc/2.0%20-%20Dockerise%20your%20App/readme.md)** - Containerization guide
+- **[3.0 Kubernetes](doc/3.0%20-%20Kubernetes/readme.md)** - Kubernetes basics and setup
+- **[4.0 Deploy to K8s](doc/4.0%20-%20Deploy%20to%20K8s/readme.md)** - Kubernetes deployment with Ingress
+- **[6.0 Git Actions](doc/6.0%20-%20%20Git%20Actions/readme.md)** - CI/CD with GitHub Actions
+- **[7.0 GitOps](doc/7.0%20-%20GitOps/readme.md)** - GitOps implementation with ArgoCD
+
+### 📋 **Installation & Deployment**
+- **[INSTALLATION.md](INSTALLATION.md)** - Comprehensive installation guide
+- **[scripts/install-all.sh](scripts/install-all.sh)** - Automated installation script
+
+### 🔧 **Configuration Files**
+- **[netlify.toml](netlify.toml)** - Netlify configuration
+- **[build.sh](build.sh)** - Build script for Netlify
+- **[Dockerfile](Dockerfile)** - Docker container configuration
+- **[helm-chart/](helm-chart/)** - Helm charts for Kubernetes deployment
+- **[argocd/](argocd/)** - ArgoCD application configuration
 
 ## 🐛 Troubleshooting
 
