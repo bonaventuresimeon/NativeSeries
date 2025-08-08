@@ -55,7 +55,7 @@ esac
 error_handler() {
     local exit_code=$1
     local line_no=$2
-    local bash_lineno=$3
+    local bash_lineno=$3  # Bash line numbers in function stack
     local last_command=$4
     local func_stack=$5
     
@@ -66,6 +66,9 @@ error_handler() {
     echo -e "${RED}Error Details:${NC}"
     echo -e "${WHITE}  • Exit Code: $exit_code${NC}"
     echo -e "${WHITE}  • Line Number: $line_no${NC}"
+    if [ "$bash_lineno" != "$line_no" ]; then
+        echo -e "${WHITE}  • Bash Line Numbers: $bash_lineno${NC}"
+    fi
     echo -e "${WHITE}  • Command: $last_command${NC}"
     echo -e "${WHITE}  • Function Stack: $func_stack${NC}"
     echo ""
@@ -88,8 +91,16 @@ cleanup_on_error() {
     
     # Stop any running containers
     if command_exists docker; then
-        sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
-        sudo docker rm $(sudo docker ps -aq) 2>/dev/null || true
+        local running_containers
+        running_containers=$(sudo docker ps -q)
+        if [ -n "$running_containers" ]; then
+            sudo docker stop $running_containers 2>/dev/null || true
+        fi
+        local all_containers
+        all_containers=$(sudo docker ps -aq)
+        if [ -n "$all_containers" ]; then
+            sudo docker rm $all_containers 2>/dev/null || true
+        fi
     fi
     
     # Remove temporary files
@@ -642,14 +653,19 @@ else
     curl -LO "$HELM_URL"
     curl -LO "$HELM_URL.sha256sum"
     echo "  Verifying checksum..."
-    grep "helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz" helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz.sha256sum | sha256sum -c -
-    tar -zxvf helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz"
-    sudo mv ${OS}-${ARCH}/helm /usr/local/bin/helm
-    rm -rf ${OS}-${ARCH} helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz.sha256sum
-    print_status "✓ Helm installed"
+    if grep "helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz" helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz.sha256sum | sha256sum -c -; then
+        tar -zxvf helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz
+        sudo mv ${OS}-${ARCH}/helm /usr/local/bin/helm
+        rm -rf ${OS}-${ARCH} helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz helm-v${HELM_VERSION_LATEST}-${OS}-${ARCH}.tar.gz.sha256sum
+        print_status "✓ Helm installed"
+    else
+        echo "ERROR: Helm checksum failed!" >&2
+        exit 1
+    fi
 fi
 
 # Install Kind
+print_info "Installing Kind v${KIND_VERSION_LATEST}..."
 KIND_VERSION_LATEST="${KIND_VERSION:-$(curl -s https://api.github.com/repos/kubernetes-sigs/kind/releases/latest | grep tag_name | cut -d '"' -f4 | sed 's/^v//')}"
 KIND_URL="https://kind.sigs.k8s.io/dl/v${KIND_VERSION_LATEST}/kind-${OS}-${ARCH}"
 curl -Lo kind "$KIND_URL"
@@ -660,17 +676,21 @@ if [ -f kind.sha256 ]; then
         chmod +x kind
         sudo mv kind /usr/local/bin/kind
         rm -f kind.sha256
+        print_status "✓ Kind installed"
     else
         echo "ERROR: kind checksum failed!" >&2
         exit 1
     fi
 else
+    print_warning "⚠ No checksum file available for Kind, installing without verification"
     chmod +x kind
     sudo mv kind /usr/local/bin/kind
+    print_status "✓ Kind installed (without checksum verification)"
 fi
 
 # Install yq
 if ! command_exists yq; then
+    print_info "Installing yq..."
     YQ_VERSION_LATEST="${YQ_VERSION:-$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep tag_name | cut -d '"' -f4 | sed 's/^v//')}"
     YQ_URL="https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION_LATEST}/yq_${OS}_${ARCH}"
     curl -Lo yq "$YQ_URL"
@@ -681,14 +701,19 @@ if ! command_exists yq; then
             chmod +x yq
             sudo mv yq /usr/local/bin/yq
             rm -f yq.sha256
+            print_status "✓ yq installed"
         else
             echo "ERROR: yq checksum failed!" >&2
             exit 1
         fi
     else
+        print_warning "⚠ No checksum file available for yq, installing without verification"
         chmod +x yq
         sudo mv yq /usr/local/bin/yq
+        print_status "✓ yq installed (without checksum verification)"
     fi
+else
+    print_status "✓ yq is already installed"
 fi
 
 print_status "✓ All tools installed successfully"
@@ -1750,6 +1775,7 @@ kubectl get endpoints --all-namespaces
 ## Troubleshooting
 - Use \`./scripts/cleanup-direct.sh\` for emergency cleanup
 - Check logs with \`kubectl logs -n <namespace> <pod-name>\`
+\`\`\`
 EOF
 
 print_status "Installation completed successfully!"
