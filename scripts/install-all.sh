@@ -55,7 +55,7 @@ esac
 error_handler() {
     local exit_code=$1
     local line_no=$2
-    local bash_lineno=$3
+    local bash_lineno=$3  # Bash line numbers in function stack
     local last_command=$4
     local func_stack=$5
     
@@ -66,6 +66,9 @@ error_handler() {
     echo -e "${RED}Error Details:${NC}"
     echo -e "${WHITE}  • Exit Code: $exit_code${NC}"
     echo -e "${WHITE}  • Line Number: $line_no${NC}"
+    if [ "$bash_lineno" != "$line_no" ]; then
+        echo -e "${WHITE}  • Bash Line Numbers: $bash_lineno${NC}"
+    fi
     echo -e "${WHITE}  • Command: $last_command${NC}"
     echo -e "${WHITE}  • Function Stack: $func_stack${NC}"
     echo ""
