@@ -96,13 +96,8 @@ install_logging() {
 }
 
 deploy_app() {
-  echo "Deploying application via Helm chart..."
-  helm upgrade --install nativeseries "$REPO_ROOT/helm-chart" \
-    --namespace nativeseries \
-    --create-namespace \
-    --set service.type=NodePort \
-    --set service.nodePort=${APP_NODEPORT} \
-    --set ingress.enabled=false
+  echo "Application will be deployed by ArgoCD Application (infra/argocd/application.yaml)"
+  # No direct Helm install to keep GitOps as the single source of truth
 }
 
 print_summary() {
