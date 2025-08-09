@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Load persisted ports from installer if present
+if [[ -f "$(dirname "$0")/gitops-ports.env" ]]; then
+  # shellcheck disable=SC1090
+  source "$(dirname "$0")/gitops-ports.env"
+fi
 PUBLIC_HOST=${PUBLIC_HOST:-$(curl -fsSL https://checkip.amazonaws.com || hostname -I | awk '{print $1}')}
 APP_PORT=${APP_PORT:-30011}
 ARGOCD_PORT=${ARGOCD_PORT:-30080}

@@ -153,6 +153,17 @@ EOF
 }
 
 print_summary() {
+  # Persist chosen ports
+  cat > /tmp/gitops-ports.env <<EOF
+PUBLIC_HOST=${PUBLIC_HOST}
+APP_PORT=${APP_NODEPORT}
+ARGOCD_PORT=${ARGOCD_NODEPORT}
+GRAFANA_PORT=${GRAFANA_NODEPORT}
+PROM_PORT=${PROMETHEUS_NODEPORT}
+LOKI_PORT=${LOKI_NODEPORT}
+EOF
+  cp -f /tmp/gitops-ports.env "$REPO_ROOT/scripts/gitops-ports.env" 2>/dev/null || true
+
   echo "Deployment complete. Access endpoints:"
   echo "- App:       http://${PUBLIC_HOST}:${APP_NODEPORT}"
   echo "- ArgoCD:    http://${PUBLIC_HOST}:${ARGOCD_NODEPORT}"
