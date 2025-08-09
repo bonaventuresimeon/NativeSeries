@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Developer tools installer for Amazon Linux and Ubuntu
-# Installs: git, curl, jq, Docker, kubectl, Helm, Kind, ArgoCD CLI
+# Developer tools installer for Amazon Linux and Ubuntu (no iptables/bridge tweaks)
+# Installs: git, curl, jq, yq, unzip, net-tools, Docker, kubectl, Helm, Kind, ArgoCD CLI, Python/venv/pip
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
@@ -10,48 +10,32 @@ is_amazon() { [[ -f /etc/os-release ]] && grep -qi "amazon linux" /etc/os-releas
 is_ubuntu() { [[ -f /etc/lsb-release ]] || ( [[ -f /etc/os-release ]] && grep -qi ubuntu /etc/os-release ); }
 
 install_base_amazon() {
-  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip kmod || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip kmod
+  sudo yum -y install git curl jq unzip net-tools python3 python3-pip || sudo dnf -y install git curl jq unzip net-tools python3 python3-pip
 }
 install_base_ubuntu() {
   sudo apt-get update -y
-  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg acl python3 python3-venv python3-pip kmod
+  sudo apt-get install -y git curl jq unzip net-tools python3 python3-venv python3-pip
+}
+
+install_yq() {
+  if need_cmd yq; then return; fi
+  curl -fsSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq && chmod +x yq && sudo mv yq /usr/local/bin/yq
 }
 
 install_docker_amazon() {
+  # Prefer system docker package on AL2023
   sudo yum -y install docker || sudo dnf -y install docker
   sudo systemctl enable --now docker
   sudo usermod -aG docker "$USER" || true
-  sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true
+  command -v setfacl >/dev/null 2>&1 && sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true
 }
 install_docker_ubuntu() {
   curl -fsSL https://get.docker.com -o get-docker.sh
-  sudo sh get-docker.sh
+  sudo sh get-docker.sh || true
   rm -f get-docker.sh
   sudo usermod -aG docker "$USER" || true
   sudo systemctl enable --now docker || true
-  sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true
-}
-
-iptables_legacy() {
-  if command -v alternatives >/dev/null 2>&1; then
-    sudo alternatives --set iptables /usr/sbin/iptables-legacy || true
-    sudo alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true
-    sudo alternatives --set arptables /usr/sbin/arptables-legacy || true
-    sudo alternatives --set ebtables /usr/sbin/ebtables-legacy || true
-  fi
-  if command -v update-alternatives >/dev/null 2>&1; then
-    sudo update-alternatives --set iptables /usr/sbin/iptables-legacy || true
-    sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true
-    sudo update-alternatives --set arptables /usr/sbin/arptables-legacy || true
-    sudo update-alternatives --set ebtables /usr/sbin/ebtables-legacy || true
-  fi
-}
-
-sysctl_bridge() {
-  sudo modprobe br_netfilter || true
-  sudo sysctl -w net.ipv4.ip_forward=1 || true
-  sudo sysctl -w net.bridge.bridge-nf-call-iptables=1 || true
-  sudo sysctl -w net.bridge.bridge-nf-call-ip6tables=1 || true
+  command -v setfacl >/dev/null 2>&1 && sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true
 }
 
 install_kubectl() {
@@ -83,8 +67,7 @@ main() {
   else
     echo "Unsupported distro; attempting generic installs"
   fi
-  iptables_legacy
-  sysctl_bridge
+  install_yq
   install_kubectl
   install_helm
   install_kind
