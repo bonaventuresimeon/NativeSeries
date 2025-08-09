@@ -24,11 +24,10 @@ detect_public_host() {
   local ip
   ip=$(curl -fsSL https://checkip.amazonaws.com 2>/dev/null | tr -d '\n' | awk '{print $1}')
   if [[ -z "$ip" ]]; then
-    # Try AWS IMDSv2
     local token
-    token=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null)
+    token=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null || true)
     if [[ -n "$token" ]]; then
-      ip=$(curl -fsS -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)
+      ip=$(curl -fsS -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)
     fi
   fi
   if [[ -z "$ip" ]]; then
@@ -48,7 +47,6 @@ prepare_host_networking() {
     sudo alternatives --set arptables /usr/sbin/arptables-legacy || true
     sudo alternatives --set ebtables /usr/sbin/ebtables-legacy || true
   fi
-  # Ensure iptables-legacy is available on Amazon Linux
   if ! iptables -V 2>/dev/null | grep -qi legacy; then
     sudo yum -y install iptables iptables-services || sudo dnf -y install iptables iptables-services || true
   fi
@@ -61,13 +59,14 @@ prepare_host_networking() {
 wait_for_docker() {
   if command -v systemctl >/dev/null 2>&1; then
     sudo systemctl enable --now docker || true
-    # Ensure ec2-user can access docker.sock immediately
     if command -v setfacl >/dev/null 2>&1; then sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true; fi
   fi
   for i in {1..30}; do
     if docker info >/dev/null 2>&1; then return 0; fi
     sleep 1
   done
+  echo "Docker not responding; exiting" >&2
+  exit 1
 }
 
 is_port_free() { ! ss -ltn "sport = :$1" 2>/dev/null | grep -q ":$1"; }
@@ -81,8 +80,12 @@ resolve_host_port() {
 pick_port() {
   local preferred="$1"; shift
   local candidates=("$preferred" "$@")
-  for p in "${candidates[@]}"; do is_port_free "$p" && { echo "$p"; return 0; }; done
-  for p in $(seq 30000 32767); do is_port_free "$p" && { echo "$p"; return 0; }; done
+  for p in "${candidates[@]}"; do
+    if is_port_free "$p"; then echo "$p"; return 0; fi
+  done
+  for p in $(seq 30000 32767); do
+    if is_port_free "$p"; then echo "$p"; return 0; fi
+  done
 }
 
 resolve_ports() {
@@ -130,21 +133,35 @@ install_helm() { if need_cmd helm; then return; fi; curl -fsSL https://raw.githu
 install_kind() { if need_cmd kind; then return; fi; curl -fsSLo kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64; chmod +x kind; sudo mv kind /usr/local/bin/kind; }
 install_argocd_cli() { if need_cmd argocd; then return; fi; curl -fsSLo argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64; sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd; rm -f argocd-linux-amd64; }
 
+wait_for_nodes_ready() {
+  kubectl config use-context "kind-${KIND_CLUSTER_NAME}" >/dev/null 2>&1 || true
+  # Wait until all nodes are registered
+  for i in {1..60}; do
+    local count
+    count=$(kubectl get nodes --no-headers 2>/dev/null | wc -l || echo 0)
+    if [[ "$count" -ge 3 ]]; then break; fi
+    sleep 2
+  done
+  # Wait for Ready condition
+  kubectl wait --for=condition=Ready node --all --timeout=300s || true
+  kubectl get nodes || true
+}
+
 create_cluster() {
-  # Recreate docker 'kind' network if missing or broken
   docker network inspect kind >/dev/null 2>&1 || docker network create kind || true
   kind delete cluster --name "$KIND_CLUSTER_NAME" >/dev/null 2>&1 || true
   kind create cluster --name "$KIND_CLUSTER_NAME" --config "$KIND_CONFIG_PATH_TMP"
   kubectl config use-context "kind-${KIND_CLUSTER_NAME}" >/dev/null
-  # Install NGINX Ingress (tolerate failures on older kernels)
   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml || true
   kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=300s || true
   kubectl patch svc ingress-nginx-controller -n ingress-nginx --type='merge' -p '{"spec":{"type":"LoadBalancer"}}' || true
+  wait_for_nodes_ready
 }
 
 create_namespaces() { for ns in nativeseries argocd monitoring logging; do kubectl get ns "$ns" >/dev/null 2>&1 || kubectl create ns "$ns"; done; }
 
 install_argocd() {
+  kubectl config use-context "kind-${KIND_CLUSTER_NAME}" >/dev/null 2>&1 || true
   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
   kubectl -n argocd rollout status deploy/argocd-server --timeout=300s || true
   kubectl apply -f /tmp/argocd-nodeport.yaml
@@ -184,7 +201,6 @@ EOF
 }
 
 print_summary() {
-  # Persist chosen ports
   cat > /tmp/gitops-ports.env <<EOF
 PUBLIC_HOST=${PUBLIC_HOST}
 APP_PORT=${APP_NODEPORT}
@@ -217,7 +233,6 @@ main() {
   create_cluster
   create_namespaces
   install_argocd
-  # Setup Python venv and install app deps for local tooling
   "$REPO_ROOT/scripts/setup-venv.sh" || true
   print_summary
 }
