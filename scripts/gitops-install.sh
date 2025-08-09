@@ -30,8 +30,41 @@ done
 
 # ArgoCD + NodePort svc
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
+# Wait briefly for core components to appear
+sleep 5
+kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=300s || true
+kubectl -n argocd rollout status deploy/argocd-application-controller --timeout=300s || true
 kubectl -n argocd rollout status deploy/argocd-server --timeout=300s || true
 kubectl apply -f "$REPO_ROOT/infra/argocd/argocd-nodeport.yaml"
+
+# Register external Helm repos ArgoCD needs
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-prometheus-community
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: prometheus-community
+  type: helm
+  url: https://prometheus-community.github.io/helm-charts
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-grafana
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: grafana
+  type: helm
+  url: https://grafana.github.io/helm-charts
+EOF
 
 # GitOps Applications
 kubectl apply -f "$REPO_ROOT/infra/argocd/application.yaml"
