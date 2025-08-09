@@ -58,6 +58,52 @@ Bonaventure Simeon
 - RESTful API: Simple endpoints for registration, status retrieval, and progress updates.  
 - Secure secret management: Integrates with Vault to securely manage sensitive credentials.
 
+### 📊 Diagrams
+
+#### System Architecture
+```mermaid
+flowchart LR
+  U[User Browser] --> I[NGINX Ingress]
+  I --> SVC[Service (NodePort 80->8000)]
+  SVC --> APP[FastAPI App (Deployment)]
+  APP -->|/metrics| PROM[Prometheus]
+  PROM --> G[Grafana]
+  APP -->|stdout logs| PT[Promtail]
+  PT --> L[Loki]
+  G -->|query| PROM
+  G -->|query| L
+  G -->|dashboards| U
+  GIT[GitHub (Manifests + Helm Chart)] --> A[ArgoCD]
+  A -->|sync| K8s[(Kubernetes Cluster: gitops)]
+  K8s --> APP
+```
+
+#### GitOps Flow
+```mermaid
+flowchart LR
+  Dev[Developer] --> Push[Push/PR]
+  Push --> GH[GitHub]
+  GH --> CI[GitHub Actions: build & push image]
+  CI --> REG[Container Registry]
+  GH --> Manifests[Manifests/Chart]
+  Manifests --> Argo[ArgoCD]
+  Argo --> Cluster[K8s Cluster: gitops]
+  Cluster --> App[NativeSeries App]
+```
+
+#### Monitoring & Logging
+```mermaid
+flowchart LR
+  App[App] -->|/metrics| Prom[Prometheus]
+  App -->|logs| Promtail[Promtail]
+  Promtail --> Loki[Loki]
+  Prom --> Graf[Grafana]
+  Loki --> Graf
+  Graf --> User[User]
+```
+
+![GitOps repo layout](doc/7.0%20-%20GitOps/image.png)
+
 ---
 
 ## 📦 Prerequisites
