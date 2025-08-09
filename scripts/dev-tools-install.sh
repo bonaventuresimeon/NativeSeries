@@ -10,6 +10,11 @@ is_amazon() { [[ -f /etc/os-release ]] && grep -qi "amazon linux" /etc/os-releas
 is_ubuntu() { [[ -f /etc/lsb-release ]] || ( [[ -f /etc/os-release ]] && grep -qi ubuntu /etc/os-release ); }
 
 install_base_amazon() {
+  # Clean up any stale Docker CE repo to avoid 404 noise on AL2023
+  sudo rm -f /etc/yum.repos.d/docker-ce.repo || true
+  sudo dnf config-manager --disable docker-ce-stable || true
+  sudo dnf clean all || true
+  sudo dnf makecache || true
   sudo yum -y install git curl jq unzip net-tools python3 python3-pip || sudo dnf -y install git curl jq unzip net-tools python3 python3-pip
 }
 install_base_ubuntu() {
