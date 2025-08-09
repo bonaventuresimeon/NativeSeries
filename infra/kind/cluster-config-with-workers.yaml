@@ -3,6 +3,7 @@ kind: Cluster
 name: gitops
 networking:
   kubeProxyMode: iptables
+  apiServerAddress: "0.0.0.0"
 nodes:
 - role: control-plane
   image: kindest/node:v1.27.3
