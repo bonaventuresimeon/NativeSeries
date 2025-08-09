@@ -19,10 +19,6 @@ spec:
           service:
             type: NodePort
             nodePort: 30081
-          additionalDataSources:
-            - name: Loki
-              type: loki
-              url: http://loki-stack.logging.svc.cluster.local:3100
         prometheus:
           service:
             type: NodePort
