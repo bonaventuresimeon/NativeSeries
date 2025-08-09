@@ -183,12 +183,45 @@ create_namespaces() {
 install_argocd() {
   echo "Installing ArgoCD..."
   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/v2.9.3/manifests/install.yaml
-  kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
+  kubectl -n argocd rollout status deploy/argocd-server --timeout=300s || true
   kubectl apply -f /tmp/argocd-nodeport.yaml
-  # Apply Applications last so controller is up
+  # Register public Helm repositories via repository secrets
+  echo "Registering Helm repositories in ArgoCD..."
+  cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-prometheus-community
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: prometheus-community
+  type: helm
+  url: https://prometheus-community.github.io/helm-charts
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-grafana
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: grafana
+  type: helm
+  url: https://grafana.github.io/helm-charts
+EOF
+  # Apply Applications last so controller and repos are up
   kubectl apply -f /tmp/kube-prometheus-app.yaml
   kubectl apply -f /tmp/loki-stack-app.yaml
   kubectl apply -f /tmp/nativeseries-app.yaml
+  # Force refresh/sync
+  kubectl -n argocd annotate application kube-prometheus-stack argocd.argoproj.io/refresh=hard --overwrite || true
+  kubectl -n argocd annotate application loki-stack argocd.argoproj.io/refresh=hard --overwrite || true
+  kubectl -n argocd annotate application nativeseries argocd.argoproj.io/refresh=hard --overwrite || true
 }
 
 install_monitoring() {
