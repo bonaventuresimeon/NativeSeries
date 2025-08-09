@@ -63,32 +63,36 @@ Bonaventure Simeon
 #### System Architecture
 ```mermaid
 flowchart LR
-  U[User Browser] --> NP[NodePort 30011]
+  U[User Browser] -->|HTTP :30011| NP[NodePort 30011]
   NP --> SVC[Service (ClusterIP 80->8000)]
   SVC --> APP[FastAPI App (Deployment)]
-  APP -->|/metrics| PROM[Prometheus]
-  PROM --> G[Grafana]
-  APP -->|stdout logs| PT[Promtail]
-  PT --> L[Loki]
-  G -->|query| PROM
-  G -->|query| L
-  G -->|dashboards| U
-  GIT[GitHub: NativeSeries (Manifests + Helm Chart)] --> A[ArgoCD]
-  A -->|sync| K8s[(Kubernetes Cluster: gitops)]
-  K8s --> APP
+  U -->|HTTP :30080| ARGOCD[ArgoCD Server/Controller (NodePort 30080)]
+  APP -->|/metrics| PROM[Prometheus (kube-prometheus-stack) (NodePort 30082)]
+  PROM --> GRAF[Grafana (NodePort 30081)]
+  APP -->|logs| PROMTAIL[Promtail]
+  PROMTAIL --> LOKI[Loki (NodePort 30083)]
+  GRAF -->|query| PROM
+  GRAF -->|query| LOKI
+  GIT[GitHub: NativeSeries (Helm/Manifests)] -->|poll| ARGOCD
+  ARGOCD --> APP
+  ARGOCD --> PROM
+  ARGOCD --> GRAF
+  ARGOCD --> LOKI
 ```
 
 #### GitOps Flow
 ```mermaid
 flowchart LR
-  Dev[Developer] --> Push[Push/PR]
-  Push --> GH[GitHub: NativeSeries (SSH/HTTPS)]
-  GH --> CI[GitHub Actions: build & push image]
-  CI --> REG[Container Registry]
-  GH --> Manifests[Manifests/Chart]
-  Manifests --> Argo[ArgoCD]
-  Argo --> Cluster[K8s Cluster: gitops]
-  Cluster --> App[NativeSeries App]
+  Dev[Developer] --> PR[Commit/PR]
+  PR --> GH[GitHub: NativeSeries Repo]
+  GH -->|build| CI[GitHub Actions]
+  CI -->|push image| REG[Container Registry]
+  GH -->|update manifests/Chart| REPO[Git (manifests/Helm)]
+  REPO -->|poll/watch| ARGO[ArgoCD]
+  ARGO -->|sync| K8S[(K8s Cluster: gitops)]
+  K8S --> APP[App]
+  K8S --> MON[Monitoring]
+  K8S --> LOG[Logging]
 ```
 
 #### Monitoring & Logging
