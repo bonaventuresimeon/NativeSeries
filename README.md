@@ -58,6 +58,75 @@ Bonaventure Simeon
 - RESTful API: Simple endpoints for registration, status retrieval, and progress updates.  
 - Secure secret management: Integrates with Vault to securely manage sensitive credentials.
 
+### 📊 Diagrams
+
+#### System Architecture
+```mermaid
+flowchart LR
+  U[User Browser] --> I[NGINX Ingress]
+  I --> SVC[Service (NodePort 80->8000)]
+  SVC --> APP[FastAPI App (Deployment)]
+  APP -->|/metrics| PROM[Prometheus]
+  PROM --> G[Grafana]
+  APP -->|stdout logs| PT[Promtail]
+  PT --> L[Loki]
+  G -->|query| PROM
+  G -->|query| L
+  G -->|dashboards| U
+  GIT[GitHub (Manifests + Helm Chart)] --> A[ArgoCD]
+  A -->|sync| K8s[(Kubernetes Cluster: gitops)]
+  K8s --> APP
+```
+
+#### GitOps Flow
+```mermaid
+flowchart LR
+  Dev[Developer] --> Push[Push/PR]
+  Push --> GH[GitHub]
+  GH --> CI[GitHub Actions: build & push image]
+  CI --> REG[Container Registry]
+  GH --> Manifests[Manifests/Chart]
+  Manifests --> Argo[ArgoCD]
+  Argo --> Cluster[K8s Cluster: gitops]
+  Cluster --> App[NativeSeries App]
+```
+
+#### Monitoring & Logging
+```mermaid
+flowchart LR
+  App[App] -->|/metrics| Prom[Prometheus]
+  App -->|logs| Promtail[Promtail]
+  Promtail --> Loki[Loki]
+  Prom --> Graf[Grafana]
+  Loki --> Graf
+  Graf --> User[User]
+```
+
+![GitOps repo layout](doc/7.0%20-%20GitOps/image.png)
+
+## ⚡ Quick GitOps Install
+
+- Ensure inbound TCP to 80, 443, 30011, 30080, 30081, 30082, 30083 on your host/firewall
+- Optional: set your public DNS or IP for the summary
+
+```bash
+chmod +x scripts/gitops-*.sh
+export PUBLIC_HOST=<your-dns-or-ip>   # e.g. 54.166.101.159
+./scripts/gitops-install.sh
+```
+
+Access URLs (using PUBLIC_HOST or your DNS):
+- App:       http://$PUBLIC_HOST:30011
+- ArgoCD:    http://$PUBLIC_HOST:30080 (user: admin; script prints password)
+- Grafana:   http://$PUBLIC_HOST:30081 (admin/admin123)
+- Prometheus:http://$PUBLIC_HOST:30082
+- Loki:      http://$PUBLIC_HOST:30083
+
+Destroy everything:
+```bash
+./scripts/gitops-destroy.sh
+```
+
 ---
 
 ## 📦 Prerequisites
