@@ -1,8 +1,11 @@
 apiVersion: kind.x-k8s.io/v1alpha4
 kind: Cluster
 name: gitops
+networking:
+  kubeProxyMode: iptables
 nodes:
 - role: control-plane
+  image: kindest/node:v1.27.3
   kubeadmConfigPatches:
   - |
     kind: InitConfiguration
@@ -40,11 +43,13 @@ nodes:
     protocol: TCP
     listenAddress: "0.0.0.0"
 - role: worker
+  image: kindest/node:v1.27.3
   kubeadmConfigPatches:
   - |
     kind: KubeletConfiguration
     failSwapOn: false
 - role: worker
+  image: kindest/node:v1.27.3
   kubeadmConfigPatches:
   - |
     kind: KubeletConfiguration
