@@ -13,6 +13,8 @@ main() {
 
   echo "Stopping Docker..."
   sudo_cmd systemctl stop docker || true
+# Unlock docker.sock for ec2-user
+which setfacl >/dev/null 2>&1 && sudo_cmd setfacl -b /var/run/docker.sock || true
 
   echo "Pruning Docker (images, containers, volumes, networks)..."
   sudo_cmd docker system prune -a -f || true

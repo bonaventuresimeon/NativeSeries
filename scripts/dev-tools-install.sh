@@ -10,17 +10,18 @@ is_amazon() { [[ -f /etc/os-release ]] && grep -qi "amazon linux" /etc/os-releas
 is_ubuntu() { [[ -f /etc/lsb-release ]] || ( [[ -f /etc/os-release ]] && grep -qi ubuntu /etc/os-release ); }
 
 install_base_amazon() {
-  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services
+  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services acl || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services acl
 }
 install_base_ubuntu() {
   sudo apt-get update -y
-  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg
+  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg acl
 }
 
 install_docker_amazon() {
   sudo yum -y install docker || sudo dnf -y install docker
   sudo systemctl enable --now docker
   sudo usermod -aG docker "$USER" || true
+  sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true
 }
 install_docker_ubuntu() {
   curl -fsSL https://get.docker.com -o get-docker.sh
@@ -28,6 +29,7 @@ install_docker_ubuntu() {
   rm -f get-docker.sh
   sudo usermod -aG docker "$USER" || true
   sudo systemctl enable --now docker || true
+  sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true
 }
 
 iptables_legacy() {
