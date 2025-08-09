@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 KIND_CONFIG="$REPO_ROOT/infra/kind/cluster.yaml"
 CLUSTER_NAME="gitops"
-PUBLIC_HOST=${PUBLIC_HOST:-$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || curl -fsSL https://checkip.amazonaws.com || hostname -I | awk '{print $1}')}
+PUBLIC_HOST=${PUBLIC_HOST:-$( (TOKEN=$(curl -s -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token 2>/dev/null) && curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4) || curl -fsSL https://checkip.amazonaws.com | tr -d '\n' | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' || hostname -I | awk '{print $1}' )}
 
 sudo systemctl restart docker || true
 sleep 2
