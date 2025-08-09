@@ -1,0 +1,141 @@
+name: NativeSeries CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: bonaventuresimeon/nativeseries
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test:
+    name: Test Application
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r netlify/functions/requirements.txt
+        
+    - name: Run tests
+      run: |
+        python -m pytest app/ -v --tb=short
+        python netlify/functions/test_api.py
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 20
+    
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-netlify:
+    name: Deploy to Netlify
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install Netlify CLI
+      run: npm install -g netlify-cli
+      
+    - name: Deploy to Netlify
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      run: |
+        echo "🚀 Deploying to Netlify..."
+        
+        # Build the site
+        ./build.sh
+        
+        # Deploy to Netlify
+        netlify deploy --prod --dir=public --functions=netlify/functions
+        
+        echo "✅ Netlify deployment completed"
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [build, deploy-netlify]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 5
+    
+    steps:
+    - name: Deployment Summary
+      run: |
+        echo "🎉 NativeSeries Deployment Summary"
+        echo "=================================="
+        echo "📦 Docker Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "🌐 Netlify Site: https://nativeseries.netlify.app"
+        echo "📊 API Endpoints:"
+        echo "   - Health: https://nativeseries.netlify.app/.netlify/functions/health"
+        echo "   - Students: https://nativeseries.netlify.app/.netlify/functions/api"
+        echo "   - Database: https://nativeseries.netlify.app/database.html"
+        echo ""
+        echo "✅ All services deployed successfully!"
