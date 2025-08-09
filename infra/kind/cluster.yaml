@@ -1,19 +1,10 @@
 apiVersion: kind.x-k8s.io/v1alpha4
 kind: Cluster
 name: gitops
-networking:
-  kubeProxyMode: iptables
-  apiServerAddress: "0.0.0.0"
 nodes:
 - role: control-plane
   image: kindest/node:v1.27.3
   extraPortMappings:
-  - containerPort: 80
-    hostPort: 80
-    protocol: TCP
-  - containerPort: 443
-    hostPort: 443
-    protocol: TCP
   - containerPort: 30011
     hostPort: 30011
     protocol: TCP
