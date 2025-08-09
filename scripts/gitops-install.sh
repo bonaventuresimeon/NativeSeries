@@ -44,8 +44,10 @@ prepare_host_networking() {
 wait_for_docker() {
   if command -v systemctl >/dev/null 2>&1; then
     sudo systemctl enable --now docker || true
+    # Ensure ec2-user can access docker.sock immediately
+    if command -v setfacl >/dev/null 2>&1; then sudo setfacl -m u:"$USER":rw /var/run/docker.sock || true; fi
   fi
-  for i in {1..20}; do
+  for i in {1..30}; do
     if docker info >/dev/null 2>&1; then return 0; fi
     sleep 1
   done
