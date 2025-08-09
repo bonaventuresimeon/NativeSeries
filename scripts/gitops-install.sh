@@ -186,6 +186,8 @@ main() {
   create_cluster
   create_namespaces
   install_argocd
+  # Setup Python venv and install app deps for local tooling
+  "$REPO_ROOT/scripts/setup-venv.sh" || true
   print_summary
 }
 
