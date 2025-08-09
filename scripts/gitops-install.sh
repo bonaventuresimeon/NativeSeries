@@ -11,6 +11,8 @@ PROMETHEUS_NODEPORT_DEFAULT=30082
 LOKI_NODEPORT_DEFAULT=30083
 ARGOCD_NODEPORT_DEFAULT=30080
 APP_NODEPORT_DEFAULT=30011
+HTTP_HOST_PORT_DEFAULT=80
+HTTPS_HOST_PORT_DEFAULT=443
 
 GRAFANA_NODEPORT=""
 PROMETHEUS_NODEPORT=""
@@ -69,6 +71,12 @@ wait_for_docker() {
 }
 
 is_port_free() { ! ss -ltn "sport = :$1" 2>/dev/null | grep -q ":$1"; }
+resolve_host_port() {
+  local preferred="$1"; shift
+  local candidates=("$preferred" "$@")
+  for p in "${candidates[@]}"; do is_port_free "$p" && { echo "$p"; return 0; }; done
+  echo "$preferred"
+}
 
 pick_port() {
   local preferred="$1"; shift
@@ -87,7 +95,12 @@ resolve_ports() {
 }
 
 generate_kind_config() {
+  local http_port https_port
+  http_port=$(resolve_host_port "$HTTP_HOST_PORT_DEFAULT" 8080 18080)
+  https_port=$(resolve_host_port "$HTTPS_HOST_PORT_DEFAULT" 8443 18443)
   sed -E \
+    -e "s/hostPort: 80/hostPort: ${http_port}/g" \
+    -e "s/hostPort: 443/hostPort: ${https_port}/g" \
     -e "s/hostPort: 30011/hostPort: ${APP_NODEPORT}/g" \
     -e "s/hostPort: 30080/hostPort: ${ARGOCD_NODEPORT}/g" \
     -e "s/hostPort: 30081/hostPort: ${GRAFANA_NODEPORT}/g" \
@@ -123,7 +136,8 @@ create_cluster() {
   kind delete cluster --name "$KIND_CLUSTER_NAME" >/dev/null 2>&1 || true
   kind create cluster --name "$KIND_CLUSTER_NAME" --config "$KIND_CONFIG_PATH_TMP"
   kubectl config use-context "kind-${KIND_CLUSTER_NAME}" >/dev/null
-  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+  # Install NGINX Ingress (tolerate failures on older kernels)
+  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml || true
   kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=300s || true
   kubectl patch svc ingress-nginx-controller -n ingress-nginx --type='merge' -p '{"spec":{"type":"LoadBalancer"}}' || true
 }
