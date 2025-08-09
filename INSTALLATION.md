@@ -481,22 +481,28 @@ docker-compose up -d
 ## ⚡ Quick GitOps Install
 
 - Ubuntu/Debian or Amazon Linux EC2 supported
-- Open inbound TCP on 80, 443, 30011, 30080, 30081, 30082, 30083
+- Open inbound TCP on 30011, 30080, 30081, 30082, 30083
 
 ```bash
-# Install development tools (Ubuntu/Debian or Amazon Linux)
-chmod +x scripts/dev-tools-install.sh
-sudo ./scripts/dev-tools-install.sh
+# From repo root
+cd ~/NativeSeries
+chmod +x scripts/*.sh
 
-# One-command GitOps install
-chmod +x scripts/gitops-*.sh
-export PUBLIC_HOST=<your-ec2-public-ip-or-dns>
+# Install required tools (Docker, kubectl, Helm, Kind, ArgoCD CLI, yq)
+sudo ./scripts/dev-tools-install.sh
+sudo systemctl enable --now docker
+
+# Deploy cluster and GitOps apps (ArgoCD, app, Prometheus/Grafana, Loki)
+export PUBLIC_HOST=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || curl -fsSL https://checkip.amazonaws.com)
 ./scripts/gitops-install.sh
+
+# Health check
+./scripts/health-check.sh
 ```
 
 Access URLs:
 - App:       http://$PUBLIC_HOST:30011
-- ArgoCD:    http://$PUBLIC_HOST:30080 (admin password printed by script)
+- ArgoCD:    http://$PUBLIC_HOST:30080 (user: admin; initial password printed by script)
 - Grafana:   http://$PUBLIC_HOST:30081 (admin/admin123)
 - Prometheus:http://$PUBLIC_HOST:30082
 - Loki:      http://$PUBLIC_HOST:30083
