@@ -104,6 +104,29 @@ flowchart LR
 
 ![GitOps repo layout](doc/7.0%20-%20GitOps/image.png)
 
+## ⚡ Quick GitOps Install
+
+- Ensure inbound TCP to 80, 443, 30011, 30080, 30081, 30082, 30083 on your host/firewall
+- Optional: set your public DNS or IP for the summary
+
+```bash
+chmod +x scripts/gitops-*.sh
+export PUBLIC_HOST=<your-dns-or-ip>   # e.g. 54.166.101.159
+./scripts/gitops-install.sh
+```
+
+Access URLs (using PUBLIC_HOST or your DNS):
+- App:       http://$PUBLIC_HOST:30011
+- ArgoCD:    http://$PUBLIC_HOST:30080 (user: admin; script prints password)
+- Grafana:   http://$PUBLIC_HOST:30081 (admin/admin123)
+- Prometheus:http://$PUBLIC_HOST:30082
+- Loki:      http://$PUBLIC_HOST:30083
+
+Destroy everything:
+```bash
+./scripts/gitops-destroy.sh
+```
+
 ---
 
 ## 📦 Prerequisites
