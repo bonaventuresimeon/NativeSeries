@@ -10,11 +10,11 @@ is_amazon() { [[ -f /etc/os-release ]] && grep -qi "amazon linux" /etc/os-releas
 is_ubuntu() { [[ -f /etc/lsb-release ]] || ( [[ -f /etc/os-release ]] && grep -qi ubuntu /etc/os-release ); }
 
 install_base_amazon() {
-  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services acl || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services acl
+  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip
 }
 install_base_ubuntu() {
   sudo apt-get update -y
-  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg acl
+  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg acl python3 python3-venv python3-pip
 }
 
 install_docker_amazon() {
