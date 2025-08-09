@@ -10,11 +10,11 @@ is_amazon() { [[ -f /etc/os-release ]] && grep -qi "amazon linux" /etc/os-releas
 is_ubuntu() { [[ -f /etc/lsb-release ]] || ( [[ -f /etc/os-release ]] && grep -qi ubuntu /etc/os-release ); }
 
 install_base_amazon() {
-  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip
+  sudo yum -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip kmod || sudo dnf -y install git curl jq unzip shadow-utils iptables iptables-services acl python3 python3-pip kmod
 }
 install_base_ubuntu() {
   sudo apt-get update -y
-  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg acl python3 python3-venv python3-pip
+  sudo apt-get install -y git curl jq unzip ca-certificates lsb-release gnupg acl python3 python3-venv python3-pip kmod
 }
 
 install_docker_amazon() {
@@ -38,6 +38,12 @@ iptables_legacy() {
     sudo alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true
     sudo alternatives --set arptables /usr/sbin/arptables-legacy || true
     sudo alternatives --set ebtables /usr/sbin/ebtables-legacy || true
+  fi
+  if command -v update-alternatives >/dev/null 2>&1; then
+    sudo update-alternatives --set iptables /usr/sbin/iptables-legacy || true
+    sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true
+    sudo update-alternatives --set arptables /usr/sbin/arptables-legacy || true
+    sudo update-alternatives --set ebtables /usr/sbin/ebtables-legacy || true
   fi
 }
 
