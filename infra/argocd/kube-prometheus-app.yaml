@@ -19,10 +19,23 @@ spec:
           service:
             type: NodePort
             nodePort: 30081
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              url: http://loki-stack.logging.svc.cluster.local:3100
         prometheus:
           service:
             type: NodePort
             nodePort: 30082
+          prometheusSpec:
+            serviceMonitorNamespaceSelector: {}
+            serviceMonitorSelector:
+              matchLabels:
+                release: prometheus
+            podMonitorNamespaceSelector: {}
+            podMonitorSelector:
+              matchLabels:
+                release: prometheus
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
