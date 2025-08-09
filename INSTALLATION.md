@@ -18,6 +18,50 @@
 
 This guide provides comprehensive installation instructions for NativeSeries, covering all deployment options including local development, Docker containers, Kubernetes orchestration, and serverless deployment.
 
+### 📊 Diagrams
+
+#### System Architecture
+```mermaid
+flowchart LR
+  U[User Browser] --> I[NGINX Ingress]
+  I --> SVC[Service (NodePort 80->8000)]
+  SVC --> APP[FastAPI App (Deployment)]
+  APP -->|/metrics| PROM[Prometheus]
+  PROM --> G[Grafana]
+  APP -->|stdout logs| PT[Promtail]
+  PT --> L[Loki]
+  G -->|query| PROM
+  G -->|query| L
+  G -->|dashboards| U
+  GIT[GitHub (Manifests + Helm Chart)] --> A[ArgoCD]
+  A -->|sync| K8s[(Kubernetes Cluster: gitops)]
+  K8s --> APP
+```
+
+#### GitOps Flow
+```mermaid
+flowchart LR
+  Dev[Developer] --> Push[Push/PR]
+  Push --> GH[GitHub]
+  GH --> CI[GitHub Actions: build & push image]
+  CI --> REG[Container Registry]
+  GH --> Manifests[Manifests/Chart]
+  Manifests --> Argo[ArgoCD]
+  Argo --> Cluster[K8s Cluster: gitops]
+  Cluster --> App[NativeSeries App]
+```
+
+#### Monitoring & Logging
+```mermaid
+flowchart LR
+  App[App] -->|/metrics| Prom[Prometheus]
+  App -->|logs| Promtail[Promtail]
+  Promtail --> Loki[Loki]
+  Prom --> Graf[Grafana]
+  Loki --> Graf
+  Graf --> User[User]
+```
+
 ## 💻 System Requirements
 
 ### Minimum Requirements
@@ -428,6 +472,34 @@ Run with Docker Compose:
 
 ```bash
 docker-compose up -d
+```
+
+## ⚡ Quick GitOps Install
+
+- Ubuntu/Debian or Amazon Linux EC2 supported
+- Open inbound TCP on 80, 443, 30011, 30080, 30081, 30082, 30083
+
+```bash
+# Install development tools (Ubuntu/Debian or Amazon Linux)
+chmod +x scripts/dev-tools-install.sh
+sudo ./scripts/dev-tools-install.sh
+
+# One-command GitOps install
+chmod +x scripts/gitops-*.sh
+export PUBLIC_HOST=<your-ec2-public-ip-or-dns>
+./scripts/gitops-install.sh
+```
+
+Access URLs:
+- App:       http://$PUBLIC_HOST:30011
+- ArgoCD:    http://$PUBLIC_HOST:30080 (admin password printed by script)
+- Grafana:   http://$PUBLIC_HOST:30081 (admin/admin123)
+- Prometheus:http://$PUBLIC_HOST:30082
+- Loki:      http://$PUBLIC_HOST:30083
+
+Destroy:
+```bash
+./scripts/gitops-destroy.sh
 ```
 
 ## ☸️ Kubernetes Setup
