@@ -63,8 +63,8 @@ Bonaventure Simeon
 #### System Architecture
 ```mermaid
 flowchart LR
-  U[User Browser] --> I[NGINX Ingress]
-  I --> SVC[Service (NodePort 80->8000)]
+  U[User Browser] --> NP[NodePort 30011]
+  NP --> SVC[Service (ClusterIP 80->8000)]
   SVC --> APP[FastAPI App (Deployment)]
   APP -->|/metrics| PROM[Prometheus]
   PROM --> G[Grafana]
@@ -73,7 +73,7 @@ flowchart LR
   G -->|query| PROM
   G -->|query| L
   G -->|dashboards| U
-  GIT[GitHub (Manifests + Helm Chart)] --> A[ArgoCD]
+  GIT[GitHub: NativeSeries (Manifests + Helm Chart)] --> A[ArgoCD]
   A -->|sync| K8s[(Kubernetes Cluster: gitops)]
   K8s --> APP
 ```
@@ -82,7 +82,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   Dev[Developer] --> Push[Push/PR]
-  Push --> GH[GitHub]
+  Push --> GH[GitHub: NativeSeries (SSH/HTTPS)]
   GH --> CI[GitHub Actions: build & push image]
   CI --> REG[Container Registry]
   GH --> Manifests[Manifests/Chart]
@@ -114,6 +114,8 @@ chmod +x scripts/gitops-*.sh
 export PUBLIC_HOST=<your-dns-or-ip>   # e.g. 54.166.101.159
 ./scripts/gitops-install.sh
 ```
+
+ArgoCD repository URL: https://github.com/bonaventuresimeon/NativeSeries.git (or SSH: git@github.com:bonaventuresimeon/NativeSeries.git). All manifests deploy to cluster `gitops` in namespaces `argocd`, `nativeseries`, `monitoring`, `logging`.
 
 Access URLs (using PUBLIC_HOST or your DNS):
 - App:       http://$PUBLIC_HOST:30011

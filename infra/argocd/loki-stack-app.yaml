@@ -1,27 +1,29 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: nativeseries
+  name: loki-stack
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/bonaventuresimeon/NativeSeries.git
-    targetRevision: HEAD
-    path: helm-chart
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki-stack
+    targetRevision: 2.10.2
     helm:
-      releaseName: nativeseries
       values: |
-        service:
-          type: NodePort
-          nodePort: 30011
-        ingress:
+        grafana:
           enabled: false
+        promtail:
+          enabled: true
+        loki:
+          service:
+            type: NodePort
+            nodePort: 30083
   destination:
     server: https://kubernetes.default.svc
-    namespace: nativeseries
+    namespace: logging
   syncPolicy:
     automated:
       prune: true

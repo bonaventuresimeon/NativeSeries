@@ -86,29 +86,13 @@ install_argocd() {
 }
 
 install_monitoring() {
-  echo "Installing Prometheus + Grafana (kube-prometheus-stack)..."
-  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null
-  helm repo update >/dev/null
-  helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
-    --namespace monitoring \
-    --set grafana.enabled=true \
-    --set grafana.adminPassword=admin123 \
-    --set grafana.service.type=NodePort \
-    --set grafana.service.nodePort=${GRAFANA_NODEPORT} \
-    --set prometheus.service.type=NodePort \
-    --set prometheus.service.nodePort=${PROMETHEUS_NODEPORT}
+  echo "Applying ArgoCD Application for kube-prometheus-stack..."
+  kubectl apply -f "$REPO_ROOT/infra/argocd/kube-prometheus-app.yaml"
 }
 
 install_logging() {
-  echo "Installing Loki + Promtail..."
-  helm repo add grafana https://grafana.github.io/helm-charts >/dev/null
-  helm repo update >/dev/null
-  helm upgrade --install loki grafana/loki-stack \
-    --namespace logging \
-    --set grafana.enabled=false \
-    --set promtail.enabled=true \
-    --set loki.service.type=NodePort \
-    --set loki.service.nodePort=${LOKI_NODEPORT}
+  echo "Applying ArgoCD Application for loki-stack..."
+  kubectl apply -f "$REPO_ROOT/infra/argocd/loki-stack-app.yaml"
 }
 
 deploy_app() {
