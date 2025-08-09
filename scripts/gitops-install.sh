@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
 KIND_CLUSTER_NAME="gitops"
-KIND_CONFIG_PATH_BASE="$REPO_ROOT/infra/kind/cluster-config-with-workers.yaml"
+KIND_CONFIG_PATH_BASE="$REPO_ROOT/infra/kind/cluster.yaml"
 KIND_CONFIG_PATH_TMP="/tmp/gitops-kind-config.yaml"
 
 GRAFANA_NODEPORT_DEFAULT=30081
