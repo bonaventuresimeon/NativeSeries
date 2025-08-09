@@ -18,13 +18,24 @@ LOKI_NODEPORT=""
 ARGOCD_NODEPORT=""
 APP_NODEPORT=""
 
-PUBLIC_HOST=${PUBLIC_HOST:-}
-if [[ -z "${PUBLIC_HOST}" ]]; then
-  PUBLIC_HOST=$(curl -fsSL https://checkip.amazonaws.com || true)
-  if [[ -z "${PUBLIC_HOST}" ]]; then
-    PUBLIC_HOST=$(hostname -I | awk '{print $1}')
+detect_public_host() {
+  local ip
+  ip=$(curl -fsSL https://checkip.amazonaws.com 2>/dev/null | tr -d '\n' | awk '{print $1}')
+  if [[ -z "$ip" ]]; then
+    # Try AWS IMDSv2
+    local token
+    token=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null)
+    if [[ -n "$token" ]]; then
+      ip=$(curl -fsS -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)
+    fi
   fi
-fi
+  if [[ -z "$ip" ]]; then
+    ip=$(hostname -I | awk '{print $1}')
+  fi
+  echo "$ip"
+}
+
+PUBLIC_HOST=${PUBLIC_HOST:-$(detect_public_host)}
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
@@ -35,10 +46,14 @@ prepare_host_networking() {
     sudo alternatives --set arptables /usr/sbin/arptables-legacy || true
     sudo alternatives --set ebtables /usr/sbin/ebtables-legacy || true
   fi
+  # Ensure iptables-legacy is available on Amazon Linux
+  if ! iptables -V 2>/dev/null | grep -qi legacy; then
+    sudo yum -y install iptables iptables-services || sudo dnf -y install iptables iptables-services || true
+  fi
   sudo modprobe br_netfilter || true
-  sudo sysctl -w net.ipv4.ip_forward=1 || true
-  sudo sysctl -w net.bridge.bridge-nf-call-iptables=1 || true
-  sudo sysctl -w net.bridge.bridge-nf-call-ip6tables=1 || true
+  echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward >/dev/null || true
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables >/dev/null || true
+  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables >/dev/null || true
 }
 
 wait_for_docker() {
@@ -103,6 +118,8 @@ install_kind() { if need_cmd kind; then return; fi; curl -fsSLo kind https://kin
 install_argocd_cli() { if need_cmd argocd; then return; fi; curl -fsSLo argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64; sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd; rm -f argocd-linux-amd64; }
 
 create_cluster() {
+  # Recreate docker 'kind' network if missing or broken
+  docker network inspect kind >/dev/null 2>&1 || docker network create kind || true
   kind delete cluster --name "$KIND_CLUSTER_NAME" >/dev/null 2>&1 || true
   kind create cluster --name "$KIND_CLUSTER_NAME" --config "$KIND_CONFIG_PATH_TMP"
   kubectl config use-context "kind-${KIND_CLUSTER_NAME}" >/dev/null
