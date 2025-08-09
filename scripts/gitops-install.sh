@@ -36,6 +36,23 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Prepare host networking for Kind (iptables/sysctl/bridge)
+prepare_host_networking() {
+  echo "Preparing host networking (iptables/sysctl) for Kind..."
+  # Try to switch to legacy iptables where available (common on Amazon Linux)
+  if command -v alternatives >/dev/null 2>&1; then
+    sudo alternatives --set iptables /usr/sbin/iptables-legacy || true
+    sudo alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true
+    sudo alternatives --set arptables /usr/sbin/arptables-legacy || true
+    sudo alternatives --set ebtables /usr/sbin/ebtables-legacy || true
+  fi
+  # Kernel modules and sysctl
+  sudo modprobe br_netfilter || true
+  sudo sysctl -w net.ipv4.ip_forward=1 || true
+  sudo sysctl -w net.bridge.bridge-nf-call-iptables=1 || true
+  sudo sysctl -w net.bridge.bridge-nf-call-ip6tables=1 || true
+}
+
 wait_for_docker() {
   if ! need_cmd docker; then return; fi
   echo "Ensuring Docker daemon is running..."
@@ -201,6 +218,7 @@ print_summary() {
 }
 
 main() {
+  prepare_host_networking
   install_kubectl
   install_helm
   install_kind
