@@ -34,7 +34,7 @@ A simple FastAPI web application for registering students and tracking their wee
 
 ## Repository URL
 
-https://github.com/bonaventuresimeon/Student-Tracker.git
+https://github.com/bonaventuresimeon/NativeSeries.git
 
 ---
 
