@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nativeseries
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/bonaventuresimeon/Student-Tracker.git
+    targetRevision: HEAD
+    path: helm-chart
+    helm:
+      releaseName: nativeseries
+      values: |
+        service:
+          type: NodePort
+          nodePort: 30011
+        ingress:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nativeseries
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
