@@ -6,7 +6,16 @@ if [[ -f "$(dirname "$0")/gitops-ports.env" ]]; then
   # shellcheck disable=SC1090
   source "$(dirname "$0")/gitops-ports.env"
 fi
-PUBLIC_HOST=${PUBLIC_HOST:-$(curl -fsSL https://checkip.amazonaws.com || hostname -I | awk '{print $1}')}
+# Detect public host safely (IMDSv2 -> checkip -> fallback)
+if [[ -z "${PUBLIC_HOST:-}" ]]; then
+  TOKEN=$(curl -s -X PUT -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' http://169.254.169.254/latest/api/token 2>/dev/null || true)
+  if [[ -n "$TOKEN" ]]; then
+    PUBLIC_HOST=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || true)
+  fi
+  if [[ -z "${PUBLIC_HOST:-}" ]]; then
+    PUBLIC_HOST=$(curl -fsSL https://checkip.amazonaws.com | tr -d '\n' | grep -Eo '([0-9]{1,3}\.){3}[0-9]{1,3}' || hostname -I | awk '{print $1}')
+  fi
+fi
 APP_PORT=${APP_PORT:-30011}
 ARGOCD_PORT=${ARGOCD_PORT:-30080}
 GRAFANA_PORT=${GRAFANA_PORT:-30081}
